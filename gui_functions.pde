@@ -3,7 +3,7 @@ void initialize_gui() {
   gui = new LazyGui(this, new LazyGuiSettings()
     .setStartGuiHidden(true)
     .setHideBuiltInFolders(true)
-    .setSketchNameOverride("Martz Artz Vectorz")
+    .setSketchNameOverride("LuxCore DMX Engine")
     );
   do_gui();
 }
@@ -11,7 +11,7 @@ void initialize_gui() {
 void do_gui() {
   gui.pushFolder("config");
   screen_number = gui.sliderInt("Screen number", screen_number, 0, 4);
-  iface_address = gui.text("Iface ip. address");
+  iface_address = gui.text("Iface ip. address").trim();
   number_of_spots = gui.sliderInt("Nb. of spots", 7, 0, 256);
   artnet_start_universe = gui.sliderInt("Start universe", 0, 0, 10000);
   end_universe = artnet_start_universe;

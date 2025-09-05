@@ -14,6 +14,7 @@
 - **TOUJOURS utiliser l'agent spécialisé approprié** (code-expert-pro, lighting-designer-expert, etc.)
 
 ## Projet
-- Nom: Martz Artz Verctorz
-- Type: Projet Processing pour contrôle d'éclairage avec ArtNet
+- Nom: LuxCore DMX Engine
+- Ancien nom: Martz Artz Verctorz (renommé suite au vote démocratique des agents)
+- Type: Moteur de visualisation DMX/ArtNet temps réel en Processing
 - Auteur: Martin Vert
