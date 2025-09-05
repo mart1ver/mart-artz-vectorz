@@ -11,6 +11,7 @@
 - TOUJOURS utiliser git pour traçabilité
 - Changements UNIQUEMENT step-by-step sous contrôle de Martin
 - Maximiser l'usage de git pour chaque modification
+- **TOUJOURS utiliser l'agent spécialisé approprié** (code-expert-pro, lighting-designer-expert, etc.)
 
 ## Projet
 - Nom: Martz Artz Verctorz
