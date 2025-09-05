@@ -4,21 +4,34 @@ void do_background() {
   background(bg_color);
 }
 void do_spots() {
+  // Cache expensive calculations outside the loop
+  blend_mode = int(map(dmx_data[11] & 0xFF, 0, 255, 1, 10));
+  float half_width = width * 0.5;
+  float half_height = height * 0.5;
+  
   for (int i = 0; i < number_of_spots; i++) {
-    //first we fill the variables
-    blend_mode         = int(map(dmx_data[11] & 0xFF, 0, 255, 1, 10));//blend mode is for the base but it is applied individualy on each spots thats why it is there
-    current_spot_address = i*number_of_parameters_by_spots;
-    spot_color         = color(dmx_data[number_of_base_parameters+(current_spot_address)] & 0xFF, dmx_data[number_of_base_parameters+1+(current_spot_address)] & 0xFF, dmx_data[number_of_base_parameters+2] & 0xFF);
-    spot_alpha         = dmx_data[number_of_base_parameters+3+(current_spot_address)] & 0xFF;
-    spot_stroke        = dmx_data[number_of_base_parameters+4+(current_spot_address)] & 0xFF;
-    spot_stroke_alpha  = dmx_data[number_of_base_parameters+5+(current_spot_address)] & 0xFF;
-    spot_stroke_color  = color(dmx_data[number_of_base_parameters+6+(current_spot_address)] & 0xFF, dmx_data[number_of_base_parameters+7+(current_spot_address)] & 0xFF, dmx_data[number_of_base_parameters+8+(current_spot_address)] & 0xFF);
-    spot_size_pan      = map(((dmx_data[number_of_base_parameters+9+(current_spot_address)] & 0xFF)*256)+(dmx_data[number_of_base_parameters+10+(current_spot_address)] & 0xFF), 0, 65536, 0, 1000)    ;
-    spot_size_tilt     = map(((dmx_data[number_of_base_parameters+11+(current_spot_address)] & 0xFF)*256)+(dmx_data[number_of_base_parameters+12+(current_spot_address)] & 0xFF), 0, 65536, 0, 1000)    ;
-    spot_rotation      = map(dmx_data[number_of_base_parameters+13+(current_spot_address)] & 0xFF, 0, 255, 0, 360);
-    spot_position_pan  = map(((dmx_data[number_of_base_parameters+14+(current_spot_address)] & 0xFF)*256)+(dmx_data[number_of_base_parameters+15+(current_spot_address)] & 0xFF), 0, 65536, -255-(width/2), 255+(width/2));
-    spot_position_tilt = map(((dmx_data[number_of_base_parameters+16+(current_spot_address)] & 0xFF)*256)+(dmx_data[number_of_base_parameters+17+(current_spot_address)] & 0xFF), 0, 65536, -255-(height/2), 255+(height/2));
-    spot_mode          = dmx_data[number_of_base_parameters+18+(current_spot_address)];
+    // Pre-calculate base address for efficient DMX access
+    int base_addr = number_of_base_parameters + (i * number_of_parameters_by_spots);
+    
+    // Extract DMX values efficiently with fixed blue channel bug
+    spot_color         = color(dmx_data[base_addr] & 0xFF, dmx_data[base_addr+1] & 0xFF, dmx_data[base_addr+2] & 0xFF);
+    spot_alpha         = dmx_data[base_addr+3] & 0xFF;
+    spot_stroke        = dmx_data[base_addr+4] & 0xFF;
+    spot_stroke_alpha  = dmx_data[base_addr+5] & 0xFF;
+    spot_stroke_color  = color(dmx_data[base_addr+6] & 0xFF, dmx_data[base_addr+7] & 0xFF, dmx_data[base_addr+8] & 0xFF);
+    
+    // Pre-calculate 16-bit values for better performance
+    int pan_16bit = ((dmx_data[base_addr+9] & 0xFF) << 8) + (dmx_data[base_addr+10] & 0xFF);
+    int tilt_16bit = ((dmx_data[base_addr+11] & 0xFF) << 8) + (dmx_data[base_addr+12] & 0xFF);
+    int pos_pan_16bit = ((dmx_data[base_addr+14] & 0xFF) << 8) + (dmx_data[base_addr+15] & 0xFF);
+    int pos_tilt_16bit = ((dmx_data[base_addr+16] & 0xFF) << 8) + (dmx_data[base_addr+17] & 0xFF);
+    
+    spot_size_pan      = map(pan_16bit, 0, 65535, 0, 1000);
+    spot_size_tilt     = map(tilt_16bit, 0, 65535, 0, 1000);
+    spot_rotation      = map(dmx_data[base_addr+13] & 0xFF, 0, 255, 0, 360);
+    spot_position_pan  = map(pos_pan_16bit, 0, 65535, -255-half_width, 255+half_width);
+    spot_position_tilt = map(pos_tilt_16bit, 0, 65535, -255-half_height, 255+half_height);
+    spot_mode          = dmx_data[base_addr+18];
     // set blendmode
     blendMode(blend_mode);
     //then we draw the spot
@@ -29,8 +42,7 @@ void do_spots() {
     rectMode(CENTER);
     ellipseMode(CENTER);
     pushMatrix();
-    translate(width/2, height/2);
-    translate(spot_position_pan, spot_position_tilt);
+    translate(half_width + spot_position_pan, half_height + spot_position_tilt);
     rotate(radians(spot_rotation));
     //next modifications are there!
     switch(spot_mode) {
