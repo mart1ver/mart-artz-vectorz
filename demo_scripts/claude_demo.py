@@ -19,13 +19,23 @@ class ClaudeLuxController:
         self.dmx_data = [0] * 512
         
     def send_artnet(self):
-        """Send ArtNet packet to LuxCore"""
+        """Send ArtNet packet to LuxCore - CORRECT FORMAT"""
         header = b"Art-Net\x00"
-        opcode = struct.pack("<H", 0x5000)
-        universe = struct.pack("<H", 0)
-        length = struct.pack(">H", len(self.dmx_data))
+        opcode = struct.pack("<H", 0x5000)  # ArtDMX 
+        prot_ver_hi = 0
+        prot_ver_lo = 14
+        sequence = 0
+        physical = 0
+        sub_uni = 0
+        net = 0
+        length_hi = (len(self.dmx_data) >> 8) & 0xFF
+        length_lo = len(self.dmx_data) & 0xFF
         
-        packet = header + opcode + b"\x00" * 12 + universe + length + bytes(self.dmx_data)
+        packet = (header + 
+                  opcode + 
+                  bytes([prot_ver_hi, prot_ver_lo, sequence, physical, sub_uni, net, length_hi, length_lo]) +
+                  bytes(self.dmx_data))
+        
         self.socket.sendto(packet, (self.target_ip, 6454))
     
     def demo1_opening(self):

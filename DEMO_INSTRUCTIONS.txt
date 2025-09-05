@@ -1,0 +1,64 @@
+🎭 LUXCORE DMX ENGINE - INSTRUCTIONS DE DÉMONSTRATION
+====================================================
+
+FICHIERS CRÉÉS:
+===============
+• luxcore_demo.py   - Script principal avec interface interactive
+• demo_quick.py     - Script de test rapide pour Claude
+• DEMO_INSTRUCTIONS.txt - Ce fichier
+
+UTILISATION PAR CLAUDE CODE:
+============================
+
+1. TEST RAPIDE (pour vérifier la connection):
+   python3 demo_quick.py test
+
+2. SÉQUENCE SPECTACULAIRE AUTOMATIQUE:
+   python3 demo_quick.py spectacular
+
+3. INTERFACE INTERACTIVE COMPLÈTE:
+   python3 demo_quick.py interactive
+   OU
+   python3 luxcore_demo.py
+
+COMMANDES PRINCIPALES POUR CLAUDE:
+==================================
+
+🎬 SÉQUENCES SPECTACULAIRES:
+   echo "demo1" | python3 luxcore_demo.py    # Ouverture dramatique
+   echo "demo2" | python3 luxcore_demo.py    # Explosion couleurs
+   echo "demo3" | python3 luxcore_demo.py    # Effet vague
+   echo "strobe" | python3 luxcore_demo.py   # Stroboscope
+
+🎨 COULEURS RAPIDES:
+   echo "red" | python3 luxcore_demo.py      # Tous spots rouge
+   echo "green" | python3 luxcore_demo.py    # Tous spots vert  
+   echo "blue" | python3 luxcore_demo.py     # Tous spots bleu
+   echo "rainbow" | python3 luxcore_demo.py  # Arc-en-ciel
+
+🔧 CONTRÔLES:
+   echo "blackout" | python3 luxcore_demo.py # Extinction
+   echo "white" | python3 luxcore_demo.py    # Éclairage blanc
+
+ARCHITECTURE TECHNIQUE:
+=======================
+• Protocole: ArtNet (port 6454)
+• Cible: 127.0.0.1 (localhost LuxCore)
+• Univers: 0 (configurable)
+• DMX: 20 params base + 19 params/spot
+• Spots: 7 spots configurés par défaut
+
+EXEMPLES DE DÉMONSTRATION:
+=========================
+1. Démarrer LuxCore (Processing)
+2. Lancer: python3 demo_quick.py spectacular
+3. Observer les effets dans LuxCore
+4. Pour contrôle interactif: python3 luxcore_demo.py
+
+DÉPENDANCES:
+============
+• Python 3.x (standard)
+• Modules: socket, struct, time, threading
+• Aucune installation pip requise - 100% stdlib
+
+STATUS: ✅ PRÊT POUR DÉMONSTRATION
