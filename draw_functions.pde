@@ -219,9 +219,3 @@ void initialize_fx() {
   fx = new PostFX(this);
 }
 
-// Fonction de monitoring optionnel (appel au clavier 'p' pour performance stats)
-void keyPressed() {
-  if (key == 'p' || key == 'P') {
-    log_performance_stats();
-  }
-}

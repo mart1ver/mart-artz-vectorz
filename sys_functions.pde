@@ -27,6 +27,9 @@ void keyPressed() {
   if (key == 'h' ) {
     toggle_cursor();
   }
+  if (key == 'p' || key == 'P') {
+    log_performance_stats();
+  }
 }
 
 void toggle_cursor() {
