@@ -152,6 +152,18 @@ class SpotData {
         render_star_optimized();
         break;
         
+      case 9: // Croix
+        render_cross_optimized();
+        break;
+        
+      case 10: // Flèche
+        render_arrow_optimized();
+        break;
+        
+      case 11: // Plus
+        render_plus_optimized();
+        break;
+        
       default:
         rect(0, 0, size_pan, size_tilt);
         break;
@@ -240,6 +252,74 @@ class SpotData {
       }
     }
     endShape(CLOSE);
+    strokeWeight(stroke_weight);
+  }
+  
+  void render_cross_optimized() {
+    strokeWeight(stroke_weight/5);
+    float thickness = size_pan * 0.25;
+    float arm_length = size_pan * 0.4;
+    
+    // Barre horizontale
+    beginShape();
+    vertex(-arm_length, -thickness/2);
+    vertex(arm_length, -thickness/2);
+    vertex(arm_length, thickness/2);
+    vertex(-arm_length, thickness/2);
+    endShape(CLOSE);
+    
+    // Barre verticale
+    beginShape();
+    vertex(-thickness/2, -arm_length);
+    vertex(thickness/2, -arm_length);
+    vertex(thickness/2, arm_length);
+    vertex(-thickness/2, arm_length);
+    endShape(CLOSE);
+    
+    strokeWeight(stroke_weight);
+  }
+  
+  void render_arrow_optimized() {
+    strokeWeight(stroke_weight/5);
+    beginShape();
+    float head_width = size_pan * 0.6;
+    float head_height = size_tilt * 0.3;
+    float shaft_width = size_pan * 0.25;
+    
+    // Pointe de la flèche (vers le haut)
+    vertex(0, -size_tilt/2);                                    // Pointe
+    vertex(head_width/2, -size_tilt/2 + head_height);          // Droite pointe
+    vertex(shaft_width/2, -size_tilt/2 + head_height);         // Début shaft droite
+    vertex(shaft_width/2, size_tilt/2);                        // Bas shaft droite
+    vertex(-shaft_width/2, size_tilt/2);                       // Bas shaft gauche
+    vertex(-shaft_width/2, -size_tilt/2 + head_height);        // Début shaft gauche
+    vertex(-head_width/2, -size_tilt/2 + head_height);         // Gauche pointe
+    
+    endShape(CLOSE);
+    strokeWeight(stroke_weight);
+  }
+  
+  void render_plus_optimized() {
+    strokeWeight(stroke_weight/5);
+    float thickness = size_pan * 0.15;  // Plus fin que la croix
+    float arm_length = size_pan * 0.45;
+    
+    // Barre horizontale fine
+    beginShape();
+    vertex(-arm_length, -thickness/2);
+    vertex(arm_length, -thickness/2);
+    vertex(arm_length, thickness/2);
+    vertex(-arm_length, thickness/2);
+    endShape(CLOSE);
+    
+    // Barre verticale fine
+    beginShape();
+    vertex(-thickness/2, -arm_length);
+    vertex(thickness/2, -arm_length);
+    vertex(thickness/2, arm_length);
+    vertex(-thickness/2, arm_length);
+    endShape(CLOSE);
+    
     strokeWeight(stroke_weight);
   }
 }
