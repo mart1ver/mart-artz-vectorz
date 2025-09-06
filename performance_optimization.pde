@@ -164,6 +164,18 @@ class SpotData {
         render_plus_optimized();
         break;
         
+      case 12: // Cœur simple
+        render_heart_simple_optimized();
+        break;
+        
+      case 13: // Maison
+        render_house_optimized();
+        break;
+        
+      case 14: // Spirale carrée
+        render_square_spiral_optimized();
+        break;
+        
       default:
         rect(0, 0, size_pan, size_tilt);
         break;
@@ -320,6 +332,87 @@ class SpotData {
     vertex(-thickness/2, arm_length);
     endShape(CLOSE);
     
+    strokeWeight(stroke_weight);
+  }
+  
+  void render_heart_simple_optimized() {
+    strokeWeight(stroke_weight/5);
+    float w = size_pan * 0.4;
+    float h = size_tilt * 0.35;
+    
+    beginShape();
+    // Cœur simple avec courbes approximées par segments
+    vertex(0, h);                          // Point bas
+    vertex(-w*0.3, h*0.2);                 // Gauche bas
+    vertex(-w*0.5, -h*0.2);                // Gauche haut
+    vertex(-w*0.2, -h*0.6);                // Sommet gauche
+    vertex(0, -h*0.3);                     // Centre haut
+    vertex(w*0.2, -h*0.6);                 // Sommet droite
+    vertex(w*0.5, -h*0.2);                 // Droite haut
+    vertex(w*0.3, h*0.2);                  // Droite bas
+    endShape(CLOSE);
+    
+    strokeWeight(stroke_weight);
+  }
+  
+  void render_house_optimized() {
+    strokeWeight(stroke_weight/5);
+    float base_w = size_pan * 0.4;
+    float base_h = size_tilt * 0.25;
+    float roof_h = size_tilt * 0.25;
+    
+    beginShape();
+    // Maison simple : base + toit triangulaire
+    vertex(-base_w, base_h);               // Bas gauche
+    vertex(base_w, base_h);                // Bas droite
+    vertex(base_w, 0);                     // Milieu droite
+    vertex(0, -roof_h);                    // Sommet toit
+    vertex(-base_w, 0);                    // Milieu gauche
+    endShape(CLOSE);
+    
+    strokeWeight(stroke_weight);
+  }
+  
+  void render_square_spiral_optimized() {
+    strokeWeight(stroke_weight/5);
+    float step = size_pan * 0.05;
+    float max_radius = size_pan * 0.4;
+    
+    beginShape();
+    noFill();
+    
+    // Spirale carrée simple - approximation avec segments
+    float x = 0, y = 0;
+    float dx = step, dy = 0;
+    int steps = 1;
+    int step_count = 0;
+    int direction = 0; // 0=droite, 1=haut, 2=gauche, 3=bas
+    
+    vertex(0, 0);
+    
+    while (abs(x) < max_radius && abs(y) < max_radius) {
+      x += dx;
+      y += dy;
+      vertex(x, y);
+      
+      step_count++;
+      if (step_count >= steps) {
+        step_count = 0;
+        direction = (direction + 1) % 4;
+        
+        if (direction % 2 == 0) steps++;
+        
+        switch(direction) {
+          case 0: dx = step; dy = 0; break;    // Droite
+          case 1: dx = 0; dy = -step; break;   // Haut  
+          case 2: dx = -step; dy = 0; break;   // Gauche
+          case 3: dx = 0; dy = step; break;    // Bas
+        }
+      }
+    }
+    
+    endShape();
+    fill(fill_color, alpha); // Restaurer le fill
     strokeWeight(stroke_weight);
   }
 }
