@@ -94,6 +94,24 @@ void do_spots() {
   }
   blendMode(BLEND);//back to normal blend
 }
+
+void do_spots_optimized() {
+  // Version optimisée utilisant le spot pool et les calculs cachés
+  update_screen_cache();
+  int blend_mode = get_optimized_blend_mode(dmx_data[19]);
+  blendMode(blend_mode);
+  
+  for (int i = 0; i < number_of_spots; i++) {
+    int base_addr = number_of_base_parameters + (i * number_of_parameters_by_spots);
+    
+    // Utiliser le spot pool pré-alloué
+    SpotData spot = spot_pool[i];
+    spot.update_from_dmx(dmx_data, base_addr, cached_half_width, cached_half_height);
+    spot.render_optimized();
+  }
+  
+  blendMode(BLEND);
+}
 void do_blades() {
   pushMatrix();
   // read the from byte 3 to byte 18 to set the blades (16-bit precision)
