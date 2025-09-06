@@ -8,24 +8,24 @@ void do_spots() {
   blend_mode = int(map(dmx_data[11] & 0xFF, 0, 255, 1, 10));
   float half_width = width * 0.5;
   float half_height = height * 0.5;
-  
+
   for (int i = 0; i < number_of_spots; i++) {
     // Pre-calculate base address for efficient DMX access
     int base_addr = number_of_base_parameters + (i * number_of_parameters_by_spots);
-    
+
     // Extract DMX values efficiently with fixed blue channel bug
     spot_color         = color(dmx_data[base_addr] & 0xFF, dmx_data[base_addr+1] & 0xFF, dmx_data[base_addr+2] & 0xFF);
     spot_alpha         = dmx_data[base_addr+3] & 0xFF;
     spot_stroke        = dmx_data[base_addr+4] & 0xFF;
     spot_stroke_alpha  = dmx_data[base_addr+5] & 0xFF;
     spot_stroke_color  = color(dmx_data[base_addr+6] & 0xFF, dmx_data[base_addr+7] & 0xFF, dmx_data[base_addr+8] & 0xFF);
-    
+
     // Pre-calculate 16-bit values for better performance
     int pan_16bit = ((dmx_data[base_addr+9] & 0xFF) << 8) + (dmx_data[base_addr+10] & 0xFF);
     int tilt_16bit = ((dmx_data[base_addr+11] & 0xFF) << 8) + (dmx_data[base_addr+12] & 0xFF);
     int pos_pan_16bit = ((dmx_data[base_addr+14] & 0xFF) << 8) + (dmx_data[base_addr+15] & 0xFF);
     int pos_tilt_16bit = ((dmx_data[base_addr+16] & 0xFF) << 8) + (dmx_data[base_addr+17] & 0xFF);
-    
+
     spot_size_pan      = map(pan_16bit, 0, 65535, 0, 1000);
     spot_size_tilt     = map(tilt_16bit, 0, 65535, 0, 1000);
     spot_rotation      = map(dmx_data[base_addr+13] & 0xFF, 0, 255, 0, 360);
@@ -47,14 +47,23 @@ void do_spots() {
     //next modifications are there!
     switch(spot_mode) {
     case 0:
-      //rectangle
-      rect(0, 0, spot_size_pan, spot_size_tilt);
-      break;
-    case 1:
       //ellipse
       ellipse(0, 0, spot_size_pan, spot_size_tilt);
       break;
+    case 1:
+      //rectangle
+      rect(0, 0, spot_size_pan, spot_size_tilt);
+      break;
     case 2:
+      //letter
+      message = (str(char(byte(spot_size_tilt))));
+      textFont(f);
+      textAlign(CENTER, CENTER);
+      // Utilise directement la rotation déjà appliquée par la matrice parent
+      scale(-spot_size_pan/80, -spot_size_pan/80);
+      text(message, 0, 0);
+      break;
+    case 3:
       // triangle
       strokeWeight(spot_stroke/5);
       beginShape();
@@ -63,15 +72,6 @@ void do_spots() {
       vertex(spot_size_pan/2, spot_size_tilt/2);       // Point droit
       endShape(CLOSE);
       strokeWeight(spot_stroke);
-      break;
-    case 3:
-      //letter
-      message = (str(char(byte(spot_size_tilt))));
-      textFont(f);
-      textAlign(CENTER, CENTER);
-      // Utilise directement la rotation déjà appliquée par la matrice parent
-      scale(-spot_size_pan/80, -spot_size_pan/80);
-      text(message, 0, 0);
       break;
     case 4:
       // pentagone
@@ -97,7 +97,7 @@ void do_spots() {
 void do_blades() {
   pushMatrix();
   // read the from byte 3 to byte 18 to set the blades (16-bit precision)
-  
+
   // Convert 16-bit values for each blade side
   int bladeA1 = ((dmx_data[3]&0xFF) << 8) | (dmx_data[4]&0xFF);  // MSB + LSB
   int bladeA2 = ((dmx_data[5]&0xFF) << 8) | (dmx_data[6]&0xFF);
@@ -107,9 +107,9 @@ void do_blades() {
   int bladeC2 = ((dmx_data[13]&0xFF) << 8) | (dmx_data[14]&0xFF);
   int bladeD1 = ((dmx_data[15]&0xFF) << 8) | (dmx_data[16]&0xFF);
   int bladeD2 = ((dmx_data[17]&0xFF) << 8) | (dmx_data[18]&0xFF);
-  
+
   fill(0);
-  
+
   //blade A (top), inclinable
   beginShape();
   vertex(0, 0);
@@ -117,7 +117,7 @@ void do_blades() {
   vertex(width, map(bladeA2, 0, 65535, 0, height));
   vertex(0, map(bladeA1, 0, 65535, 0, height));
   endShape(CLOSE);
-  
+
   //blade B (right), inclinable
   beginShape();
   vertex(width, 0);
@@ -125,7 +125,7 @@ void do_blades() {
   vertex(map(bladeB2, 0, 65535, width, 0), height);
   vertex(map(bladeB1, 0, 65535, width, 0), 0);
   endShape(CLOSE);
-  
+
   //blade C (down), inclinable
   beginShape();
   vertex(0, height);
@@ -133,7 +133,7 @@ void do_blades() {
   vertex(width, map(bladeC2, 0, 65535, height, 0));
   vertex(width, height);
   endShape(CLOSE);
-  
+
   //blade D (left), inclinable
   beginShape();
   vertex(0, height);
@@ -141,7 +141,7 @@ void do_blades() {
   vertex(map(bladeD1, 0, 65535, 0, width), 0);
   vertex(0, 0);
   endShape(CLOSE);
-  
+
   popMatrix();
 }
 void initialize_font() {
