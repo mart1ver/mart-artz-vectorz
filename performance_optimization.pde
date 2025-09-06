@@ -215,8 +215,19 @@ float get_average_frame_time() {
 }
 
 void log_performance_stats() {
-  println("📊 Performance Stats:");
+  println("=== 📊 LUXCORE PERFORMANCE STATS ===");
+  println("🔧 System Status:");
+  println("   Spot pool initialized: " + spot_pool_initialized);
+  println("   Cache valid: " + matrix_cache_valid);
+  println("   Screen: " + width + "x" + height);
+  println("⏱️  Performance Metrics:");
   println("   Average frame time: " + average_frame_time + "ms");  
   println("   Estimated FPS: " + (1000.0 / max(average_frame_time, 1.0)));
-  println("   Total frames: " + frame_count);
+  println("   Total frames rendered: " + frame_count);
+  println("   Current framerate: " + frameRate);
+  println("🎯 DMX Status:");
+  println("   DMX data length: " + (dmx_data != null ? dmx_data.length : "null"));
+  println("   Base parameters: " + number_of_base_parameters);
+  println("   Number of spots: " + number_of_spots);
+  println("=====================================");
 }

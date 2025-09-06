@@ -28,6 +28,7 @@ void keyPressed() {
     toggle_cursor();
   }
   if (key == 'p' || key == 'P') {
+    println("🔍 Touche P pressée - Affichage des stats...");
     log_performance_stats();
   }
 }
