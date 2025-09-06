@@ -4,8 +4,7 @@ void do_background() {
   background(bg_color);
 }
 void do_spots() {
-  // Cache expensive calculations outside the loop
-  blend_mode = int(map(dmx_data[11] & 0xFF, 0, 255, 1, 10));
+  // Cache expensive calculations outside the loop  
   float half_width = width * 0.5;
   float half_height = height * 0.5;
 
@@ -32,8 +31,6 @@ void do_spots() {
     spot_position_pan  = map(pos_pan_16bit, 0, 65535, -255-half_width, 255+half_width);
     spot_position_tilt = map(pos_tilt_16bit, 0, 65535, -255-half_height, 255+half_height);
     spot_mode          = dmx_data[base_addr+18];
-    // set blendmode
-    blendMode(blend_mode);
     //then we draw the spot
     strokeWeight(spot_stroke);
     stroke(spot_stroke_color, spot_stroke_alpha );
@@ -92,14 +89,11 @@ void do_spots() {
     popMatrix();
     noStroke();
   }
-  blendMode(BLEND);//back to normal blend
 }
 
 void do_spots_optimized() {
   // Version optimisée utilisant le spot pool et les calculs cachés
   update_screen_cache();
-  int blend_mode = get_optimized_blend_mode(dmx_data[19]);
-  blendMode(blend_mode);
   
   for (int i = 0; i < number_of_spots; i++) {
     int base_addr = number_of_base_parameters + (i * number_of_parameters_by_spots);
@@ -109,9 +103,19 @@ void do_spots_optimized() {
     spot.update_from_dmx(dmx_data, base_addr, cached_half_width, cached_half_height);
     spot.render_optimized();
   }
-  
+}
+
+void do_blend_mode() {
+  // Gestion centralisée du blend mode depuis le canal DMX 20 (index 19)
+  int blend_mode = get_optimized_blend_mode(dmx_data[19]);
+  blendMode(blend_mode);
+}
+
+void reset_blend_mode() {
+  // Retour au mode de mélange normal
   blendMode(BLEND);
 }
+
 void do_blades() {
   pushMatrix();
   noStroke();  // Les blades ne doivent pas avoir de contour

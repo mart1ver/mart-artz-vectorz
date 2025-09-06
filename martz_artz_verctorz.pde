@@ -26,7 +26,9 @@ void draw() {
   do_artnet();
   update_screen_cache();
   do_background();
+  do_blend_mode();        // Set blend mode before spots
   do_spots_optimized();
+  reset_blend_mode();     // Reset blend mode after spots
   do_effects();
   do_blades();
   do_blade_blur();
