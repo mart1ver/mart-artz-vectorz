@@ -95,6 +95,9 @@ void do_spots_optimized() {
   // Version optimisée utilisant le spot pool et les calculs cachés
   update_screen_cache();
   
+  // Redimensionner le pool si l'utilisateur a changé le nombre de spots
+  resize_spot_pool_if_needed(number_of_spots);
+  
   for (int i = 0; i < number_of_spots; i++) {
     int base_addr = number_of_base_parameters + (i * number_of_parameters_by_spots);
     

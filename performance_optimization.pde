@@ -188,6 +188,31 @@ void initialize_spot_pool(int max_spots) {
   }
 }
 
+void resize_spot_pool_if_needed(int new_size) {
+  if (!spot_pool_initialized || spot_pool.length < new_size) {
+    // Redimensionner le pool si nécessaire
+    SpotData[] new_pool = new SpotData[new_size];
+    
+    // Copier les spots existants
+    if (spot_pool_initialized) {
+      int copy_count = min(spot_pool.length, new_size);
+      for (int i = 0; i < copy_count; i++) {
+        new_pool[i] = spot_pool[i];
+      }
+    }
+    
+    // Créer les nouveaux spots
+    int start_index = spot_pool_initialized ? spot_pool.length : 0;
+    for (int i = start_index; i < new_size; i++) {
+      new_pool[i] = new SpotData();
+    }
+    
+    spot_pool = new_pool;
+    spot_pool_initialized = true;
+    println("🔄 Spot pool resized to: " + new_size + " spots");
+  }
+}
+
 void start_frame_timing() {
   frame_render_time = System.nanoTime();
 }
