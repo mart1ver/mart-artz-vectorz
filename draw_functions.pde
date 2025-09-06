@@ -79,8 +79,8 @@ void do_spots() {
       strokeWeight(spot_stroke/5);
       beginShape();
       float radius = spot_size_pan/2;
-      for (int i = 0; i < 5; i++) {
-        float angle = TWO_PI * i / 5 - PI/2;  // Commence par le haut
+      for (int p = 0; p < 5; p++) {
+        float angle = TWO_PI * p / 5 - PI/2;  // Commence par le haut
         vertex(radius * cos(angle), radius * sin(angle));
       }
       endShape(CLOSE);
