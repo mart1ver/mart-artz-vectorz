@@ -1,7 +1,6 @@
 import com.krab.lazy.*;
 import ch.bildspur.artnet.*;
 import ch.bildspur.postfx.builder.*;
-//import ch.bildspur.postfx.pass.*;
 import ch.bildspur.postfx.*;
 PostFX fx;
 LazyGui gui;
