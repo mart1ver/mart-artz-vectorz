@@ -18,14 +18,12 @@ int frame_count = 0;
 float average_frame_time = 0;
 
 void initialize_performance_optimization() {
-  """Initialize performance optimization system"""
   cached_matrix = new PMatrix3D();
   matrix_cache_valid = false;
   println("⚡ Performance optimization initialized");
 }
 
 void update_screen_cache() {
-  """Update cached screen dimensions if needed"""
   float current_half_width = width * 0.5;
   float current_half_height = height * 0.5;
   
@@ -37,7 +35,6 @@ void update_screen_cache() {
 }
 
 int get_optimized_blend_mode(byte dmx_value) {
-  """Get blend mode with caching to avoid repeated map() calculations"""
   int current_blend = int(map(dmx_value & 0xFF, 0, 255, 1, 10));
   
   if (cached_blend_mode != current_blend) {
@@ -65,7 +62,6 @@ class SpotData {
   boolean is_valid = false;
   
   void update_from_dmx(byte[] dmx, int base_addr, float half_width, float half_height) {
-    """Update spot data from DMX with optimized calculations"""
     
     // Extract colors with single pass
     fill_color = color(dmx[base_addr] & 0xFF, dmx[base_addr+1] & 0xFF, dmx[base_addr+2] & 0xFF);
@@ -94,7 +90,6 @@ class SpotData {
   }
   
   void render_optimized() {
-    """Render spot with optimized matrix operations"""
     if (!is_valid) return;
     
     // Skip invisible spots early
@@ -120,7 +115,6 @@ class SpotData {
   }
   
   void render_shape_optimized() {
-    """Optimized shape rendering"""
     switch(mode) {
       case 0: // Ellipse
         ellipse(0, 0, size_pan, size_tilt);
@@ -149,7 +143,6 @@ class SpotData {
   }
   
   void render_text_optimized() {
-    """Optimized text rendering"""
     String message = str(char(byte(size_tilt)));
     textFont(f);
     textAlign(CENTER, CENTER);
@@ -158,7 +151,6 @@ class SpotData {
   }
   
   void render_triangle_optimized() {
-    """Optimized triangle rendering"""
     strokeWeight(stroke_weight/5);
     beginShape();
     vertex(0, -size_tilt/2);
@@ -169,7 +161,6 @@ class SpotData {
   }
   
   void render_pentagon_optimized() {
-    """Optimized pentagon rendering"""
     strokeWeight(stroke_weight/5);
     beginShape();
     float radius = size_pan/2;
@@ -187,7 +178,6 @@ SpotData[] spot_pool;
 boolean spot_pool_initialized = false;
 
 void initialize_spot_pool(int max_spots) {
-  """Initialize spot object pool for performance"""
   if (!spot_pool_initialized) {
     spot_pool = new SpotData[max_spots];
     for (int i = 0; i < max_spots; i++) {
@@ -199,12 +189,10 @@ void initialize_spot_pool(int max_spots) {
 }
 
 void start_frame_timing() {
-  """Start frame performance timing (optional profiling)"""
   frame_render_time = System.nanoTime();
 }
 
 void end_frame_timing() {
-  """End frame performance timing and update statistics"""
   if (frame_render_time > 0) {
     long frame_duration = System.nanoTime() - frame_render_time;
     frame_count++;
@@ -223,12 +211,10 @@ void end_frame_timing() {
 }
 
 float get_average_frame_time() {
-  """Get average frame rendering time in milliseconds"""
   return average_frame_time;
 }
 
 void log_performance_stats() {
-  """Log performance statistics"""
   println("📊 Performance Stats:");
   println("   Average frame time: " + average_frame_time + "ms");  
   println("   Estimated FPS: " + (1000.0 / max(average_frame_time, 1.0)));

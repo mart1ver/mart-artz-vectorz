@@ -18,7 +18,6 @@ byte[] last_valid_dmx_data;
 boolean backup_data_available = false;
 
 void initialize_error_handling() {
-  """Initialize error handling system"""
   last_valid_dmx_data = new byte[512];
   // Initialiser avec des valeurs par défaut sûres
   for (int i = 0; i < 512; i++) {
@@ -30,8 +29,6 @@ void initialize_error_handling() {
 }
 
 boolean validate_dmx_data(byte[] data) {
-  """Validate incoming DMX data for corruption or errors"""
-  
   if (data == null) {
     log_error("DMX data is null");
     return false;
@@ -82,8 +79,6 @@ boolean validate_dmx_data(byte[] data) {
 }
 
 byte[] get_safe_dmx_data(byte[] incoming_data) {
-  """Get safe DMX data with fallback and error recovery"""
-  
   // Tentative de validation des données entrantes
   if (validate_dmx_data(incoming_data)) {
     // Données valides - sauvegarder comme backup
@@ -119,7 +114,6 @@ byte[] get_safe_dmx_data(byte[] incoming_data) {
 }
 
 void backup_valid_data(byte[] valid_data) {
-  """Backup valid DMX data for emergency recovery"""
   if (valid_data != null && valid_data.length >= number_of_base_parameters) {
     // Copier les données valides
     int copy_length = min(valid_data.length, last_valid_dmx_data.length);
@@ -131,7 +125,6 @@ void backup_valid_data(byte[] valid_data) {
 }
 
 byte[] create_emergency_data() {
-  """Create safe emergency DMX data"""
   byte[] emergency_data = new byte[512];
   
   // Valeurs d'urgence sûres
@@ -160,7 +153,6 @@ byte[] create_emergency_data() {
 }
 
 void reset_error_state() {
-  """Reset error state when system recovers"""
   if (error_count > 0) {
     error_count = 0;
     artnet_connection_ok = true;
@@ -170,7 +162,6 @@ void reset_error_state() {
 }
 
 boolean is_system_healthy() {
-  """Check if system is in healthy state"""
   long time_since_valid = millis() - last_valid_data_time;
   
   return artnet_connection_ok && 
@@ -180,12 +171,10 @@ boolean is_system_healthy() {
 }
 
 void log_error(String message) {
-  """Log error with timestamp"""
   println("🚨 [" + millis() + "] ERROR: " + message);
 }
 
 void display_system_status() {
-  """Display system health status (for debugging)"""
   String status = is_system_healthy() ? "HEALTHY" : "DEGRADED";
   String color_indicator = is_system_healthy() ? "🟢" : "🟡";
   
@@ -198,7 +187,6 @@ void display_system_status() {
 
 // Wrapper sécurisé pour la fonction artnet existante
 byte[] safe_artnet_read(int universe, int start_universe) {
-  """Safe wrapper for ArtNet reading with error handling"""
   try {
     byte[] raw_data = artnet.readDmxData(universe, start_universe);
     return get_safe_dmx_data(raw_data);
