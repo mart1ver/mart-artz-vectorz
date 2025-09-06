@@ -114,6 +114,7 @@ void do_spots_optimized() {
 }
 void do_blades() {
   pushMatrix();
+  noStroke();  // Les blades ne doivent pas avoir de contour
   // read the from byte 3 to byte 18 to set the blades (16-bit precision)
 
   // Convert 16-bit values for each blade side
