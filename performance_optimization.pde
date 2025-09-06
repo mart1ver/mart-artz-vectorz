@@ -140,6 +140,18 @@ class SpotData {
         render_hexagon_optimized();
         break;
         
+      case 6: // Losange
+        render_diamond_optimized();
+        break;
+        
+      case 7: // Octogone
+        render_octagon_optimized();
+        break;
+        
+      case 8: // Étoile simple
+        render_star_optimized();
+        break;
+        
       default:
         rect(0, 0, size_pan, size_tilt);
         break;
@@ -183,6 +195,49 @@ class SpotData {
     for (int h = 0; h < 6; h++) {
       float angle = TWO_PI * h / 6;
       vertex(radius * cos(angle), radius * sin(angle));
+    }
+    endShape(CLOSE);
+    strokeWeight(stroke_weight);
+  }
+  
+  void render_diamond_optimized() {
+    strokeWeight(stroke_weight/5);
+    beginShape();
+    vertex(0, -size_tilt/2);                 // Haut
+    vertex(size_pan/2, 0);                   // Droite
+    vertex(0, size_tilt/2);                  // Bas
+    vertex(-size_pan/2, 0);                  // Gauche
+    endShape(CLOSE);
+    strokeWeight(stroke_weight);
+  }
+  
+  void render_octagon_optimized() {
+    strokeWeight(stroke_weight/5);
+    beginShape();
+    float radius = size_pan/2;
+    for (int o = 0; o < 8; o++) {
+      float angle = TWO_PI * o / 8;
+      vertex(radius * cos(angle), radius * sin(angle));
+    }
+    endShape(CLOSE);
+    strokeWeight(stroke_weight);
+  }
+  
+  void render_star_optimized() {
+    strokeWeight(stroke_weight/5);
+    beginShape();
+    float outer_radius = size_pan/2;
+    float inner_radius = outer_radius * 0.5;
+    for (int s = 0; s < 8; s++) {
+      if (s % 2 == 0) {
+        // Point extérieur
+        float angle = TWO_PI * s / 8;
+        vertex(outer_radius * cos(angle), outer_radius * sin(angle));
+      } else {
+        // Point intérieur
+        float angle = TWO_PI * s / 8;
+        vertex(inner_radius * cos(angle), inner_radius * sin(angle));
+      }
     }
     endShape(CLOSE);
     strokeWeight(stroke_weight);
