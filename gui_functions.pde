@@ -27,6 +27,8 @@ void do_gui() {
     do_artnet_restart();
   }
   gui.popFolder();
+  
+  
   gui.pushFolder("status");
   gui.textSet("Artnet usage: ", "from "+artnet_start_universe+"."+artnet_start_address+" to "+ end_universe+"."+end_address);
   gui.textSet("Actual blend mode: ", return_blend_mode());
