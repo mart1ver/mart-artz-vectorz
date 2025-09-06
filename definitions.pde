@@ -4,6 +4,7 @@ boolean is_cursor_visible = false;
 int    used_screen;
 int    screen_number ;
 int    bg_color ;
+int    blend_mode ;
 String blend_mode_string ;
 int    number_of_spots ;
 int    artnet_start_universe ;
