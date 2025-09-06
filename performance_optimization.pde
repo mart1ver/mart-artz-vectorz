@@ -136,6 +136,10 @@ class SpotData {
         render_pentagon_optimized();
         break;
         
+      case 5: // Hexagone  
+        render_hexagon_optimized();
+        break;
+        
       default:
         rect(0, 0, size_pan, size_tilt);
         break;
@@ -166,6 +170,18 @@ class SpotData {
     float radius = size_pan/2;
     for (int p = 0; p < 5; p++) {
       float angle = TWO_PI * p / 5 - PI/2;
+      vertex(radius * cos(angle), radius * sin(angle));
+    }
+    endShape(CLOSE);
+    strokeWeight(stroke_weight);
+  }
+  
+  void render_hexagon_optimized() {
+    strokeWeight(stroke_weight/5);
+    beginShape();
+    float radius = size_pan/2;
+    for (int h = 0; h < 6; h++) {
+      float angle = TWO_PI * h / 6;
       vertex(radius * cos(angle), radius * sin(angle));
     }
     endShape(CLOSE);
