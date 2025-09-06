@@ -68,11 +68,10 @@ void do_spots() {
       //letter
       message = (str(char(byte(spot_size_tilt))));
       textFont(f);
-      textAlign(CENTER);
-      pushMatrix();
+      textAlign(CENTER, CENTER);
+      // Utilise directement la rotation déjà appliquée par la matrice parent
       scale(-spot_size_pan/80, -spot_size_pan/80);
       text(message, 0, 0);
-      popMatrix();
       break;
     case 4:
       // pentagone
