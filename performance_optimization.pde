@@ -267,26 +267,26 @@ class SpotData {
   }
   
   void render_cross_optimized() {
+    // Croix en un seul polygone 12 vertices (contour propre, pas 2 rectangles)
     strokeWeight(stroke_weight/5);
-    float thickness = size_pan * 0.25;
-    float arm_length = size_pan * 0.4;
-    
-    // Barre horizontale
+    float t = size_pan * 0.25;   // épaisseur des bras
+    float a = size_pan * 0.50;   // demi-longueur des bras
+
     beginShape();
-    vertex(-arm_length, -thickness/2);
-    vertex(arm_length, -thickness/2);
-    vertex(arm_length, thickness/2);
-    vertex(-arm_length, thickness/2);
+    vertex(-t/2, -a);    // P1  haut-gauche bras haut
+    vertex( t/2, -a);    // P2  haut-droite  bras haut
+    vertex( t/2, -t/2);  // P3  coin intérieur haut-droit
+    vertex( a,   -t/2);  // P4  droite-haut  bras droit
+    vertex( a,    t/2);  // P5  droite-bas   bras droit
+    vertex( t/2,  t/2);  // P6  coin intérieur bas-droit
+    vertex( t/2,  a);    // P7  bas-droite   bras bas
+    vertex(-t/2,  a);    // P8  bas-gauche   bras bas
+    vertex(-t/2,  t/2);  // P9  coin intérieur bas-gauche
+    vertex(-a,    t/2);  // P10 gauche-bas   bras gauche
+    vertex(-a,   -t/2);  // P11 gauche-haut  bras gauche
+    vertex(-t/2, -t/2);  // P12 coin intérieur haut-gauche
     endShape(CLOSE);
-    
-    // Barre verticale
-    beginShape();
-    vertex(-thickness/2, -arm_length);
-    vertex(thickness/2, -arm_length);
-    vertex(thickness/2, arm_length);
-    vertex(-thickness/2, arm_length);
-    endShape(CLOSE);
-    
+
     strokeWeight(stroke_weight);
   }
   
@@ -311,26 +311,26 @@ class SpotData {
   }
   
   void render_plus_optimized() {
+    // Plus ✚ en un seul polygone 12 vertices (bras fins)
     strokeWeight(stroke_weight/5);
-    float thickness = size_pan * 0.15;  // Plus fin que la croix
-    float arm_length = size_pan * 0.45;
-    
-    // Barre horizontale fine
+    float t = size_pan * 0.15;   // épaisseur fine
+    float a = size_pan * 0.50;   // demi-longueur des bras
+
     beginShape();
-    vertex(-arm_length, -thickness/2);
-    vertex(arm_length, -thickness/2);
-    vertex(arm_length, thickness/2);
-    vertex(-arm_length, thickness/2);
+    vertex(-t/2, -a);
+    vertex( t/2, -a);
+    vertex( t/2, -t/2);
+    vertex( a,   -t/2);
+    vertex( a,    t/2);
+    vertex( t/2,  t/2);
+    vertex( t/2,  a);
+    vertex(-t/2,  a);
+    vertex(-t/2,  t/2);
+    vertex(-a,    t/2);
+    vertex(-a,   -t/2);
+    vertex(-t/2, -t/2);
     endShape(CLOSE);
-    
-    // Barre verticale fine
-    beginShape();
-    vertex(-thickness/2, -arm_length);
-    vertex(thickness/2, -arm_length);
-    vertex(thickness/2, arm_length);
-    vertex(-thickness/2, arm_length);
-    endShape(CLOSE);
-    
+
     strokeWeight(stroke_weight);
   }
   
