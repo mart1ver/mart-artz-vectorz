@@ -608,12 +608,12 @@ class DefileFormes:
 
     # ── Boucle principale ────────────────────────────────────────────────────
     def run(self, duree_par_forme=6.0, transition=0.6, duree_intro=20.0):
-        total = duree_intro + len(FORMES) * (duree_par_forme + transition) + 90
+        total = duree_intro + len(FORMES) * (duree_par_forme + transition) + 180
         print("🎭 LUXCORE - DÉFILÉ DES 15 FORMES + FINALE")
         print("=" * 48)
         print(f"   Intro       : {duree_intro:.0f}s (blades / couleurs / blur)")
         print(f"   {len(FORMES)} formes × {duree_par_forme}s + {transition}s transition")
-        print(f"   Finale      : 90s (5 actes, 50 spots)")
+        print(f"   Finale      : 180s (5 actes, 24 spots)")
         print(f"   Durée totale : {total:.0f}s")
         print(f"   Cible       : {self.ip}:6454")
         print()
@@ -665,7 +665,7 @@ class DefileFormes:
 
             # --- FINALE après les 15 formes ---
             print()
-            self.demo_finale(duree=90.0)
+            self.demo_finale(duree=180.0)
 
         except KeyboardInterrupt:
             print("\n  ⏹  Interrompu")
