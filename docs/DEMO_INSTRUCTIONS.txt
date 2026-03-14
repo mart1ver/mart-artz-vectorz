@@ -1,64 +1,79 @@
-🎭 LUXCORE DMX ENGINE - INSTRUCTIONS DE DÉMONSTRATION
+LUXCORE DMX ENGINE - INSTRUCTIONS DE DÉMONSTRATION
 ====================================================
+Auteur : Martin Vert
+Mis à jour : 2026-03-14
 
-FICHIERS CRÉÉS:
-===============
-• luxcore_demo.py   - Script principal avec interface interactive
-• demo_quick.py     - Script de test rapide pour Claude
-• DEMO_INSTRUCTIONS.txt - Ce fichier
+SCRIPTS DISPONIBLES
+===================
 
-UTILISATION PAR CLAUDE CODE:
-============================
+demo_scripts/defile_formes.py
+  Défilé des 15 formes une par une, 7 spots par forme.
+  Usage :
+    python3 demo_scripts/defile_formes.py                  # 15 formes × 6s
+    python3 demo_scripts/defile_formes.py 127.0.0.1 4     # 15 formes × 4s
+    python3 demo_scripts/defile_formes.py 127.0.0.1 120   # 15 formes × 120s
 
-1. TEST RAPIDE (pour vérifier la connection):
-   python3 demo_quick.py test
+demo_scripts/system_validation.py
+  Validation de la connexion ArtNet et des performances système.
+  Usage :
+    python3 demo_scripts/system_validation.py
 
-2. SÉQUENCE SPECTACULAIRE AUTOMATIQUE:
-   python3 demo_quick.py spectacular
 
-3. INTERFACE INTERACTIVE COMPLÈTE:
-   python3 demo_quick.py interactive
-   OU
-   python3 luxcore_demo.py
+PRÉREQUIS
+=========
+1. Lancer LuxCore dans Processing (martz_artz_verctorz.pde)
+2. Vérifier que le nombre de spots est configuré dans le GUI Processing
+3. Lancer le script Python depuis le répertoire du projet
 
-COMMANDES PRINCIPALES POUR CLAUDE:
-==================================
 
-🎬 SÉQUENCES SPECTACULAIRES:
-   echo "demo1" | python3 luxcore_demo.py    # Ouverture dramatique
-   echo "demo2" | python3 luxcore_demo.py    # Explosion couleurs
-   echo "demo3" | python3 luxcore_demo.py    # Effet vague
-   echo "strobe" | python3 luxcore_demo.py   # Stroboscope
-
-🎨 COULEURS RAPIDES:
-   echo "red" | python3 luxcore_demo.py      # Tous spots rouge
-   echo "green" | python3 luxcore_demo.py    # Tous spots vert  
-   echo "blue" | python3 luxcore_demo.py     # Tous spots bleu
-   echo "rainbow" | python3 luxcore_demo.py  # Arc-en-ciel
-
-🔧 CONTRÔLES:
-   echo "blackout" | python3 luxcore_demo.py # Extinction
-   echo "white" | python3 luxcore_demo.py    # Éclairage blanc
-
-ARCHITECTURE TECHNIQUE:
-=======================
-• Protocole: ArtNet (port 6454)
-• Cible: 127.0.0.1 (localhost LuxCore)
-• Univers: 0 (configurable)
-• DMX: 20 params base + 19 params/spot
-• Spots: 7 spots configurés par défaut
-
-EXEMPLES DE DÉMONSTRATION:
+FORMES DISPONIBLES (0-14)
 =========================
-1. Démarrer LuxCore (Processing)
-2. Lancer: python3 demo_quick.py spectacular
-3. Observer les effets dans LuxCore
-4. Pour contrôle interactif: python3 luxcore_demo.py
+  0  Ellipse
+  1  Rectangle
+  2  Texte
+  3  Triangle
+  4  Pentagone (5 côtés)
+  5  Hexagone  (6 côtés)
+  6  Losange
+  7  Octogone  (8 côtés)
+  8  Étoile    (5 branches, formule classique)
+  9  Croix     (+)
+ 10  Flèche    (↑)
+ 11  Plus      (✚)
+ 12  Cœur      (formule paramétrique, 72 vertices)
+ 13  Éclair    (⚡, 6 vertices)
+ 14  Fleur     (6 pétales, formule polaire, 180 vertices)
 
-DÉPENDANCES:
-============
-• Python 3.x (standard)
-• Modules: socket, struct, time, threading
-• Aucune installation pip requise - 100% stdlib
 
-STATUS: ✅ PRÊT POUR DÉMONSTRATION
+ARCHITECTURE TECHNIQUE
+======================
+Protocole      : ArtNet UDP port 6454
+Cible défaut   : 127.0.0.1 (localhost)
+Univers        : 0
+
+Structure DMX (28 paramètres de base) :
+  Canal  1- 3  : RGB background
+  Canal  4-19  : 4 blades (A/B/C/D) — 2 canaux 16-bit chacun
+  Canal 20     : Blend mode
+  Canal 21-22  : Blur A (size) et B (sigma)
+  Canal 23     : Pixelate
+  Canal 24     : Sobel (bistable)
+  Canal 25     : RGB Split
+  Canal 26-27  : Saturation / Vibrance
+  Canal 28     : Chromatic aberration (bistable)
+
+Structure par spot (20 canaux, offset = 28 + spot_id × 20) :
+  +0 +1 +2    : RGB fill
+  +3          : Alpha
+  +4          : Stroke weight
+  +5          : Stroke alpha
+  +6 +7 +8    : RGB stroke
+  +9 +10      : Taille Pan  (16-bit MSB+LSB)
+  +11 +12     : Taille Tilt (16-bit MSB+LSB)
+  +13 +14     : Rotation    (16-bit MSB+LSB)
+  +15 +16     : Position Pan  (16-bit MSB+LSB)
+  +17 +18     : Position Tilt (16-bit MSB+LSB)
+  +19         : Mode (forme 0-14)
+
+Capacité max   : 256 spots
+Performance    : 44-49 FPS avec 50 spots

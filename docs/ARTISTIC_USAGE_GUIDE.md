@@ -7,8 +7,8 @@
 
 1. **Lancer le programme** : Exécutez `martz_artz_verctorz.pde` dans Processing
 2. **Configurer les spots** : Dans le GUI, définissez le nombre de spots (recommandé: 50-100)
-3. **Démarrer la démo** : Cliquez sur `▶ START Artistic Demo` ou appuyez sur **ESPACE**
-4. **Profiter de l'expérience** : Laissez-vous emporter par les 7 mouvements artistiques
+3. **Démarrer la démo** : `python3 demo_scripts/defile_formes.py`
+4. **Profiter de l'expérience** : Défilé des 15 formes avec effets et blades animés
 
 ---
 
@@ -47,13 +47,12 @@ transition_duration = 5.0;   // Durée des transitions (2-15s)
 - **Maximum** : 100 spots pour l'apothéose finale
 
 #### **Modification des Palettes de Couleurs**
-Éditez les palettes dans `artistic_demo.pde` :
-```processing
-color[][] movement_palettes = {
-  // GENESIS - Modifiez ces couleurs pour personnaliser
-  {color(255, 94, 77), color(255, 154, 0), color(255, 206, 84), color(255, 255, 255)},
-  // ... autres palettes
-};
+Éditez les couleurs thématiques par forme dans `demo_scripts/defile_formes.py` :
+```python
+FORMES = [
+    {"id": 0, "nom": "Ellipse", "r": 220, "g": 80, "b": 80},
+    # ... une entrée par forme, ajustez r/g/b
+]
 ```
 
 ---
