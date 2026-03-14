@@ -35,21 +35,89 @@ class LuxCore50SpotsNewShapesDemo:
             print(f"❌ ArtNet Send FAILED: {e}")
             return False
 
+    def animate_effects(self, t):
+        """Anime les effets PostFX sur les canaux 20-27 (0-indexés)"""
+
+        # Blur A - size : montée douce toutes les ~15s
+        self.dmx_data[20] = int(max(0, 60 * abs(math.sin(t * 0.07))))
+
+        # Blur B - sigma : corrélé au blur A mais décalé
+        self.dmx_data[21] = int(max(0, 40 * abs(math.sin(t * 0.07 + math.pi / 3))))
+
+        # Pixelate : pulse occasionnel (toutes les ~20s, court)
+        pixelate_phase = (t % 20.0) / 20.0
+        if pixelate_phase > 0.85:
+            self.dmx_data[22] = int(80 * math.sin((pixelate_phase - 0.85) / 0.15 * math.pi))
+        else:
+            self.dmx_data[22] = 0
+
+        # Sobel - bistable : bascule toutes les ~12s
+        self.dmx_data[23] = 255 if int(t / 12) % 2 == 1 else 0
+
+        # RGB Split : ondulation lente, pics expressifs
+        self.dmx_data[24] = int(max(0, 70 * abs(math.sin(t * 0.11 + math.pi / 4))))
+
+        # Saturation A & B : respiration lente et opposée
+        self.dmx_data[25] = int(80 + 80 * math.sin(t * 0.05))
+        self.dmx_data[26] = int(80 - 60 * math.sin(t * 0.05 + math.pi / 2))
+
+        # Chromatic aberration - bistable : bascule toutes les ~18s
+        self.dmx_data[27] = 255 if int(t / 18) % 2 == 1 else 0
+
+    def animate_blades(self, t):
+        """Anime les 4 blades (couteaux noirs) - indices 3 à 18, valeurs 16-bit 0-65535"""
+
+        def set_blade(idx, v1, v2):
+            """Écrit une blade 16-bit (deux bords) à l'index donné (MSB/LSB × 2)"""
+            v1 = max(0, min(65535, int(v1)))
+            v2 = max(0, min(65535, int(v2)))
+            self.dmx_data[idx]     = (v1 >> 8) & 0xFF
+            self.dmx_data[idx + 1] = v1 & 0xFF
+            self.dmx_data[idx + 2] = (v2 >> 8) & 0xFF
+            self.dmx_data[idx + 3] = v2 & 0xFF
+
+        MAX = 65535
+
+        # Profondeur globale : respiration lente (~30s)
+        global_breath = 0.5 + 0.45 * math.sin(t * 0.21)
+
+        # Blade A (top) - glisse du haut, légèrement inclinée
+        depth_a  = MAX * global_breath * (0.18 + 0.14 * math.sin(t * 0.31))
+        tilt_a   = MAX * 0.06 * math.sin(t * 0.19 + 1.0)
+        set_blade(3, depth_a - tilt_a, depth_a + tilt_a)
+
+        # Blade C (bottom) - symétrique mais déphasée
+        depth_c  = MAX * global_breath * (0.16 + 0.12 * math.sin(t * 0.27 + math.pi))
+        tilt_c   = MAX * 0.05 * math.sin(t * 0.23 + 2.5)
+        set_blade(11, depth_c + tilt_c, depth_c - tilt_c)
+
+        # Blade B (right) - rythme plus rapide
+        depth_b  = MAX * global_breath * (0.14 + 0.11 * math.sin(t * 0.37 + 0.7))
+        tilt_b   = MAX * 0.04 * math.sin(t * 0.29 + 0.3)
+        set_blade(7, depth_b - tilt_b, depth_b + tilt_b)
+
+        # Blade D (left) - contra-mouvement vs B
+        depth_d  = MAX * global_breath * (0.14 + 0.11 * math.sin(t * 0.37 + math.pi + 0.7))
+        tilt_d   = MAX * 0.04 * math.sin(t * 0.29 + math.pi + 0.3)
+        set_blade(15, depth_d + tilt_d, depth_d - tilt_d)
+
     def animate_50_spots_new_shapes(self, time_offset):
         """50 spots avec focus sur les nouvelles formes"""
-        
-        # Configuration couleurs de base
-        self.dmx_data[0] = 25   # Rouge background très faible
-        self.dmx_data[1] = 30   # Vert background très faible
-        self.dmx_data[2] = 50   # Bleu background faible
-        
-        # Blades ouvertes (pour bien voir les formes)
-        for i in range(3, 19):
-            self.dmx_data[i] = 0
-        
+
+        # Fond blanc
+        self.dmx_data[0] = 255
+        self.dmx_data[1] = 255
+        self.dmx_data[2] = 255
+
+        # Blades animés
+        self.animate_blades(time_offset)
+
         # Mode de mélange qui fait ressortir les formes
         blend_mode_value = int(127 + 50 * math.sin(time_offset * 0.2))
         self.dmx_data[19] = blend_mode_value
+
+        # Effets PostFX animés
+        self.animate_effects(time_offset)
         
         # Nouvelles formes définies
         new_shapes = {

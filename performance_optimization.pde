@@ -148,7 +148,7 @@ class SpotData {
         render_octagon_optimized();
         break;
         
-      case 8: // Étoile simple
+      case 8: // Étoile 5 branches
         render_star_optimized();
         break;
         
@@ -168,12 +168,12 @@ class SpotData {
         render_heart_simple_optimized();
         break;
         
-      case 13: // Maison
-        render_house_optimized();
+      case 13: // Éclair
+        render_lightning_optimized();
         break;
         
-      case 14: // Spirale carrée
-        render_square_spiral_optimized();
+      case 14: // Fleur 6 pétales
+        render_flower_optimized();
         break;
         
       default:
@@ -248,18 +248,16 @@ class SpotData {
   }
   
   void render_star_optimized() {
+    // Étoile 5 branches (remplace l'ancienne étoile 8 branches)
     strokeWeight(stroke_weight/5);
     beginShape();
-    float outer_radius = size_pan/2;
-    float inner_radius = outer_radius * 0.5;
-    for (int s = 0; s < 8; s++) {
+    float outer_radius = size_pan / 2;
+    float inner_radius = outer_radius * 0.4;  // ratio doré ~0.382
+    for (int s = 0; s < 10; s++) {
+      float angle = TWO_PI * s / 10 - HALF_PI;  // pointe vers le haut
       if (s % 2 == 0) {
-        // Point extérieur
-        float angle = TWO_PI * s / 8;
         vertex(outer_radius * cos(angle), outer_radius * sin(angle));
       } else {
-        // Point intérieur
-        float angle = TWO_PI * s / 8;
         vertex(inner_radius * cos(angle), inner_radius * sin(angle));
       }
     }
@@ -338,81 +336,52 @@ class SpotData {
   void render_heart_simple_optimized() {
     strokeWeight(stroke_weight/5);
     float w = size_pan * 0.4;
-    float h = size_tilt * 0.35;
-    
+    float h = size_tilt * 0.4;
+    int steps = 24;  // 3x l'ancienne version (8 segments)
+
     beginShape();
-    // Cœur simple avec courbes approximées par segments
-    vertex(0, h);                          // Point bas
-    vertex(-w*0.3, h*0.2);                 // Gauche bas
-    vertex(-w*0.5, -h*0.2);                // Gauche haut
-    vertex(-w*0.2, -h*0.6);                // Sommet gauche
-    vertex(0, -h*0.3);                     // Centre haut
-    vertex(w*0.2, -h*0.6);                 // Sommet droite
-    vertex(w*0.5, -h*0.2);                 // Droite haut
-    vertex(w*0.3, h*0.2);                  // Droite bas
-    endShape(CLOSE);
-    
-    strokeWeight(stroke_weight);
-  }
-  
-  void render_house_optimized() {
-    strokeWeight(stroke_weight/5);
-    float base_w = size_pan * 0.4;
-    float base_h = size_tilt * 0.25;
-    float roof_h = size_tilt * 0.25;
-    
-    beginShape();
-    // Maison simple : base + toit triangulaire
-    vertex(-base_w, base_h);               // Bas gauche
-    vertex(base_w, base_h);                // Bas droite
-    vertex(base_w, 0);                     // Milieu droite
-    vertex(0, -roof_h);                    // Sommet toit
-    vertex(-base_w, 0);                    // Milieu gauche
-    endShape(CLOSE);
-    
-    strokeWeight(stroke_weight);
-  }
-  
-  void render_square_spiral_optimized() {
-    strokeWeight(stroke_weight/5);
-    float step = size_pan * 0.05;
-    float max_radius = size_pan * 0.4;
-    
-    beginShape();
-    noFill();
-    
-    // Spirale carrée simple - approximation avec segments
-    float x = 0, y = 0;
-    float dx = step, dy = 0;
-    int steps = 1;
-    int step_count = 0;
-    int direction = 0; // 0=droite, 1=haut, 2=gauche, 3=bas
-    
-    vertex(0, 0);
-    
-    while (abs(x) < max_radius && abs(y) < max_radius) {
-      x += dx;
-      y += dy;
-      vertex(x, y);
-      
-      step_count++;
-      if (step_count >= steps) {
-        step_count = 0;
-        direction = (direction + 1) % 4;
-        
-        if (direction % 2 == 0) steps++;
-        
-        switch(direction) {
-          case 0: dx = step; dy = 0; break;    // Droite
-          case 1: dx = 0; dy = -step; break;   // Haut  
-          case 2: dx = -step; dy = 0; break;   // Gauche
-          case 3: dx = 0; dy = step; break;    // Bas
-        }
-      }
+    for (int i = 0; i < steps; i++) {
+      float t = TWO_PI * i / steps;
+      // Formule paramétrique mathématique du cœur
+      float hx = 16 * pow(sin(t), 3);
+      float hy = -(13 * cos(t) - 5 * cos(2*t) - 2 * cos(3*t) - cos(4*t));
+      vertex(hx * w / 16.0, hy * h / 17.0);
     }
-    
-    endShape();
-    fill(fill_color, alpha); // Restaurer le fill
+    endShape(CLOSE);
+
+    strokeWeight(stroke_weight);
+  }
+  
+  void render_lightning_optimized() {
+    // Éclair ⚡ - 6 vertices, contour complet rempli
+    strokeWeight(stroke_weight/5);
+    float w = size_pan * 0.45;
+    float h = size_tilt * 0.45;
+
+    beginShape();
+    vertex( w*0.40, -h);         // P1 sommet haut-droite
+    vertex(-w*0.50,  h*0.10);    // P2 milieu gauche (bas bras haut)
+    vertex( w*0.10,  h*0.10);    // P3 encoche droite (coude)
+    vertex(-w*0.40,  h);         // P4 pointe bas-gauche
+    vertex( w*0.50, -h*0.10);    // P5 milieu droite (haut bras bas)
+    vertex(-w*0.10, -h*0.10);    // P6 encoche gauche (coude)
+    endShape(CLOSE);
+
+    strokeWeight(stroke_weight);
+  }
+  
+  void render_flower_optimized() {
+    // Fleur 6 pétales - formule polaire r = R * (0.3 + 0.7 * |cos(3t)|)
+    strokeWeight(stroke_weight/5);
+    float outer_radius = size_pan * 0.45;
+    int steps = 60;
+    beginShape();
+    for (int i = 0; i < steps; i++) {
+      float t = TWO_PI * i / steps;
+      float r = outer_radius * (0.28 + 0.72 * abs(cos(3 * t)));
+      vertex(r * cos(t), r * sin(t));
+    }
+    endShape(CLOSE);
     strokeWeight(stroke_weight);
   }
 }
