@@ -1,4 +1,4 @@
-int    number_of_parameters_by_spots = 19 ;
+int    number_of_parameters_by_spots = 20 ;
 int    number_of_base_parameters = 28 ;
 boolean is_cursor_visible = false;
 int    used_screen;

@@ -69,8 +69,8 @@ class DefileFormes:
         self.dmx[idx + 1] = val & 0xFF
 
     def set_spot(self, spot_id, r, g, b, alpha, sw, sa, sr, sg, sb,
-                 size_pan, size_tilt, rot, pan, tilt, mode):
-        base = 28 + spot_id * 19
+                 size_pan, size_tilt, rot16, pan, tilt, mode):
+        base = 28 + spot_id * 20
         self.dmx[base]     = r
         self.dmx[base + 1] = g
         self.dmx[base + 2] = b
@@ -82,10 +82,10 @@ class DefileFormes:
         self.dmx[base + 8] = sb
         self.set16(base + 9,  size_pan)
         self.set16(base + 11, size_tilt)
-        self.dmx[base + 13] = rot
-        self.set16(base + 14, pan)
-        self.set16(base + 16, tilt)
-        self.dmx[base + 18] = mode
+        self.set16(base + 13, rot16)   # Rotation 16-bit MSB+LSB
+        self.set16(base + 15, pan)
+        self.set16(base + 17, tilt)
+        self.dmx[base + 19] = mode
 
     # ── Fond + blades en cadre fixe ──────────────────────────────────────────
     def set_base(self, t):
@@ -141,9 +141,9 @@ class DefileFormes:
             base_size = 14000 if i == 0 else 9000
             size = int(base_size + 2000 * math.sin(t_local * 0.6 + phase))
 
-            # Rotation lente, sens alterné
+            # Rotation 16-bit lente, sens alterné
             rot_speed = 8 if i % 2 == 0 else -6
-            rot = int((t_local * rot_speed + i * 25) % 360 * 255 / 360)
+            rot = int((t_local * rot_speed + i * 25) % 360 * 65535 / 360)
 
             # Position orbitale légère autour de la position de base
             orbit = int(600 * math.sin(t_local * 0.5 + phase))
@@ -156,7 +156,7 @@ class DefileFormes:
     # ── Blackout (spots alpha = 0) ────────────────────────────────────────────
     def blackout_spots(self):
         for i in range(7):
-            base = 28 + i * 19
+            base = 28 + i * 20
             self.dmx[base + 3] = 0  # alpha = 0
 
     # ── Boucle principale ────────────────────────────────────────────────────

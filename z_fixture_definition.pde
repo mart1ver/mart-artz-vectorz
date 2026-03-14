@@ -43,10 +43,11 @@
  11 size in pan LSB
  12 size in tilt MSB
  13 size in tilt LSB
- 14 rotation
- 15 pan MSB
- 16 pan LSB
- 17 tilt MSB
- 18 tilt LSB
- 19 mode
+ 14 rotation MSB
+ 15 rotation LSB
+ 16 pan MSB
+ 17 pan LSB
+ 18 tilt MSB
+ 19 tilt LSB
+ 20 mode
  */

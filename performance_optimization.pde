@@ -73,19 +73,20 @@ class SpotData {
     stroke_weight = dmx[base_addr+4] & 0xFF;
     
     // Pre-calculate 16-bit values - optimized bit operations
-    int pan_16bit = ((dmx[base_addr+9] & 0xFF) << 8) | (dmx[base_addr+10] & 0xFF);
-    int tilt_16bit = ((dmx[base_addr+11] & 0xFF) << 8) | (dmx[base_addr+12] & 0xFF);
-    int pos_pan_16bit = ((dmx[base_addr+14] & 0xFF) << 8) | (dmx[base_addr+15] & 0xFF);
-    int pos_tilt_16bit = ((dmx[base_addr+16] & 0xFF) << 8) | (dmx[base_addr+17] & 0xFF);
-    
+    int pan_16bit      = ((dmx[base_addr+9]  & 0xFF) << 8) | (dmx[base_addr+10] & 0xFF);
+    int tilt_16bit     = ((dmx[base_addr+11] & 0xFF) << 8) | (dmx[base_addr+12] & 0xFF);
+    int rot_16bit      = ((dmx[base_addr+13] & 0xFF) << 8) | (dmx[base_addr+14] & 0xFF);
+    int pos_pan_16bit  = ((dmx[base_addr+15] & 0xFF) << 8) | (dmx[base_addr+16] & 0xFF);
+    int pos_tilt_16bit = ((dmx[base_addr+17] & 0xFF) << 8) | (dmx[base_addr+18] & 0xFF);
+
     // Pre-calculate all mapped values
-    size_pan = map(pan_16bit, 0, 65535, 0, 1000);
-    size_tilt = map(tilt_16bit, 0, 65535, 0, 1000);
-    rotation = map(dmx[base_addr+13] & 0xFF, 0, 255, 0, 360);
-    position_pan = map(pos_pan_16bit, 0, 65535, -255-half_width, 255+half_width);
+    size_pan      = map(pan_16bit,      0, 65535, 0, 1000);
+    size_tilt     = map(tilt_16bit,     0, 65535, 0, 1000);
+    rotation      = map(rot_16bit,      0, 65535, 0, 360);
+    position_pan  = map(pos_pan_16bit,  0, 65535, -255-half_width,  255+half_width);
     position_tilt = map(pos_tilt_16bit, 0, 65535, -255-half_height, 255+half_height);
-    
-    mode = dmx[base_addr+18];
+
+    mode = dmx[base_addr+19];
     is_valid = true;
   }
   
@@ -337,7 +338,7 @@ class SpotData {
     strokeWeight(stroke_weight/5);
     float w = size_pan * 0.4;
     float h = size_tilt * 0.4;
-    int steps = 24;  // 3x l'ancienne version (8 segments)
+    int steps = 72;  // 3x plus de facettes pour un cœur ultra-lisse
 
     beginShape();
     for (int i = 0; i < steps; i++) {
@@ -374,7 +375,7 @@ class SpotData {
     // Fleur 6 pétales - formule polaire r = R * (0.3 + 0.7 * |cos(3t)|)
     strokeWeight(stroke_weight/5);
     float outer_radius = size_pan * 0.45;
-    int steps = 60;
+    int steps = 180;  // 3x plus de facettes pour une fleur ultra-lisse
     beginShape();
     for (int i = 0; i < steps; i++) {
       float t = TWO_PI * i / steps;
