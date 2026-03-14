@@ -187,7 +187,7 @@ class SpotData {
     String message = str(char(byte(size_tilt)));
     textFont(f);
     textAlign(CENTER, CENTER);
-    scale(-size_pan/80, -size_pan/80);
+    scale(size_pan/80, size_pan/80);
     text(message, 0, 0);
   }
   
