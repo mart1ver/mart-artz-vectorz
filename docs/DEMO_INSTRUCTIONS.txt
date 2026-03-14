@@ -7,11 +7,23 @@ SCRIPTS DISPONIBLES
 ===================
 
 demo_scripts/defile_formes.py
-  Défilé des 15 formes une par une, 7 spots par forme.
+  Show complet ~5 minutes : intro (20s) + défilé 15 formes (6s chacune) + finale 5 actes (180s).
+  La finale utilise 24 spots simultanés (max univers DMX 0).
   Usage :
-    python3 demo_scripts/defile_formes.py                  # 15 formes × 6s
-    python3 demo_scripts/defile_formes.py 127.0.0.1 4     # 15 formes × 4s
-    python3 demo_scripts/defile_formes.py 127.0.0.1 120   # 15 formes × 120s
+    python3 demo_scripts/defile_formes.py                  # 15 formes × 6s + finale 180s
+    python3 demo_scripts/defile_formes.py 127.0.0.1 4     # 15 formes × 4s + finale 180s
+
+demo_scripts/artnet_text.py
+  Animation typographique multi-scènes avec triangle/cœur en arrière-plan.
+  Cycle : ArtNet (4s) → controled (4s) → generator (4s) → made by: (4s) → Martin VERT (6s)
+  Effets : couleurs HSV animées, chromatic aberration, sobel, pixelate strobe (scène 5).
+  Usage :
+    python3 demo_scripts/artnet_text.py
+
+demo_scripts/lettre_a.py
+  Affiche un seul caractère 'a' noir sur fond blanc. Script de test/référence.
+  Usage :
+    python3 demo_scripts/lettre_a.py
 
 demo_scripts/system_validation.py
   Validation de la connexion ArtNet et des performances système.
@@ -37,9 +49,9 @@ FORMES DISPONIBLES (0-14)
   6  Losange
   7  Octogone  (8 côtés)
   8  Étoile    (5 branches, formule classique)
-  9  Croix     (+)
+  9  Croix     (polygone 12 vertices, contour propre)
  10  Flèche    (↑)
- 11  Plus      (✚)
+ 11  Plus      (✚, polygone 12 vertices, bras fins)
  12  Cœur      (formule paramétrique, 72 vertices)
  13  Éclair    (⚡, 6 vertices)
  14  Fleur     (6 pétales, formule polaire, 180 vertices)

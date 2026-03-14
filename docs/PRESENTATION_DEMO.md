@@ -12,11 +12,14 @@ LuxCore DMX Engine est un moteur de visualisation DMX/ArtNet temps réel dévelo
 ## Lancement rapide
 
 ```bash
-# Défilé complet des 15 formes (6s par forme, ~99s total)
+# Show complet ~5min : intro + défilé 15 formes + finale 5 actes
 python3 demo_scripts/defile_formes.py
 
 # Défilé rapide (4s par forme)
 python3 demo_scripts/defile_formes.py 127.0.0.1 4
+
+# Animation typographique multi-scènes (boucle infinie)
+python3 demo_scripts/artnet_text.py
 
 # Validation système
 python3 demo_scripts/system_validation.py
@@ -37,9 +40,9 @@ python3 demo_scripts/system_validation.py
 | 6 | Losange | Diamant 4 côtés |
 | 7 | Octogone | 8 côtés |
 | 8 | Étoile | 5 branches, pointe vers le haut |
-| 9 | Croix | Symétrique + |
+| 9 | Croix | Polygone 12 vertices, contour vectoriel propre |
 | 10 | Flèche | Pointant vers le haut |
-| 11 | Plus | ✚ fin |
+| 11 | Plus | ✚ polygone 12 vertices, bras fins |
 | 12 | Cœur | Formule paramétrique, 72 vertices |
 | 13 | Éclair | ⚡ 6 vertices remplis |
 | 14 | Fleur | 6 pétales, formule polaire, 180 vertices |
@@ -126,6 +129,30 @@ performance_optimization.pde  — Pool 256 spots, 15 formes, caching
 z_fixture_definition.pde      — Documentation mapping DMX
 
 demo_scripts/
-  defile_formes.py            — Défilé 15 formes une par une
+  defile_formes.py            — Show complet : intro + défilé 15 formes + finale 5 actes (180s)
+  artnet_text.py              — Animation typographique : ArtNet/controled/generator/made by:/Martin VERT
+  lettre_a.py                 — Affichage single char (script de test)
   system_validation.py        — Validation connexion et performances
 ```
+
+---
+
+## Notes techniques
+
+### Encodage texte (mode 2)
+`size_tilt` encode le caractère ASCII affiché. Utiliser `math.ceil()` (pas `int()`) :
+```python
+tilt_16bit = math.ceil(ord(c) * 65535 / 1000)
+```
+`int()` tronque et décale vers le caractère précédent.
+
+### Blend modes compatibles fond noir
+ADD(29), BLEND(0), SCREEN(227), LIGHTEST(114), DIFFERENCE(142), EXCLUSION(170)
+DARKEST(85), MULTIPLY(199), SUBTRACT(57) → invisible sur fond noir.
+
+### Blend modes compatibles fond blanc
+BLEND(0), DIFFERENCE(142), EXCLUSION(170)
+ADD(29), LIGHTEST(114), SCREEN(227) → rouge/couleur vive disparaît sur blanc.
+
+### Capacité DMX univers 0
+Max 24 spots dans 512 octets : (512 - 28) / 20 = 24.2
