@@ -6,8 +6,6 @@
 // ============================================================================
 
 // Variables de cache pour optimisations
-PMatrix3D cached_matrix;
-boolean matrix_cache_valid = false;
 float cached_half_width = -1;
 float cached_half_height = -1;
 int cached_blend_mode = -1;
@@ -18,8 +16,6 @@ int frame_count = 0;
 float average_frame_time = 0;
 
 void initialize_performance_optimization() {
-  cached_matrix = new PMatrix3D();
-  matrix_cache_valid = false;
   println("⚡ Performance optimization initialized");
 }
 
@@ -449,15 +445,10 @@ void end_frame_timing() {
   }
 }
 
-float get_average_frame_time() {
-  return average_frame_time;
-}
-
 void log_performance_stats() {
   println("=== 📊 LUXCORE PERFORMANCE STATS ===");
   println("🔧 System Status:");
   println("   Spot pool initialized: " + spot_pool_initialized);
-  println("   Cache valid: " + matrix_cache_valid);
   println("   Screen: " + width + "x" + height);
   println("⏱️  Performance Metrics:");
   println("   Average frame time: " + average_frame_time + "ms");  

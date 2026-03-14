@@ -26,4 +26,3 @@ int    end_address ;
 int    n_used_universes_minus_one ;
 String iface_address ;
 PFont  f ;
-String message ;
