@@ -25,7 +25,6 @@ void draw() {
   start_frame_timing();
   do_gui();
   do_artnet();
-  update_screen_cache();
   do_background();
   do_blend_mode();        // Set blend mode before spots
   do_spots_optimized();

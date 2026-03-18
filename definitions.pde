@@ -1,5 +1,6 @@
 int    number_of_parameters_by_spots = 20 ;
 int    number_of_base_parameters = 28 ;
+final int BLADE_BASE_OFFSET = 3 ;  // index DMX du premier canal blade (A1 MSB)
 boolean is_cursor_visible = false;
 int    used_screen;
 int    screen_number ;
@@ -11,17 +12,6 @@ String blend_mode_string ;
 int    number_of_spots ;
 int    artnet_start_universe ;
 int    artnet_start_address = 0;
-int    spot_color ;
-int    spot_alpha ;
-int    spot_stroke ;
-int    spot_stroke_alpha ;
-int    spot_stroke_color ;
-float  spot_size_pan ;
-float  spot_size_tilt ;
-float  spot_rotation ;
-float  spot_position_pan ;
-float  spot_position_tilt ;
-int    spot_mode ;
 byte[] dmx_data ;
 int    end_universe ;
 int    end_address ;

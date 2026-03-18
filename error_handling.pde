@@ -39,38 +39,15 @@ boolean validate_dmx_data(byte[] data) {
     return false;
   }
   
-  // Validation basique des plages de valeurs critiques
-  // Vérifier les canaux RGB de base (0-2)
-  for (int i = 0; i < 3; i++) {
-    int value = data[i] & 0xFF;
-    if (value < 0 || value > 255) {
-      log_error("Invalid RGB value at channel " + i + ": " + value);
-      return false;
-    }
-  }
-  
-  // Vérifier le mode de mélange (canal 19)
-  if (data.length > 19) {
-    int blend_val = data[19] & 0xFF;
-    if (blend_val < 0 || blend_val > 255) {
-      log_error("Invalid blend mode value: " + blend_val);
-      return false;
-    }
-  }
-  
-  // Validation des canaux de spots si assez de données
+  // Validation sémantique : mode de chaque spot doit être dans [0, 14]
   int expected_total = number_of_base_parameters + (number_of_spots * number_of_parameters_by_spots);
   if (data.length >= expected_total) {
     for (int spot = 0; spot < number_of_spots; spot++) {
       int base_addr = number_of_base_parameters + (spot * number_of_parameters_by_spots);
-      
-      // Vérifier alpha spot (ne doit pas être négatif)
-      if (base_addr + 3 < data.length) {
-        int alpha = data[base_addr + 3] & 0xFF;
-        if (alpha < 0 || alpha > 255) {
-          log_error("Invalid spot alpha at spot " + spot + ": " + alpha);
-          return false;
-        }
+      int mode = data[base_addr + 19] & 0xFF;
+      if (mode > 14) {
+        log_error("Invalid spot mode at spot " + spot + ": " + mode + " (max 14)");
+        return false;
       }
     }
   }

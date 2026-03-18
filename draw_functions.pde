@@ -23,7 +23,7 @@ void do_spots_optimized() {
 
 void do_blend_mode() {
   // Gestion centralisée du blend mode depuis le canal DMX 20 (index 19)
-  int blend_mode = get_optimized_blend_mode(dmx_data[19]);
+  blend_mode = get_optimized_blend_mode(dmx_data[19]);
   blendMode(blend_mode);
 }
 
@@ -38,14 +38,15 @@ void do_blades() {
   // read the from byte 3 to byte 18 to set the blades (16-bit precision)
 
   // Convert 16-bit values for each blade side
-  int bladeA1 = ((dmx_data[3]&0xFF) << 8) | (dmx_data[4]&0xFF);  // MSB + LSB
-  int bladeA2 = ((dmx_data[5]&0xFF) << 8) | (dmx_data[6]&0xFF);
-  int bladeB1 = ((dmx_data[7]&0xFF) << 8) | (dmx_data[8]&0xFF);
-  int bladeB2 = ((dmx_data[9]&0xFF) << 8) | (dmx_data[10]&0xFF);
-  int bladeC1 = ((dmx_data[11]&0xFF) << 8) | (dmx_data[12]&0xFF);
-  int bladeC2 = ((dmx_data[13]&0xFF) << 8) | (dmx_data[14]&0xFF);
-  int bladeD1 = ((dmx_data[15]&0xFF) << 8) | (dmx_data[16]&0xFF);
-  int bladeD2 = ((dmx_data[17]&0xFF) << 8) | (dmx_data[18]&0xFF);
+  int b = BLADE_BASE_OFFSET;
+  int bladeA1 = ((dmx_data[b+ 0]&0xFF) << 8) | (dmx_data[b+ 1]&0xFF);
+  int bladeA2 = ((dmx_data[b+ 2]&0xFF) << 8) | (dmx_data[b+ 3]&0xFF);
+  int bladeB1 = ((dmx_data[b+ 4]&0xFF) << 8) | (dmx_data[b+ 5]&0xFF);
+  int bladeB2 = ((dmx_data[b+ 6]&0xFF) << 8) | (dmx_data[b+ 7]&0xFF);
+  int bladeC1 = ((dmx_data[b+ 8]&0xFF) << 8) | (dmx_data[b+ 9]&0xFF);
+  int bladeC2 = ((dmx_data[b+10]&0xFF) << 8) | (dmx_data[b+11]&0xFF);
+  int bladeD1 = ((dmx_data[b+12]&0xFF) << 8) | (dmx_data[b+13]&0xFF);
+  int bladeD2 = ((dmx_data[b+14]&0xFF) << 8) | (dmx_data[b+15]&0xFF);
 
   fill(0);
 
@@ -84,13 +85,7 @@ void do_blades() {
   popMatrix();
 }
 void initialize_font() {
-  // Use a system font that's more likely to be available
-  String[] fontList = PFont.list();
-  if (fontList.length > 0) {
-    f = createFont(fontList[0], 200);  // Use first available font
-  } else {
-    f = createFont("SansSerif", 200);  // Fallback generic font
-  }
+  f = createFont("police.ttf", 200);  // Roboto Bold embarquée dans data/
 }
 
 void do_blade_blur() {

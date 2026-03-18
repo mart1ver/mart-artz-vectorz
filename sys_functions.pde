@@ -1,10 +1,15 @@
 void set_fullscreen() {
-  JSONObject json_obj = loadJSONObject("data/gui/martz_artz_verctorz/saves/auto.json");
-  JSONArray  json_arr = json_obj.getJSONArray("children");
-  JSONObject extract0 = json_arr.getJSONObject(2);
-  JSONArray  extract1 = extract0.getJSONArray("children");
-  JSONObject extract2 = extract1.getJSONObject(0);
-  used_screen = int(extract2.getInt("valueFloat"));
+  try {
+    JSONObject json_obj = loadJSONObject("data/gui/martz_artz_verctorz/saves/auto.json");
+    JSONArray  json_arr = json_obj.getJSONArray("children");
+    JSONObject extract0 = json_arr.getJSONObject(2);
+    JSONArray  extract1 = extract0.getJSONArray("children");
+    JSONObject extract2 = extract1.getJSONObject(0);
+    used_screen = int(extract2.getInt("valueFloat"));
+  } catch (Exception e) {
+    println("set_fullscreen: auto.json absent ou invalide, fallback mode fenêtré 800x600");
+    used_screen = 0;
+  }
   switch(used_screen) {
   case 0:
     int sw = 800, sh = 600;
@@ -54,39 +59,17 @@ void toggle_cursor() {
 }
 String return_blend_mode() {
   switch(blend_mode) {
-  default:
-    blend_mode_string = "BLEND";
-    break;
-  case 1:
-    blend_mode_string = "BLEND";
-    break;
-  case 2:
-    blend_mode_string = "ADD";
-    break;
-  case 3:
-    blend_mode_string = "SUBTRACT";
-    break;
-  case 4:
-    blend_mode_string = "DARKEST";
-    break;
-  case 5:
-    blend_mode_string = "LIGHTEST";
-    break;
-  case 6:
-    blend_mode_string = "DIFFERENCE";
-    break;
-  case 7:
-    blend_mode_string = "EXCLUSION";
-    break;
-  case 8:
-    blend_mode_string = "MULTIPLY";
-    break;
-  case 9:
-    blend_mode_string = "SCREEN";
-    break;
-  case 10:
-    blend_mode_string = "REPLACE";
-    break;
+  case BLEND:      blend_mode_string = "BLEND";      break;
+  case ADD:        blend_mode_string = "ADD";         break;
+  case SUBTRACT:   blend_mode_string = "SUBTRACT";    break;
+  case DARKEST:    blend_mode_string = "DARKEST";     break;
+  case LIGHTEST:   blend_mode_string = "LIGHTEST";    break;
+  case DIFFERENCE: blend_mode_string = "DIFFERENCE";  break;
+  case EXCLUSION:  blend_mode_string = "EXCLUSION";   break;
+  case MULTIPLY:   blend_mode_string = "MULTIPLY";    break;
+  case SCREEN:     blend_mode_string = "SCREEN";      break;
+  case REPLACE:    blend_mode_string = "REPLACE";     break;
+  default:         blend_mode_string = "BLEND";       break;
   }
   return blend_mode_string;
 }

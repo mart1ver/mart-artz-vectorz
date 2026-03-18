@@ -6,36 +6,17 @@ Cycle : "ArtNet" 6s → "controled" 6s → ...
 Author: Martin Vert
 """
 
-import socket, time, signal, sys, math
+import time, signal, sys, math
+import luxcore_artnet as lxa
 
-IP, PORT = "127.0.0.1", 6454
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+IP   = "127.0.0.1"
+sock = lxa.make_socket()
 dmx  = [0] * 512
 
-def set16(idx, val):
-    val = max(0, min(65535, int(val)))
-    dmx[idx]     = (val >> 8) & 0xFF
-    dmx[idx + 1] = val & 0xFF
-
-def send():
-    data = bytes(max(0, min(255, int(v))) for v in dmx)
-    pkt  = (b"Art-Net\x00"
-            + (0x5000).to_bytes(2, 'little')
-            + bytes([0, 14, 0, 0, 0, 0])
-            + len(data).to_bytes(2, 'big')
-            + data)
-    sock.sendto(pkt, (IP, PORT))
-
-def char_tilt(c):
-    return math.ceil(ord(c) * 65535 / 1000)
-
-def hsv(h, s=1.0, v=1.0):
-    h6 = (h % 1.0) * 6
-    i  = int(h6) % 6
-    f  = h6 - int(h6)
-    p, q, tv = v*(1-s), v*(1-s*f), v*(1-s*(1-f))
-    rgb = [(v,tv,p),(q,v,p),(p,v,tv),(p,q,v),(tv,p,v),(v,p,q)][i]
-    return int(rgb[0]*255), int(rgb[1]*255), int(rgb[2]*255)
+def set16(idx, val): lxa.set16(dmx, idx, val)
+def send(): lxa.send(sock, dmx, IP)
+def char_tilt(c): return lxa.char_tilt(c)
+def hsv(h, s=1.0, v=1.0): return lxa.hsv(h, s, v)
 
 def make_pan_u(mot, offsets_px, spacing, offset_global=0):
     px_to_u = 65535 / 2430

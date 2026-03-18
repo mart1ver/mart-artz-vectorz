@@ -8,10 +8,10 @@ fond blanc, blades encadrantes et couleur thématique.
 Author: Martin Vert
 """
 
-import socket
 import time
 import math
 import sys
+import luxcore_artnet as lxa
 
 # ── Identité de chaque forme ─────────────────────────────────────────────────
 # blend : valeur DMX exacte — map(dmx, 0, 255, 1, 10) dans Processing
@@ -52,25 +52,16 @@ POSITIONS = positions_cercle(11000)
 class DefileFormes:
     def __init__(self, ip="127.0.0.1"):
         self.ip = ip
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock = lxa.make_socket()
         self.dmx = [0] * 512
 
     # ── Envoi ArtNet ─────────────────────────────────────────────────────────
     def send(self):
-        header = b"Art-Net\x00"
-        dmx_bytes = bytes(max(0, min(255, int(v))) for v in self.dmx)
-        pkt = (header
-               + (0x5000).to_bytes(2, 'little')
-               + bytes([0, 14, 0, 0, 0, 0])
-               + len(dmx_bytes).to_bytes(2, 'big')
-               + dmx_bytes)
-        self.sock.sendto(pkt, (self.ip, 6454))
+        lxa.send(self.sock, self.dmx, self.ip)
 
     # ── Écriture helpers ─────────────────────────────────────────────────────
     def set16(self, idx, val):
-        val = max(0, min(65535, int(val)))
-        self.dmx[idx]     = (val >> 8) & 0xFF
-        self.dmx[idx + 1] = val & 0xFF
+        lxa.set16(self.dmx, idx, val)
 
     def set_spot(self, spot_id, r, g, b, alpha, sw, sa, sr, sg, sb,
                  size_pan, size_tilt, rot16, pan, tilt, mode):
@@ -327,20 +318,10 @@ class DefileFormes:
 
     # ── Utilitaires finale ────────────────────────────────────────────────────
     @staticmethod
-    def hsv(h, s=1.0, v=1.0):
-        """h:0-1 → r,g,b 0-255"""
-        h6 = (h % 1.0) * 6
-        i = int(h6) % 6
-        f = h6 - int(h6)
-        p, q, tv = v*(1-s), v*(1-s*f), v*(1-s*(1-f))
-        rgb = [(v,tv,p),(q,v,p),(p,v,tv),(p,q,v),(tv,p,v),(v,p,q)][i]
-        return int(rgb[0]*255), int(rgb[1]*255), int(rgb[2]*255)
+    def hsv(h, s=1.0, v=1.0): return lxa.hsv(h, s, v)
 
     @staticmethod
-    def char_tilt(c):
-        """Caractère ASCII → tilt_16bit pour mode Texte (Processing: byte(size_tilt)).
-        ceil() obligatoire : int() tronque et fait glisser vers le caractère précédent."""
-        return math.ceil(ord(c) * 65535 / 1000)
+    def char_tilt(c): return lxa.char_tilt(c)
 
     def word_positions(self, word, spacing_px=108, y_16=32767):
         """Positions 16-bit centrées pour les lettres d'un mot (écran ~1920px)."""

@@ -40,8 +40,20 @@ sketch_*_backup/
 # LazyGui automatic saves (keep manual saves, ignore auto saves)
 data/gui/*/saves/auto.json
 
-# Screenshots - uncomment if you don't want to track them
-# data/gui/*/screenshots/
+# Screenshots auto-générées
+data/gui/*/screenshots/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Fichiers générés à l'exécution
+data/window_size.txt
+data/bg/
+
+# Binaires de build Processing
+linux-amd64/
 
 # Font files - keep them tracked for this project
 # *.ttf

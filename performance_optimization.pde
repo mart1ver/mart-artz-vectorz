@@ -8,7 +8,9 @@
 // Variables de cache pour optimisations
 float cached_half_width = -1;
 float cached_half_height = -1;
-int cached_blend_mode = -1;
+
+// LUT blend mode : DMX 0-255 → constantes Processing exactes
+int[] blend_mode_lut = new int[256];
 
 // Statistiques de performance (optionnel)
 long frame_render_time = 0;
@@ -16,7 +18,23 @@ int frame_count = 0;
 float average_frame_time = 0;
 
 void initialize_performance_optimization() {
+  build_blend_mode_lut();
   println("⚡ Performance optimization initialized");
+}
+
+void build_blend_mode_lut() {
+  // Valeurs DMX exactes (CLAUDE.md) → constantes Processing
+  int[] dmx_vals  = {  0,  29,  57,  85, 114, 142, 170, 199, 227, 255};
+  int[] proc_vals = {BLEND, ADD, SUBTRACT, DARKEST, LIGHTEST,
+                     DIFFERENCE, EXCLUSION, MULTIPLY, SCREEN, REPLACE};
+  for (int d = 0; d < 256; d++) {
+    int best = BLEND, best_dist = 256;
+    for (int i = 0; i < dmx_vals.length; i++) {
+      int dist = abs(d - dmx_vals[i]);
+      if (dist < best_dist) { best_dist = dist; best = proc_vals[i]; }
+    }
+    blend_mode_lut[d] = best;
+  }
 }
 
 void update_screen_cache() {
@@ -31,16 +49,7 @@ void update_screen_cache() {
 }
 
 int get_optimized_blend_mode(byte dmx_value) {
-  int current_blend = int(map(dmx_value & 0xFF, 0, 255, 1, 10));
-  
-  if (cached_blend_mode != current_blend) {
-    cached_blend_mode = current_blend;
-    // Cache miss - recalculate
-    return current_blend;
-  }
-  
-  // Cache hit - return cached value
-  return cached_blend_mode;
+  return blend_mode_lut[dmx_value & 0xFF];
 }
 
 class SpotData {
