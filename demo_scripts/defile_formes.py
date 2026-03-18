@@ -338,8 +338,9 @@ class DefileFormes:
 
     @staticmethod
     def char_tilt(c):
-        """Caractère ASCII → tilt_16bit pour mode Texte (Processing: byte(size_tilt))"""
-        return int(ord(c) * 65535 / 1000)
+        """Caractère ASCII → tilt_16bit pour mode Texte (Processing: byte(size_tilt)).
+        ceil() obligatoire : int() tronque et fait glisser vers le caractère précédent."""
+        return math.ceil(ord(c) * 65535 / 1000)
 
     def word_positions(self, word, spacing_px=108, y_16=32767):
         """Positions 16-bit centrées pour les lettres d'un mot (écran ~1920px)."""

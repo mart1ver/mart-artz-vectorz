@@ -7,7 +7,17 @@ void set_fullscreen() {
   used_screen = int(extract2.getInt("valueFloat"));
   switch(used_screen) {
   case 0:
-    size (800, 600, P2D);
+    int sw = 800, sh = 600;
+    try {
+      java.io.File wf = new java.io.File(sketchPath("data/window_size.txt"));
+      if (wf.exists()) {
+        java.util.Scanner sc = new java.util.Scanner(wf);
+        sw = max(600, sc.nextInt());
+        sh = max(600, sc.nextInt());
+        sc.close();
+      }
+    } catch (Exception e) {}
+    size(sw, sh, P2D);
     break;
   case 1:
     fullScreen(P2D, 1);

@@ -3,6 +3,8 @@ int    number_of_base_parameters = 28 ;
 boolean is_cursor_visible = false;
 int    used_screen;
 int    screen_number ;
+int    win_width  = 800;
+int    win_height = 600;
 int    bg_color ;
 int    blend_mode ;
 String blend_mode_string ;

@@ -15,6 +15,8 @@ void setup() {
   initialize_fx();
   initialize_artnet();
   initialize_font();
+  win_width  = width;
+  win_height = height;
   initialize_performance_optimization();
   initialize_spot_pool(number_of_spots);
 }
