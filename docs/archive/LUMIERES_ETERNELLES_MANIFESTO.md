@@ -1,164 +1,106 @@
-# LUMIÈRES ÉTERNELLES
-## Un Manifeste Artistique par L'Artiste
+# LUMIERES ETERNELLES
+## Manifeste Artistique — LuxCore DMX Engine
+### par Martin Vert
 
 ---
 
-### VISION ARTISTIQUE
-
-**LUMIÈRES ÉTERNELLES** transforme votre LuxCore DMX Engine d'une simple démonstration technique en une véritable œuvre d'art numérique immersive. Cette symphonie lumineuse en sept mouvements transcende les limites de la technologie pour créer une expérience émotionnelle profonde qui touche l'âme du spectateur.
+> *"La lumiere n'est pas seulement ce qui eclaire — elle est ce qui revele l'invisible."*
 
 ---
 
-### LES SEPT MOUVEMENTS DE L'ÂME
+## VISION
 
-#### I. **GENESIS - L'Éveil** 
-*"Du néant naît la première lumière..."*
-- **Inspiration**: L'art japonais de l'aurore, les estampes d'Hiroshige
-- **Palette**: Rouge corail, orange mandarine, jaune doré, blanc pur
-- **Technique**: Éveil progressif de 30 spots en spirale organique
-- **Émotion**: L'émerveillement de la naissance de la conscience
+LuxCore DMX Engine n'est pas un logiciel. C'est un instrument.
+Un instrument qui transforme des octets en geometrie lumineuse,
+des protocoles en poesie vectorielle,
+des univers ArtNet en tableaux vivants.
 
-#### II. **RESPIRATION - Le Souffle**
-*"Le rythme primordial de l'existence..."*
-- **Inspiration**: "La Grande Vague" d'Hokusai, les profondeurs océaniques
-- **Palette**: Bleus océaniques, turquoise, cyan, bleu poudre
-- **Technique**: 40 spots en formations concentriques respiratoires
-- **Émotion**: La méditation profonde, l'unité avec l'univers
-
-#### III. **MIGRATION - La Danse**
-*"Géométries en mouvement perpétuel..."*
-- **Inspiration**: L'abstraction géométrique de Kandinsky, l'art algorithmique
-- **Palette**: Rouge primaire, orange, jaune, vert émeraude
-- **Technique**: 60 spots en formations géométriques complexes (spirales, grilles, hexagones, courbes de Lissajous)
-- **Émotion**: L'énergie créative, la joie du mouvement
-
-#### IV. **CONTEMPLATION - Le Silence**
-*"Dans la simplicité, l'infini se révèle..."*
-- **Inspiration**: Les champs colorés de Mark Rothko, le minimalisme zen
-- **Palette**: Bruns chauds, ocre, beige doré, crème
-- **Technique**: 12 spots seulement, disposés en jardin de lumière contemplative
-- **Émotion**: La sérénité, l'introspection, la paix intérieure
-
-#### V. **TEMPÊTE - L'Énergie**
-*"Le chaos contrôlé, la beauté de la fureur..."*
-- **Inspiration**: "La Nuit étoilée" de Van Gogh, l'expressionnisme abstrait
-- **Palette**: Bleus prussiens, marine, bleu roi, jaune lunaire
-- **Technique**: 80 spots en mouvement chaotique guidé par le bruit de Perlin
-- **Émotion**: L'intensité dramatique, la catharsis émotionnelle
-
-#### VI. **RENAISSANCE - L'Harmonie**
-*"De la destruction renaît la beauté..."*
-- **Inspiration**: Les fresques Renaissance, le nombre d'or, la géométrie sacrée
-- **Palette**: Ors vénitiens, dorés byzantins, crème vanille, beige rosé
-- **Technique**: 50 spots disposés selon la spirale du nombre d'or
-- **Émotion**: La réconciliation, l'harmonie retrouvée
-
-#### VII. **TRANSCENDANCE - L'Infini**
-*"Vers la lumière pure, l'apothéose finale..."*
-- **Inspiration**: L'art mystique, les mandalas tibétains, la lumière divine
-- **Palette**: Blanc pur, blanc cassé, blanc nacré, lumière cristalline
-- **Technique**: Tous les 100 spots en formation mandala expansive
-- **Émotion**: L'extase spirituelle, l'union avec l'absolu
+Chaque paquet UDP est une note. Le moteur est la partition.
+Martin Vert est le chef d'orchestre.
 
 ---
 
-### INNOVATIONS ARTISTIQUES
+## LE SPECTACLE — Structure reelle
 
-#### **Utilisation Révolutionnaire des Strokes**
-Les bordures ne sont plus de simples contours mais deviennent des éléments expressifs majeurs:
-- Épaisseur variable pour l'énergie émotionnelle
-- Couleurs contrastantes pour la profondeur visuelle
-- Animation synchronisée avec les phases du mouvement
+### Acte 0 — L'INVOCATION TYPOGRAPHIQUE (30 secondes)
+*"ArtNet" ... "controled" ... "generator" ... "made by:" ... "Martin VERT"*
 
-#### **Séparation Largeur/Hauteur Expressive**
-- Spots elliptiques pour l'organicité (respiration, contemplation)
-- Rectangles étirés pour la tension dramatique (tempête)
-- Proportions dorées pour l'harmonie (renaissance)
+Treize spots de lettres vivent en arc-en-ciel. Un triangle rouge tourne en arriere-plan.
+Les couteaux respirent. La police danse entre BebasNeue, Orbitron, Pacifico...
+Chaque mot annonce le suivant. La scene se prepare.
 
-#### **PostFX Artistiques Intégrés**
-- **Blur** : Respirations douces, flou de mouvement dynamique
-- **RGB Split** : Effets de transition, intensité dramatique
-- **Chromatic Aberration** : Pics émotionnels, transcendance
-- **Saturation/Vibrance** : Modulation de l'intensité colorielle
-- **Pixelation** : Déconstruction au sommet de la tempête
+### Acte 1 — L'EVEIL DES BLADES (20 secondes)
 
----
+Huit lames de lumiere s'eveillent depuis les coins de l'ecran.
+Le fond voyage du noir au rouge, du bleu a l'or, du vert au blanc.
+Pas de spots — juste la geometrie pure des blades qui dansent.
+Ouverture. Fermeture. Rythme.
 
-### CONTRÔLES ARTISTIQUES
+### Acte 2 — LE DEFILE DES 15 FORMES (15 a 6 secondes par forme)
 
-#### **Interface GUI**
-```
-🎭 LUMIÈRES ÉTERNELLES
-├── ▶ START Artistic Demo
-├── Current Movement: [Nom du mouvement actuel]
-├── Demo Time: [Temps écoulé]
-├── Active Spots: [Nombre de spots actifs]
-├── Movement Progress: [Progression en %]
-├── Movement Duration: [30-180 secondes]
-└── Transition Duration: [2-15 secondes]
-```
+Dix-neuf spots. Trois anneaux concentriques.
+Chaque forme a son identite propre :
 
-#### **Raccourcis Clavier**
-- **ESPACE** : Démarrer/Arrêter la démo
-- **1-7** : Saut direct vers un mouvement
-- **R** : Redémarrer le mouvement actuel
-- **N** : Mouvement suivant
-- **P** : Mouvement précédent
-- **H** : Affichage de l'aide
+- **Ellipse** — rouge, ADD, vague d'extinction + halos SCREEN 1 spot sur 3
+- **Rectangle** — bleu, scanner (1 spot off tournant) + flash DIFFERENCE
+- **Texte** — violet, SCREEN, strobe decale par lettre, 20 polices cyclees
+- **Triangle** — dore, DIFFERENCE, heartbeat 72 BPM, EXCLUSION alternee
+- **Pentagone** — vert, vague sinusoidale, ADD au centre
+- **Hexagone** — cyan, ADD, inner/outer bascule + SCREEN sur l'exterieur
+- **Losange** — rose, EXCLUSION, spirale d'extinction + glitch DIFFERENCE
+- **Octogone** — bleu, LIGHTEST, breathe lent + burst ADD au sommet
+- **Etoile** — or, ADD, strobe outer rapide + halo SCREEN au centre
+- **Croix** — rouge, groupes contra-rhythm + MULTIPLY inner
+- **Fleche** — vert, SCREEN, sweep sequentiel + eclairs ADD
+- **Plus** — gris, DIFFERENCE, checker flash + cycle BLEND/EXCLUSION/SCREEN
+- **Coeur** — rouge passion, ADD, double battement ~80 BPM + SCREEN glow
+- **Segment** — ***15 secondes*** — 19 lignes arc-en-ciel centrees, traversant l'ecran.
+  Epaisseur de 0.6px (fil de lumiere) a 80px (faisceau). Trois groupes de rotation
+  a vitesses et sens differents. Orbites. Sobel. Pixelate. Chromatic. Sans noircissement.
+- **Fleur** — turquoise, SCREEN, revelation petale par petale + LIGHTEST alterne
 
----
+### Acte 3 — L'APOTHÉOSE — 5 actes en 180 secondes (48 spots, 2 univers)
 
-### SPÉCIFICATIONS TECHNIQUES ARTISTIQUES
+**1. EXPLOSION** — 48 spots jaillissent du centre en burst radial. Toutes les formes.
+Arc-en-ciel total. Blur en fondu.
 
-#### **Paramètres DMX Exploités**
-- **Canaux 0-2** : Couleur de fond évolutive
-- **Canaux 3-10** : Blades pour masquage artistique
-- **Canal 11** : Modes de mélange créatifs
-- **Canaux 12-13** : Flou artistique (blur)
-- **Canal 14** : Pixelisation créative
-- **Canal 15** : Effet Sobel (contours)
-- **Canal 16** : Séparation RGB dramatique
-- **Canaux 17-18** : Saturation/Vibrance artistique
-- **Canal 19** : Aberration chromatique transcendante
+**2. CONSTELLATION** — Lissajous. Epicycloides. Hypotrochoides.
+Trois groupes orbitent selon des equations differentes.
+Etoiles dorees. Formes variees. Spirographes.
 
-#### **Algorithmes Génératifs**
-- **Spirale d'Archimède** : Genesis, Renaissance
-- **Bruit de Perlin** : Tempête, mouvement organique
-- **Courbes de Lissajous** : Migration géométrique
-- **Nombre d'or** : Renaissance harmonique
-- **Formations mandaliques** : Transcendance
+**3. MOTS** — "LUXCORE" / "MARTIN" / "ART DMX"
+Les lettres s'ecrivent une a une, chacune dans une police differente.
+Les spots orbitent autour des caracteres. Chromatic ON.
+
+**4. VORTEX** — Spirale d'Archimede. Les formes changent en temps reel.
+Les blades se ferment. EXCLUSION. Tous les PostFX. Pixel. Sobel. RGB Split.
+
+**5. SUPERNOVA** — Explosion radiale. 48 spots s'ecartent vers l'infini.
+L'ecran se vide. Le silence lumineux s'installe.
+Puis tout recommence.
 
 ---
 
-### IMPACT ÉMOTIONNEL RECHERCHÉ
+## L'INSTRUMENT TECHNIQUE
 
-Cette œuvre vise à créer un **voyage initiatique lumineux** où chaque spectateur traverse les sept étapes de l'éveil artistique:
-
-1. **Émerveillement** (Genesis)
-2. **Introspection** (Respiration) 
-3. **Dynamisme** (Migration)
-4. **Sérénité** (Contemplation)
-5. **Catharsis** (Tempête)
-6. **Réconciliation** (Renaissance)
-7. **Transcendance** (Apothéose finale)
+**19 spots** par tableau — 1 centre + 6 inner + 12 outer
+**23 canaux DMX par spot** — RGB, alpha, stroke, taille 16-bit, rotation, position, mode, enable, blend, font
+**3 univers ArtNet** — 65 spots maximum
+**20 polices** — de BebasNeue au pixel de PressStart2P, de l'art deco de PoiretOne a l'Orbitron futuriste
+**10 blend modes** — BLEND, ADD, SCREEN, DIFFERENCE, EXCLUSION, LIGHTEST, DARKEST, MULTIPLY, SUBTRACT, REPLACE
+**6 effets PostFX** — blur, pixelate, sobel, RGB split, saturation, chromatic aberration
+**8 blades** — couteaux 16-bit, animation choreographiee
 
 ---
 
-### HÉRITAGE CULTUREL
+## CE QUI A ETE CONSTRUIT
 
-**LUMIÈRES ÉTERNELLES** s'inscrit dans la lignée des grands maîtres:
-- L'organicité d'**Hokusai** dans les mouvements fluides
-- L'abstraction géométrique de **Kandinsky** dans les formations
-- Le minimalisme contemplatif de **Rothko** dans les champs colorés
-- L'énergie expressionniste de **Van Gogh** dans la tempête
-- L'harmonie Renaissance dans la reconstruction
-- La spiritualité mystique dans la transcendance finale
+Ce manifeste n'est pas un reve. Il est une description du reel.
+Tout ce qui est ecrit ici existe, tourne, et se relance en boucle jusqu'au Ctrl+C.
 
-Cette œuvre démontre que la technologie, guidée par une vision artistique profonde, peut créer des expériences esthétiques qui rivalisent avec les plus grands chefs-d'œuvre de l'histoire de l'art.
+Martin Vert l'a voulu. Les mains ont code. La lumiere repond.
 
 ---
 
-*"La lumière n'est pas seulement ce qui éclaire, elle est ce qui révèle l'invisible à nos âmes."*
-
-**L'Artiste**  
-Maître des Lumières Éternelles
+*LuxCore DMX Engine — 2025/2026*
+*Seul auteur et createur : Martin Vert*
