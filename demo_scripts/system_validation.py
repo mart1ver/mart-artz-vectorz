@@ -113,11 +113,12 @@ class LuxCoreValidator:
             self.dmx_data[i] = 0
             
         spot_forms = [
-            (0, "Ellipse"),
-            (1, "Rectangle"), 
-            (2, "Texte"),
-            (3, "Triangle"),
-            (4, "Pentagone")
+            (0,  "Ellipse"),
+            (1,  "Rectangle"),
+            (2,  "Texte"),
+            (3,  "Triangle"),
+            (4,  "Pentagone"),
+            (13, "Segment"),
         ]
         
         for form_id, form_name in spot_forms:

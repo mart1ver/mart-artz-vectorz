@@ -30,7 +30,7 @@ def spot_xml():
     ShortName="LCSpot"
     LongName="LuxCore DMX Engine - Spot"
     Manufacturer="Martin Vert"
-    Description="Spot vectoriel 20ch : RGB fill, alpha, stroke, taille Pan/Tilt 16-bit, rotation 16-bit, position Pan/Tilt 16-bit, mode (15 formes)."
+    Description="Spot vectoriel 20ch : RGB fill, alpha, stroke, taille Pan/Tilt 16-bit, rotation 16-bit, position Pan/Tilt 16-bit, mode (15 formes). Multi-univers : 49 spots sur 2 univers, 229 spots sur 9 univers."
     FixtureTypeID="{fid}"
     RefFT=""
     Thumbnail="">
@@ -195,7 +195,7 @@ def spot_xml():
                 <ChannelSet Name="10 Fleche"   DMXFrom="182/1"/>
                 <ChannelSet Name="11 Plus"     DMXFrom="200/1"/>
                 <ChannelSet Name="12 Coeur"    DMXFrom="218/1"/>
-                <ChannelSet Name="13 Eclair"   DMXFrom="236/1"/>
+                <ChannelSet Name="13 Segment"  DMXFrom="236/1"/>
                 <ChannelSet Name="14 Fleur"    DMXFrom="254/1"/>
               </ChannelFunction>
             </LogicalChannel>

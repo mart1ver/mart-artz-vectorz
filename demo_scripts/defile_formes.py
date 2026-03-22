@@ -31,7 +31,7 @@ FORMES = [
     {"id": 10, "nom": "Flèche",     "r":  60, "g": 220, "b":  80, "blend": 227},  # SCREEN   → vert lumineux
     {"id": 11, "nom": "Plus",       "r": 180, "g": 180, "b": 180, "blend": 142},  # DIFFERENCE → gris inversé
     {"id": 12, "nom": "Cœur",       "r": 240, "g":  40, "b":  80, "blend":  29},  # ADD      → lueur rouge passion
-    {"id": 13, "nom": "Éclair",     "r": 240, "g": 220, "b":   0, "blend":  29},  # ADD      → éclair électrique
+    {"id": 13, "nom": "Segment",    "r": 180, "g": 255, "b": 255, "blend":  29},  # ADD      → lignes cyan lumineuses
     {"id": 14, "nom": "Fleur",      "r":  80, "g": 200, "b": 200, "blend": 227},  # SCREEN   → fleur délicate
 ]
 
@@ -53,11 +53,11 @@ class DefileFormes:
     def __init__(self, ip="127.0.0.1"):
         self.ip = ip
         self.sock = lxa.make_socket()
-        self.dmx = [0] * 512
+        self.dmx = [0] * 1024  # 2 univers → 49 spots max
 
     # ── Envoi ArtNet ─────────────────────────────────────────────────────────
     def send(self):
-        lxa.send(self.sock, self.dmx, self.ip)
+        lxa.send_multi(self.sock, self.dmx, self.ip)
 
     # ── Écriture helpers ─────────────────────────────────────────────────────
     def set16(self, idx, val):
@@ -332,8 +332,8 @@ class DefileFormes:
 
     # ── FINALE ────────────────────────────────────────────────────────────────
     def demo_finale(self, duree=90.0):
-        """5 actes, 24 spots (max univers 0), tous les paramètres, texte dynamique."""
-        N = 24   # (512 - 28) / 20 = 24.2 → max spots dans 512 octets DMX
+        """5 actes, 48 spots sur 2 univers ArtNet, tous les paramètres, texte dynamique."""
+        N = 48   # (1024 - 28) / 20 = 49.8 → 48 spots sur 2 univers ArtNet
         WORDS = ["LUXCORE", "MARTIN", "ART DMX"]
 
         print("\n  🌟  FINALE — L'APOTHÉOSE (5 actes)")
@@ -585,17 +585,17 @@ class DefileFormes:
                 self.dmx[ch] = max(0, self.dmx[ch] - 7)
             self.send()
             time.sleep(0.025)
-        self.dmx = [0] * 512
+        self.dmx = [0] * 1024
         self.send()
 
     # ── Boucle principale ────────────────────────────────────────────────────
     def run(self, duree_par_forme=6.0, transition=0.6, duree_intro=20.0):
         total = duree_intro + len(FORMES) * (duree_par_forme + transition) + 180
-        print("🎭 LUXCORE - DÉFILÉ DES 15 FORMES + FINALE")
+        print("🎭 LUXCORE - DÉFILÉ DES 15 FORMES + FINALE (48 spots / 2 univers)")
         print("=" * 48)
         print(f"   Intro       : {duree_intro:.0f}s (blades / couleurs / blur)")
         print(f"   {len(FORMES)} formes × {duree_par_forme}s + {transition}s transition")
-        print(f"   Finale      : 180s (5 actes, 24 spots)")
+        print(f"   Finale      : 180s (5 actes, 48 spots / 2 univers)")
         print(f"   Durée totale : {total:.0f}s")
         print(f"   Cible       : {self.ip}:6454")
         print()
@@ -653,7 +653,7 @@ class DefileFormes:
             print("\n  ⏹  Interrompu")
 
         # Reset final
-        self.dmx = [0] * 512
+        self.dmx = [0] * 1024
         self.send()
 
         elapsed = time.time() - fps_t0

@@ -101,7 +101,7 @@ Sur fond **blanc** : BLEND, DIFFERENCE, EXCLUSION seulement (ADD/LIGHTEST/SCREEN
 ```
 0 Ellipse   1 Rectangle  2 Texte      3 Triangle   4 Pentagone
 5 Hexagone  6 Losange    7 Octogone   8 Étoile5    9 Croix
-10 Flèche   11 Plus      12 Cœur      13 Éclair     14 Fleur
+10 Flèche   11 Plus      12 Cœur      13 Segment    14 Fleur
 ```
 Croix (9) et Plus (11) : polygones 12 vertices (contour propre, pas deux rectangles).
 Cœur (12) : formule paramétrique, 72 vertices. Fleur (14) : polaire, 180 vertices.

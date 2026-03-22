@@ -68,7 +68,7 @@
  10  Flèche
  11  Plus
  12  Cœur
- 13  Éclair
+ 13  Segment     ← size_pan = longueur, size_tilt = épaisseur (1–130px), rotation = angle
  14  Fleur
 
  ###mode texte (mode 2)

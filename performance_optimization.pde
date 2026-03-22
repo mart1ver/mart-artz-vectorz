@@ -174,8 +174,8 @@ class SpotData {
         render_heart_simple_optimized();
         break;
         
-      case 13: // Éclair
-        render_lightning_optimized();
+      case 13: // Segment
+        render_segment_optimized();
         break;
         
       case 14: // Fleur 6 pétales
@@ -358,21 +358,11 @@ class SpotData {
     strokeWeight(stroke_weight);
   }
   
-  void render_lightning_optimized() {
-    // Éclair ⚡ - 6 vertices, contour complet rempli
-    strokeWeight(stroke_weight/5);
-    float w = size_pan * 0.45;
-    float h = size_tilt * 0.45;
-
-    beginShape();
-    vertex( w*0.40, -h);         // P1 sommet haut-droite
-    vertex(-w*0.50,  h*0.10);    // P2 milieu gauche (bas bras haut)
-    vertex( w*0.10,  h*0.10);    // P3 encoche droite (coude)
-    vertex(-w*0.40,  h);         // P4 pointe bas-gauche
-    vertex( w*0.50, -h*0.10);    // P5 milieu droite (haut bras bas)
-    vertex(-w*0.10, -h*0.10);    // P6 encoche gauche (coude)
-    endShape(CLOSE);
-
+  void render_segment_optimized() {
+    // Segment — size_pan = longueur, size_tilt = épaisseur (1–130px)
+    float thickness = max(1, size_tilt / 500.0);
+    strokeWeight(thickness);
+    line(-size_pan / 2, 0, size_pan / 2, 0);
     strokeWeight(stroke_weight);
   }
   
