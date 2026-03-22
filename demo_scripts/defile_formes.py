@@ -12,6 +12,7 @@ import time
 import math
 import sys
 import luxcore_artnet as lxa
+import artnet_text
 
 # ── Identité de chaque forme ─────────────────────────────────────────────────
 # blend : valeur DMX exacte — map(dmx, 0, 255, 1, 10) dans Processing
@@ -35,18 +36,19 @@ FORMES = [
     {"id": 14, "nom": "Fleur",      "r":  80, "g": 200, "b": 200, "blend": 227},  # SCREEN   → fleur délicate
 ]
 
-# ── 7 positions disposées : 1 centre + 6 en cercle ───────────────────────────
+# ── 19 positions : 1 centre + 6 anneau intérieur + 12 anneau extérieur ───────
 # Valeurs 16-bit (0-65535), centre = 32767
-def positions_cercle(rayon_16bit=10000):
+def positions_3_rings(r1=8000, r2=16000):
     pos = [(32767, 32767)]  # centre
     for i in range(6):
         angle = i * math.pi / 3
-        x = int(32767 + rayon_16bit * math.cos(angle))
-        y = int(32767 + rayon_16bit * math.sin(angle))
-        pos.append((x, y))
+        pos.append((int(32767 + r1*math.cos(angle)), int(32767 + r1*math.sin(angle))))
+    for i in range(12):
+        angle = i * math.pi / 6
+        pos.append((int(32767 + r2*math.cos(angle)), int(32767 + r2*math.sin(angle))))
     return pos
 
-POSITIONS = positions_cercle(11000)
+POSITIONS = positions_3_rings()
 
 
 class DefileFormes:
@@ -153,8 +155,8 @@ class DefileFormes:
             sg = int(max(0, min(255, (g * 0.4 + b * 0.6))))
             sb = int(max(0, min(255, (b * 0.4 + r * 0.6))))
 
-            # Taille : pan et tilt déphasés de 90° → aspect ratio variable
-            base_size = 14000 if i == 0 else 9000
+            # Taille : centre grand, anneau intérieur moyen, anneau extérieur petit
+            base_size = 14000 if i == 0 else (8500 if i <= 6 else 5500)
             size_pan  = int(base_size + 3000 * math.sin(t_local * 0.6 + phase))
             size_tilt = int(base_size + 3000 * math.sin(t_local * 0.6 + phase + math.pi / 2))
 
@@ -323,7 +325,7 @@ class DefileFormes:
             self.dmx[i] = 0
 
     # ── Blackout (spots alpha = 0) ────────────────────────────────────────────
-    def blackout_spots(self, n=7):
+    def blackout_spots(self, n=19):
         for i in range(n):
             base = 28 + i * 23
             self.dmx[base + 3] = 0  # alpha = 0
@@ -605,10 +607,11 @@ class DefileFormes:
         self.send()
 
     # ── Boucle principale ────────────────────────────────────────────────────
-    def run(self, duree_par_forme=6.0, transition=0.6, duree_intro=20.0):
-        total = duree_intro + len(FORMES) * (duree_par_forme + transition) + 180
+    def run(self, duree_par_forme=6.0, transition=0.6, duree_intro=20.0, duree_text=30.0):
+        total = duree_text + duree_intro + len(FORMES) * (duree_par_forme + transition) + 180
         print("🎭 LUXCORE - DÉFILÉ DES 15 FORMES + FINALE (48 spots / 2 univers)")
         print("=" * 48)
+        print(f"   Texte intro : {duree_text:.0f}s (artnet_text)")
         print(f"   Intro       : {duree_intro:.0f}s (blades / couleurs / blur)")
         print(f"   {len(FORMES)} formes × {duree_par_forme}s + {transition}s transition")
         print(f"   Finale      : 180s (5 actes, 48 spots / 2 univers)")
@@ -620,50 +623,59 @@ class DefileFormes:
         fps_t0 = time.time()
 
         try:
-            self.demo_intro(duree_intro)
-            print()
+            while True:
+                print("  ✦  Texte intro")
+                artnet_text.run(duree=duree_text, ip=self.ip, sock=self.sock)
+                print()
 
-            for forme in FORMES:
-                print(f"  ▶  Forme {forme['id']:2d} — {forme['nom']}")
+                self.demo_intro(duree_intro)
+                print()
 
-                # --- Affichage principal ---
-                t0 = time.time()
-                while True:
-                    t_local = time.time() - t0
-                    if t_local >= duree_par_forme:
-                        break
+                for forme in FORMES:
+                    print(f"  ▶  Forme {forme['id']:2d} — {forme['nom']}")
 
-                    # Fade in (0.4s) et fade out (0.4s)
-                    if t_local < 0.4:
-                        af = t_local / 0.4
-                    elif t_local > duree_par_forme - 0.4:
-                        af = (duree_par_forme - t_local) / 0.4
-                    else:
-                        af = 1.0
+                    # --- Affichage principal ---
+                    t0 = time.time()
+                    while True:
+                        t_local = time.time() - t0
+                        if t_local >= duree_par_forme:
+                            break
 
-                    self.set_base(t_local)
-                    self.render_forme(forme, t_local, af, duree_par_forme)
-                    self.send()
+                        # Fade in (0.4s) et fade out (0.4s)
+                        if t_local < 0.4:
+                            af = t_local / 0.4
+                        elif t_local > duree_par_forme - 0.4:
+                            af = (duree_par_forme - t_local) / 0.4
+                        else:
+                            af = 1.0
 
-                    fps_count += 1
-                    time.sleep(0.02)
+                        self.set_base(t_local)
+                        self.render_forme(forme, t_local, af, duree_par_forme)
+                        self.send()
 
-                # --- Transition (blackout court, fond noir, effets off) ---
-                t0 = time.time()
-                while time.time() - t0 < transition:
-                    self.set_base(0)
-                    self.dmx[0] = 0
-                    self.dmx[1] = 0
-                    self.dmx[2] = 0
-                    for i in range(20, 28):
-                        self.dmx[i] = 0
-                    self.blackout_spots()
-                    self.send()
-                    time.sleep(0.02)
+                        fps_count += 1
+                        time.sleep(0.02)
 
-            # --- FINALE après les 15 formes ---
-            print()
-            self.demo_finale(duree=180.0)
+                    # --- Transition (blackout court, fond noir, effets off) ---
+                    t0 = time.time()
+                    while time.time() - t0 < transition:
+                        self.set_base(0)
+                        self.dmx[0] = 0
+                        self.dmx[1] = 0
+                        self.dmx[2] = 0
+                        for i in range(20, 28):
+                            self.dmx[i] = 0
+                        self.blackout_spots()
+                        self.send()
+                        time.sleep(0.02)
+
+                # --- FINALE après les 15 formes ---
+                print()
+                self.demo_finale(duree=180.0)
+
+                print()
+                print("  🔄  Redémarrage...")
+                print()
 
         except KeyboardInterrupt:
             print("\n  ⏹  Interrompu")
