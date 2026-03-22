@@ -65,6 +65,7 @@ set16(BASE + 17, 32767)  # tilt
 
 # Mode : 2 = Texte
 dmx[BASE + 19] = 2
+dmx[BASE + 20] = 255  # enable
 
 # ── Boucle d'envoi ────────────────────────────────────────────────────────────
 def on_exit(sig, frame):

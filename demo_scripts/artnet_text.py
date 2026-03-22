@@ -103,10 +103,10 @@ while True:
 
     # ── Lettres — blackout des spots non utilisés d'abord
     for i in range(12):
-        dmx[28 + i * 20 + 3] = 0
+        dmx[28 + i * 23 + 3] = 0
 
     for i, c in enumerate(mot):
-        base  = 28 + i * 20
+        base  = 28 + i * 23
         phase = i * math.pi / 3.0
 
         breath = 1.0 + 0.18 * math.sin(t * 1.1)
@@ -131,11 +131,12 @@ while True:
         set16(base + 15, pan_u[i])
         set16(base + 17, tilt_u)
         dmx[base + 19] = 2
+        dmx[base + 20] = 255  # enable
 
     # ── Forme arrière-plan (spot 11, hors portée des lettres)
     bg_forme = 12 if mot_idx == 4 else 3   # cœur sur frame 5 "Martin VERT", triangle sinon
     bg_r     = (0, 0, 0) if mot_idx == 4 else (220, 0, 0)
-    base_tri = 28 + 11 * 20
+    base_tri = 28 + 11 * 23
     rot_tri  = int((t * 60) % 360 * 65535 / 360)
     dmx[base_tri + 0] = bg_r[0]; dmx[base_tri + 1] = bg_r[1]; dmx[base_tri + 2] = bg_r[2]
     dmx[base_tri + 3] = 130
@@ -147,6 +148,7 @@ while True:
     set16(base_tri + 15, 32767)
     set16(base_tri + 17, 32767)
     dmx[base_tri + 19] = bg_forme
+    dmx[base_tri + 20] = 255  # enable
 
     send()
     time.sleep(0.033)

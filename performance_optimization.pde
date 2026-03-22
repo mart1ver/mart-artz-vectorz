@@ -63,7 +63,10 @@ class SpotData {
   float rotation;
   int stroke_weight;
   int mode;
-  
+  boolean enabled;
+  int spot_blend_mode;
+  int font_index;
+
   boolean is_valid = false;
   
   void update_from_dmx(byte[] dmx, int base_addr, float half_width, float half_height) {
@@ -92,32 +95,42 @@ class SpotData {
     position_tilt = map(pos_tilt_16bit, 0, 65535, -255-half_height, 255+half_height);
 
     mode = dmx[base_addr+19];
+
+    // Canaux +20/+21/+22 : enable, blend mode individuel, font index
+    enabled = (dmx[base_addr+20] & 0xFF) > 0;
+    int blend_raw = dmx[base_addr+21] & 0xFF;
+    spot_blend_mode = (blend_raw == 0) ? blend_mode : blend_mode_lut[blend_raw];
+    font_index = constrain(
+      (dmx[base_addr+22] & 0xFF) * max(1, available_fonts.length) / 256,
+      0, max(0, available_fonts.length - 1)
+    );
+
     is_valid = true;
   }
   
   void render_optimized() {
     if (!is_valid) return;
-    
-    // Skip invisible spots early
-    if (alpha <= 0) return;
-    
-    // Set colors and alpha
+    if (!enabled || alpha <= 0) return;
+
+    boolean blend_override = (spot_blend_mode != blend_mode);
+    if (blend_override) blendMode(spot_blend_mode);
+
     fill(fill_color, alpha);
     stroke(stroke_color, stroke_alpha);
     strokeWeight(stroke_weight);
-    
-    // Matrix operations
+
     pushMatrix();
     translate(cached_half_width + position_pan, cached_half_height + position_tilt);
-    
-    if (abs(rotation) > 0.1) { // Skip rotation if negligible
+
+    if (abs(rotation) > 0.1) {
       rotate(radians(rotation));
     }
-    
-    // Render shape based on mode
+
     render_shape_optimized();
-    
+
     popMatrix();
+
+    if (blend_override) blendMode(blend_mode);
   }
   
   void render_shape_optimized() {
@@ -190,7 +203,11 @@ class SpotData {
   
   void render_text_optimized() {
     String message = str(char(byte(size_tilt)));
-    textFont(f);
+    if (font_cache != null && font_index >= 0 && font_index < font_cache.length) {
+      textFont(font_cache[font_index]);
+    } else {
+      textFont(f);
+    }
     textAlign(CENTER, CENTER);
     scale(size_pan/80, size_pan/80);
     text(message, 0, 0);

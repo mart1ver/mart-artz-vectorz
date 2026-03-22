@@ -85,7 +85,36 @@ void do_blades() {
   popMatrix();
 }
 void initialize_font() {
-  f = createFont("police.ttf", 200);  // Roboto Bold embarquée dans data/
+  // Scanner data/fonts/ pour lister les TTF disponibles
+  java.io.File fonts_dir = new java.io.File(sketchPath("data/fonts"));
+  if (fonts_dir.exists()) {
+    java.io.File[] files = fonts_dir.listFiles(new java.io.FilenameFilter() {
+      public boolean accept(java.io.File d, String n) {
+        return n.toLowerCase().endsWith(".ttf");
+      }
+    });
+    if (files != null && files.length > 0) {
+      available_fonts = new String[files.length];
+      for (int i = 0; i < files.length; i++) available_fonts[i] = files[i].getName();
+      java.util.Arrays.sort(available_fonts);
+    }
+  }
+  if (available_fonts.length == 0) available_fonts = new String[]{"police.ttf"};
+  // Pré-charger toutes les polices dans le cache
+  font_cache = new PFont[available_fonts.length];
+  for (int i = 0; i < available_fonts.length; i++) {
+    font_cache[i] = createFont(sketchPath("data/fonts/") + available_fonts[i], 200);
+  }
+  f = font_cache[0];
+  selected_font_idx = 0;
+  println("Polices chargées : " + available_fonts.length);
+}
+
+void load_font(int idx) {
+  idx = constrain(idx, 0, available_fonts.length - 1);
+  selected_font_idx = idx;
+  f = font_cache[idx];
+  println("Police : " + available_fonts[idx]);
 }
 
 void do_blade_blur() {

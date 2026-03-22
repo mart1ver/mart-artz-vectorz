@@ -1,4 +1,4 @@
-int    number_of_parameters_by_spots = 20 ;
+int    number_of_parameters_by_spots = 23 ;
 int    number_of_base_parameters = 28 ;
 final int BLADE_BASE_OFFSET = 3 ;  // index DMX du premier canal blade (A1 MSB)
 boolean is_cursor_visible = false;
@@ -18,3 +18,6 @@ int    end_address ;
 int    n_used_universes_minus_one ;
 String iface_address ;
 PFont  f ;
+PFont[] font_cache = {};
+String[] available_fonts = {};
+int    selected_font_idx  = 0;

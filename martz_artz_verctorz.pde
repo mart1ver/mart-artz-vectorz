@@ -11,10 +11,10 @@ void settings() {
 }
 
 void setup() {
+  initialize_font();          // ← doit précéder initialize_gui() pour que available_fonts soit prêt
   initialize_gui();
   initialize_fx();
   initialize_artnet();
-  initialize_font();
   win_width  = width;
   win_height = height;
   initialize_performance_optimization();

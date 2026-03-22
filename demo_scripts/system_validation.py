@@ -138,13 +138,15 @@ class LuxCoreValidator:
             
             # Position centrée 16-bit
             center = 32767
-            self.dmx_data[base+14] = (center >> 8) & 0xFF
-            self.dmx_data[base+15] = center & 0xFF
-            self.dmx_data[base+16] = (center >> 8) & 0xFF
-            self.dmx_data[base+17] = center & 0xFF
-            
+            self.dmx_data[base+15] = (center >> 8) & 0xFF
+            self.dmx_data[base+16] = center & 0xFF
+            self.dmx_data[base+17] = (center >> 8) & 0xFF
+            self.dmx_data[base+18] = center & 0xFF
+
             # Forme
-            self.dmx_data[base+18] = form_id
+            self.dmx_data[base+19] = form_id
+            # Enable
+            self.dmx_data[base+20] = 255
             
             if self.send_artnet():
                 self.test_results.append(f"✅ Spot {form_name}: OK")
@@ -171,11 +173,12 @@ class LuxCoreValidator:
         # Spots visibles pour voir les effets
         base = 28
         for i in range(3):
-            spot_base = base + (i * 19)
+            spot_base = base + (i * 23)
             self.dmx_data[spot_base] = 255
             self.dmx_data[spot_base+1] = 255
             self.dmx_data[spot_base+2] = 255
             self.dmx_data[spot_base+3] = 200
+            self.dmx_data[spot_base+20] = 255  # enable
         
         for channel, value, effect_name in effects:
             self.dmx_data[channel] = value
@@ -199,11 +202,11 @@ class LuxCoreValidator:
         print("🧪 Test 5: Modes de mélange...")
         
         blend_modes = [
-            (0, "Normal"),
-            (51, "Add"),
-            (204, "Multiply"),
-            (127, "Lightest"),
-            (153, "Difference")
+            (0,   "BLEND"),
+            (29,  "ADD"),
+            (199, "MULTIPLY"),
+            (114, "LIGHTEST"),
+            (142, "DIFFERENCE")
         ]
         
         # Couleur de base

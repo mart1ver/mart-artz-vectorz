@@ -5,14 +5,14 @@ GDTF = Generic Device Type Format (ANSI E1.75)
 Un fichier .gdtf est un ZIP contenant description.xml
 
 Fixtures produites :
-  LuxCore_Spot_20ch.gdtf  — à patcher N fois (un par spot)
+  LuxCore_Spot_23ch.gdtf  — à patcher N fois (un par spot)
   LuxCore_Base_28ch.gdtf  — à patcher une fois (fond + blades + effets)
 
 Patch (adresses 1-based) :
   Base  : adresse 1
-  Spot0 : adresse 29  (= 28 + 0×20 + 1)
-  Spot1 : adresse 49  (= 28 + 1×20 + 1)
-  SpotN : adresse 28 + N×20 + 1
+  Spot0 : adresse 29  (= 28 + 0×23 + 1)
+  Spot1 : adresse 52  (= 28 + 1×23 + 1)
+  SpotN : adresse 28 + N×23 + 1
 """
 
 import zipfile
@@ -21,7 +21,7 @@ import os
 
 
 def spot_xml():
-    """LuxCore Spot — 20 canaux DMX"""
+    """LuxCore Spot — 23 canaux DMX"""
     fid = str(uuid.uuid4())
     return f'''<?xml version="1.0" encoding="UTF-8"?>
 <GDTF DataVersion="1.2">
@@ -30,7 +30,7 @@ def spot_xml():
     ShortName="LCSpot"
     LongName="LuxCore DMX Engine - Spot"
     Manufacturer="Martin Vert"
-    Description="Spot vectoriel 20ch : RGB fill, alpha, stroke, taille Pan/Tilt 16-bit, rotation 16-bit, position Pan/Tilt 16-bit, mode (15 formes). Multi-univers : 49 spots sur 2 univers, 229 spots sur 9 univers."
+    Description="Spot vectoriel 23ch : RGB fill, alpha, stroke, taille Pan/Tilt 16-bit, rotation 16-bit, position Pan/Tilt 16-bit, mode (15 formes), enable, blend mode individuel, font index. Multi-univers : 43 spots sur 2 univers, 65 spots sur 3 univers."
     FixtureTypeID="{fid}"
     RefFT=""
     Thumbnail="">
@@ -52,6 +52,9 @@ def spot_xml():
         <Attribute Name="Pan"          Pretty="Pan"      Activation="Pan"      Feature="Position.PanTilt"  PhysicalUnit="Angle" Color="0.32 0.32 0.32"/>
         <Attribute Name="Tilt"         Pretty="Tilt"     Activation="Tilt"     Feature="Position.PanTilt"  PhysicalUnit="Angle" Color="0.32 0.32 0.32"/>
         <Attribute Name="Gobo1"        Pretty="Mode"     Activation="None"     Feature="Beam.Beam"         PhysicalUnit="None"  Color="0.32 0.32 0.32"/>
+        <Attribute Name="Enable"       Pretty="Enable"   Activation="None"     Feature="Beam.Beam"         PhysicalUnit="None"  Color="0.32 0.32 0.32"/>
+        <Attribute Name="BlendSpot"    Pretty="Blend/Sp" Activation="None"     Feature="Beam.Beam"         PhysicalUnit="None"  Color="0.32 0.32 0.32"/>
+        <Attribute Name="FontIndex"    Pretty="Font"     Activation="None"     Feature="Beam.Beam"         PhysicalUnit="None"  Color="0.32 0.32 0.32"/>
       </Attributes>
       <ActivationGroups>
         <ActivationGroup Name="ColorMix"/>
@@ -77,7 +80,7 @@ def spot_xml():
     </Geometries>
 
     <DMXModes>
-      <DMXMode Name="20ch" Geometry="Body">
+      <DMXMode Name="23ch" Geometry="Body">
         <DMXChannels>
 
           <!-- +0  Canal 1 : Rouge fill -->
@@ -198,6 +201,42 @@ def spot_xml():
                 <ChannelSet Name="13 Segment"  DMXFrom="236/1"/>
                 <ChannelSet Name="14 Fleur"    DMXFrom="254/1"/>
               </ChannelFunction>
+            </LogicalChannel>
+          </DMXChannel>
+
+          <!-- +20  Canal 21 : Enable (0=off, 1-255=on) -->
+          <DMXChannel DMXBreak="1" Offset="21" Highlight="255" Geometry="Body">
+            <LogicalChannel Attribute="Enable" Snap="Yes" Master="None" MibFade="0" DMXChangeTimeLimit="0">
+              <ChannelFunction Attribute="Enable" Name="Enable" OriginalAttribute="" DMXFrom="0/1" Default="255/1" PhysicalFrom="0" PhysicalTo="1" RealFade="0" RealAcceleration="0">
+                <ChannelSet Name="Off" DMXFrom="0/1"/>
+                <ChannelSet Name="On"  DMXFrom="1/1"/>
+              </ChannelFunction>
+            </LogicalChannel>
+          </DMXChannel>
+
+          <!-- +21  Canal 22 : Blend mode individuel (0=global, sinon LUT) -->
+          <DMXChannel DMXBreak="1" Offset="22" Highlight="0" Geometry="Body">
+            <LogicalChannel Attribute="BlendSpot" Snap="Yes" Master="None" MibFade="0" DMXChangeTimeLimit="0">
+              <ChannelFunction Attribute="BlendSpot" Name="Blend Spot" OriginalAttribute="" DMXFrom="0/1" Default="0/1" PhysicalFrom="0" PhysicalTo="10" RealFade="0" RealAcceleration="0">
+                <ChannelSet Name="0 Global"     DMXFrom="0/1"  />
+                <ChannelSet Name="1 BLEND"      DMXFrom="1/1"  />
+                <ChannelSet Name="2 ADD"        DMXFrom="29/1" />
+                <ChannelSet Name="3 SUBTRACT"   DMXFrom="57/1" />
+                <ChannelSet Name="4 DARKEST"    DMXFrom="85/1" />
+                <ChannelSet Name="5 LIGHTEST"   DMXFrom="114/1"/>
+                <ChannelSet Name="6 DIFFERENCE" DMXFrom="142/1"/>
+                <ChannelSet Name="7 EXCLUSION"  DMXFrom="170/1"/>
+                <ChannelSet Name="8 MULTIPLY"   DMXFrom="199/1"/>
+                <ChannelSet Name="9 SCREEN"     DMXFrom="227/1"/>
+                <ChannelSet Name="10 REPLACE"   DMXFrom="255/1"/>
+              </ChannelFunction>
+            </LogicalChannel>
+          </DMXChannel>
+
+          <!-- +22  Canal 23 : Font index (0-255, clampé sur nb polices dans data/fonts/) -->
+          <DMXChannel DMXBreak="1" Offset="23" Highlight="0" Geometry="Body">
+            <LogicalChannel Attribute="FontIndex" Snap="Yes" Master="None" MibFade="0" DMXChangeTimeLimit="0">
+              <ChannelFunction Attribute="FontIndex" Name="Font Index" OriginalAttribute="" DMXFrom="0/1" Default="0/1" PhysicalFrom="0" PhysicalTo="255" RealFade="0" RealAcceleration="0"/>
             </LogicalChannel>
           </DMXChannel>
 
@@ -445,15 +484,15 @@ def write_gdtf(xml, path):
 if __name__ == '__main__':
     out = os.path.dirname(os.path.abspath(__file__))
 
-    write_gdtf(spot_xml(), os.path.join(out, 'LuxCore_Spot_20ch.gdtf'))
+    write_gdtf(spot_xml(), os.path.join(out, 'LuxCore_Spot_23ch.gdtf'))
     write_gdtf(base_xml(), os.path.join(out, 'LuxCore_Base_28ch.gdtf'))
 
     print()
     print("Patch (adresses 1-based) :")
     print("  LuxCore Base  → adresse 1")
-    print("  LuxCore Spot0 → adresse 29  (= 28 + 0×20 + 1)")
-    print("  LuxCore Spot1 → adresse 49  (= 28 + 1×20 + 1)")
-    print("  LuxCore SpotN → adresse 28 + N×20 + 1")
+    print("  LuxCore Spot0 → adresse 29  (= 28 + 0×23 + 1)")
+    print("  LuxCore Spot1 → adresse 52  (= 28 + 1×23 + 1)")
+    print("  LuxCore SpotN → adresse 28 + N×23 + 1")
     print()
     print("Blend mode — valeurs DMX exactes :")
     print("  BLEND=0  ADD=29  SUBTRACT=57  DARKEST=85  LIGHTEST=114")

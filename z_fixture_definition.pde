@@ -32,7 +32,7 @@
  26 efx saturation / vibrance B
  27 efx chromatic aberration — bistable (>128 = ON)
 
- ###spot  (20 octets par spot, offset = 28 + spot_id × 20)
+ ###spot  (23 octets par spot, offset = 28 + spot_id × 23)
   +0 red fill
   +1 green fill
   +2 blue fill
@@ -52,7 +52,12 @@
  +16 pan LSB
  +17 tilt MSB        (position Y, 16-bit, 32767=centre)
  +18 tilt LSB
- +19 mode  (0-14, voir table des formes ci-dessous)
+ +19 mode       (0-14, voir table des formes ci-dessous)
+ +20 enable     (0=désactivé, 1-255=actif)
+ +21 blend mode (0=utilise le blend mode global ; sinon même LUT que canal 19 base :
+                 BLEND=0 ADD=29 SUBTRACT=57 DARKEST=85 LIGHTEST=114
+                 DIFFERENCE=142 EXCLUSION=170 MULTIPLY=199 SCREEN=227 REPLACE=255)
+ +22 font index (0-255 → clampé sur nb polices disponibles dans data/fonts/)
 
  ###modes (canal 20 du spot)
   0  Ellipse

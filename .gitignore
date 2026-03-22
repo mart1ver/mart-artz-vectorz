@@ -43,6 +43,10 @@ data/gui/*/saves/auto.json
 # Screenshots auto-générées
 data/gui/*/screenshots/
 
+# Claude Code
+CLAUDE.md
+.claude/
+
 # Python cache
 __pycache__/
 *.pyc

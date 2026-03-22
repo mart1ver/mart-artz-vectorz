@@ -53,7 +53,7 @@ class DefileFormes:
     def __init__(self, ip="127.0.0.1"):
         self.ip = ip
         self.sock = lxa.make_socket()
-        self.dmx = [0] * 1024  # 2 univers → 49 spots max
+        self.dmx = [0] * 1536  # 3 univers → 65 spots max (48 spots × 23ch = 1132 bytes)
 
     # ── Envoi ArtNet ─────────────────────────────────────────────────────────
     def send(self):
@@ -64,8 +64,9 @@ class DefileFormes:
         lxa.set16(self.dmx, idx, val)
 
     def set_spot(self, spot_id, r, g, b, alpha, sw, sa, sr, sg, sb,
-                 size_pan, size_tilt, rot16, pan, tilt, mode):
-        base = 28 + spot_id * 20
+                 size_pan, size_tilt, rot16, pan, tilt, mode,
+                 enable=255, spot_blend=0, font=0):
+        base = 28 + spot_id * 23
         self.dmx[base]     = r
         self.dmx[base + 1] = g
         self.dmx[base + 2] = b
@@ -81,6 +82,9 @@ class DefileFormes:
         self.set16(base + 15, pan)
         self.set16(base + 17, tilt)
         self.dmx[base + 19] = mode
+        self.dmx[base + 20] = enable
+        self.dmx[base + 21] = spot_blend
+        self.dmx[base + 22] = font
 
     # ── Fond + blades en cadre fixe ──────────────────────────────────────────
     def set_base(self, t):
@@ -163,8 +167,9 @@ class DefileFormes:
             pan  = max(0, min(65535, px + orbit))
             tilt = max(0, min(65535, py + int(orbit * 0.6)))
 
+            font_val = int(i * 256 / len(POSITIONS)) if fid == 2 else 0
             self.set_spot(i, r, g, b, alpha, sw, sa, sr, sg, sb,
-                          size_pan, size_tilt, rot, pan, tilt, fid)
+                          size_pan, size_tilt, rot, pan, tilt, fid, font=font_val)
 
     # ── Timeline effets PostFX ────────────────────────────────────────────────
     def set_effects(self, t, duree=6.0):
@@ -189,6 +194,13 @@ class DefileFormes:
         self.dmx[25] = bell(t, duree * 0.76, duree * 0.24, 230)  # saturation A
         self.dmx[26] = bell(t, duree * 0.80, duree * 0.20, 160)  # saturation B
         self.dmx[27] = gate(t, duree * 0.88, duree * 0.97)       # chromatic aberration ON
+
+        # Blades : ouvertes (0) pendant la phase pixelate — unfade progressif
+        pix_norm = bell(t, duree * 0.38, duree * 0.22, 255) / 255.0
+        if pix_norm > 0.0:
+            margin = int((4000 + 1500 * math.sin(t * 0.4)) * (1.0 - pix_norm))
+            for ch in [3, 5, 7, 9, 11, 13, 15, 17]:
+                self.set16(ch, margin)
 
     # ── Intro : blades, couleurs de fond, blur ───────────────────────────────
     def demo_intro(self, duree=20.0):
@@ -313,7 +325,7 @@ class DefileFormes:
     # ── Blackout (spots alpha = 0) ────────────────────────────────────────────
     def blackout_spots(self, n=7):
         for i in range(n):
-            base = 28 + i * 20
+            base = 28 + i * 23
             self.dmx[base + 3] = 0  # alpha = 0
 
     # ── Utilitaires finale ────────────────────────────────────────────────────
@@ -377,7 +389,7 @@ class DefileFormes:
 
                 # ─────────────────────────────────────
                 # ACTE 2 — CONSTELLATION  (p: 0.17→0.38)
-                # 3 anneaux concentriques, orbit différentiel
+                # Lissajous, épicycloïdes, hypotrochoides
                 # ─────────────────────────────────────
                 elif p < 0.38:
                     tp = (p - 0.17) / 0.21
@@ -390,25 +402,27 @@ class DefileFormes:
                     self.dmx[25] = int(160 * tp)
                     self.dmx[26] = int(110 * tp)
                     self.dmx[27] = 0
-                    blade_c = int(3500 + 2000*math.sin(t*0.5))
-                    for ch in [3,5,7,9,11,13,15,17]: self.set16(ch, blade_c)
+                    for ch in [3,5,7,9,11,13,15,17]: self.set16(ch, 0)
 
-                    # Anneau 1 : 8 étoiles dorées, orbit lent
+                    # Groupe 1 : 8 étoiles sur courbe de Lissajous (∞ déphasé)
+                    R1 = int(13000 + 2000*math.sin(tp * math.pi))
                     for i in range(8):
-                        a = 2*math.pi*i/8 + t*0.35
-                        pan  = int(32767 + 15000*math.cos(a))
-                        tilt = int(32767 + 15000*math.sin(a))
-                        r, g, b = self.hsv(0.14)   # or
+                        a = 2*math.pi*i/8 + t*0.28
+                        pan  = max(0, min(65535, int(32767 + R1*math.cos(a))))
+                        tilt = max(0, min(65535, int(32767 + R1*math.sin(2*a + t*0.13))))
+                        r, g, b = self.hsv(0.14 + 0.04*math.sin(t*0.5 + i))
                         sz = int(11000 + 2500*math.sin(t*1.1 + i))
                         rot = int((t*55 + i*45) % 360 * 65535/360)
                         self.set_spot(i, r, g, b, 230, 10, 200,
                                       200, 160, 0, sz, sz, rot, pan, tilt, 8)
 
-                    # Anneau 2 : 10 formes variées, counter-orbit
+                    # Groupe 2 : 10 formes variées sur épicycloïde (spirographe externe)
+                    R2, r2 = 8500, 3200
                     for i in range(10):
-                        a = 2*math.pi*i/10 - t*0.55
-                        pan  = int(32767 + 9000*math.cos(a))
-                        tilt = int(32767 + 9000*math.sin(a))
+                        theta = 2*math.pi*i/10 - t*0.42
+                        phi   = (R2/r2) * theta
+                        pan  = max(0, min(65535, int(32767 + (R2+r2)*math.cos(theta) - r2*math.cos(phi))))
+                        tilt = max(0, min(65535, int(32767 + (R2+r2)*math.sin(theta) - r2*math.sin(phi))))
                         r, g, b = self.hsv((i/10 + t*0.07) % 1.0)
                         sz = int(7000 + 1800*math.sin(t*0.9 + i))
                         rot = int((t*-45 + i*36) % 360 * 65535/360)
@@ -417,11 +431,13 @@ class DefileFormes:
                                       255-r, 255-g, 255-b,
                                       sz, int(sz*1.2), rot, pan, tilt, fid)
 
-                    # Anneau 3 : 6 ellipses rapides, orbit inverse
+                    # Groupe 3 : 6 ellipses sur hypotrochide (rose à 4 pétales)
+                    R3, r3 = 5500, 1600
                     for i in range(6):
-                        a = 2*math.pi*i/6 + t*1.3
-                        pan  = int(32767 + 4200*math.cos(a))
-                        tilt = int(32767 + 4200*math.sin(a))
+                        theta = 2*math.pi*i/6 + t*0.95
+                        phi   = (R3/r3) * theta
+                        pan  = max(0, min(65535, int(32767 + (R3-r3)*math.cos(theta) + r3*math.cos(phi))))
+                        tilt = max(0, min(65535, int(32767 + (R3-r3)*math.sin(theta) - r3*math.sin(phi))))
                         r, g, b = self.hsv((i/6 + t*0.2) % 1.0)
                         sz = int(3200 + 1200*math.sin(t*2.2 + i))
                         rot = int((t*130 + i*60) % 360 * 65535/360)
@@ -463,7 +479,7 @@ class DefileFormes:
                     for idx, c in enumerate(word):
                         if c == ' ':
                             # Spot invisible pour l'espace
-                            base = 28 + idx * 20
+                            base = 28 + idx * 23
                             self.dmx[base + 3] = 0
                             continue
                         alpha_l = min(255, max(0, (n_vis - idx) * 255))
@@ -579,13 +595,13 @@ class DefileFormes:
         # Extinction finale
         for _ in range(40):
             for i in range(N):
-                base = 28 + i * 20
+                base = 28 + i * 23
                 self.dmx[base + 3] = max(0, self.dmx[base + 3] - 7)
             for ch in range(28):
                 self.dmx[ch] = max(0, self.dmx[ch] - 7)
             self.send()
             time.sleep(0.025)
-        self.dmx = [0] * 1024
+        self.dmx = [0] * 1536
         self.send()
 
     # ── Boucle principale ────────────────────────────────────────────────────
@@ -653,7 +669,7 @@ class DefileFormes:
             print("\n  ⏹  Interrompu")
 
         # Reset final
-        self.dmx = [0] * 1024
+        self.dmx = [0] * 1536
         self.send()
 
         elapsed = time.time() - fps_t0
