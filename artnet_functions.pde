@@ -51,19 +51,23 @@ void send_artpoll_reply() {
     byte[] rp = "#0001 [0000] LuxCore OK".getBytes("UTF-8");
     System.arraycopy(rp, 0, pkt, 108, min(rp.length, 63));
 
-    // NumPorts: 1
-    pkt[172] = 0x01; pkt[173] = 0x00;
+    // NumPorts: 3 (3 univers — 65 spots max, 1132 octets)
+    pkt[172] = 0x03; pkt[173] = 0x00;
 
-    // PortTypes: DMX input
-    pkt[174] = (byte)0x80;
+    // PortTypes: Output (reçoit Art-Net) sur les 3 ports
+    pkt[174] = (byte)0x80; pkt[175] = (byte)0x80; pkt[176] = (byte)0x80;
 
-    // GoodInput, GoodOutput
-    pkt[178] = (byte)0x08;
-    pkt[182] = (byte)0x80;
+    // GoodInput, GoodOutput sur les 3 ports
+    pkt[178] = (byte)0x08; pkt[179] = (byte)0x08; pkt[180] = (byte)0x08;
+    pkt[182] = (byte)0x80; pkt[183] = (byte)0x80; pkt[184] = (byte)0x80;
 
-    // SwIn / SwOut : univers
+    // SwIn / SwOut : univers 0, 1, 2
     pkt[186] = (byte) artnet_start_universe;
+    pkt[187] = (byte)(artnet_start_universe + 1);
+    pkt[188] = (byte)(artnet_start_universe + 2);
     pkt[190] = (byte) artnet_start_universe;
+    pkt[191] = (byte)(artnet_start_universe + 1);
+    pkt[192] = (byte)(artnet_start_universe + 2);
 
     // Style: StNode
     pkt[200] = 0x00;

@@ -132,4 +132,104 @@ Nouvelles realisations depuis l'AG :
 
 ---
 
+## Nouvelles recommandations — AG 2026-03-22
+
+Rapport consolide des 8 agents apres analyse de l'etat actuel du projet.
+Etat analyse : 23 canaux/spot, 20 polices, boucle infinie, enable/blend creatifs par forme,
+forme Segment spectaculaire, finale 5 actes 48 spots, GUI font supprimee.
+
+---
+
+## UI-Artist-Designer
+
+1. Afficher le nom de la police active en lecture seule dans le GUI — alimenter depuis le dernier `font_index` DMX recu (canal +22). Le GUI ne permet plus de choisir la police, mais le designer doit pouvoir voir laquelle joue.
+2. Ajouter un panel GUI "etat live" minimal : forme courante / temps ecoule dans le cycle / numero de cycle. Visible dans le terminal mais pas dans Processing.
+3. L'intro typographique (30s) et l'intro blades (20s) ne sont pas distinguables visuellement depuis le GUI. Un overlay texte simple (`textMode(SCREEN)`) suffirait pendant ces phases.
+
+---
+
+## Lighting-Designer-Expert
+
+1. **Mettre a jour le fichier GDTF** de 20 a 23 canaux par spot — ajouter les attributs Enable (ch+20), BlendMode (ch+21), GoboIndex-Font (ch+22) avec leurs ranges DMX documentes.
+2. Verifier que `ArtPollReply` annonce correctement les 3 univers (`SwIn`/`SwOut` = 3) — les consoles MA3/Hog4 patching sur 3 univers doivent voir le noeud sans configuration manuelle.
+3. Documenter explicitement dans le GDTF que la valeur DMX `0` sur canal +21 signifie "suit le blend mode global" (backward compatible) — les consoles assignent souvent 0 par defaut sur les canaux inconnus.
+
+---
+
+## Business-Opportunity-Analyst
+
+*(Rapport factuel — descriptions de cas d'usage reels uniquement)*
+
+Cas d'usage nouveaux identifies :
+- **Installation autonome** : la boucle infinie rend `defile_formes.py` deployable sans supervision (galerie, vitrine, exposition). Documenter les prerequis materiels minimaux (CPU, RAM, reseau loopback).
+- **Demonstration formelle** : le show ~5 minutes est suffisamment structure pour une presentation a un public non technique. L'item "premiere demonstration publique" reste le seul point ouvert de l'AG precedente.
+
+---
+
+## Code-Expert-Pro
+
+1. **Corriger le commentaire date dans `demo_finale()`** : `# (1024 - 28) / 20 = 49.8 → 48 spots sur 2 univers` est incorrect depuis le passage a 23 canaux. Correct : 28 + 48×23 = 1132 octets → 3 univers necessaires. Le code est juste (dmx = 1536), seul le commentaire ment.
+2. **`blackout_spots(n=19)` hardcode** : l'appel dans `demo_intro()` passe 19 implicitement. Si le layout change, cette valeur sera silencieusement incorrecte. Utiliser `len(POSITIONS)` comme valeur par defaut.
+3. **Constante nommee** : `word_positions()` utilise `2430` comme plage pixel totale, valeur empirique non documentee. Extraire `SCREEN_PX_RANGE = 2430` en constante de module avec un commentaire expliquant son origine.
+
+---
+
+## Project-Visionary
+
+1. Mode **performance live** : `python3 demo_scripts/defile_formes.py --interactive` — attend une frappe clavier (espace/entree) pour passer a la forme suivante au lieu de la duree fixe. Ideal pour des presentations ou l'orateur commente chaque forme.
+2. Entree **OSC** (port 8000, bibliotheque standard uniquement) : recevoir `/forme N` pour sauter a la forme N, `/tempo X` pour modifier la duree courante. Ouvre le pilotage depuis TouchDesigner, Max/MSP ou un telephone.
+3. **Forme #15 — Attracteur** : positions des spots calculees par un systeme de Lorenz discret (x,y → pan/tilt). Le chaos controle comme forme geometrique. Trois groupes d'attracteurs avec constantes differentes.
+
+---
+
+## Git-Specialist
+
+1. **Committer les 7 fichiers modifies** (`M` dans `git status`) — ces changements representent une session complete de travail : boucle infinie, Segment, enable/blend creatifs, 20 polices, GUI nettoyee.
+2. **Taguer `v1.0`** sur le commit resultant — ce commit represente le premier show complet en boucle infinie autonome, point de reference avant toute evolution majeure.
+3. Verifier que `CLAUDE.md` dans `.gitignore` est intentionnel — les instructions de developpement ne sont pas disponibles pour un clone GitHub. Envisager une version publique `CONTRIBUTING.md` avec les conventions de base.
+
+---
+
+## Code-Quality-Auditor
+
+**Score global : 7.5 / 10** (seance 2026-03-22, progression depuis 6.2)
+
+Points positifs : stride 23 consistant, font_cache charge une fois au demarrage, _creative_enable_blend lisible malgre ses 70 lignes, _segment_effects correctement isolee du pipeline general.
+
+1. **Commentaire errone dans `demo_finale()`** — mineur mais trompeur pour toute relecture future (voir Code-Expert-Pro #1).
+2. **Valeur magique `2430`** dans `word_positions()` — non documentee, fragile si la resolution de fenetre change (voir Code-Expert-Pro #3).
+3. **`blackout_spots(n=19)`** — defaut hardcode, risque silencieux (voir Code-Expert-Pro #2).
+4. **Convention d'indexation DMX** : les indices `self.dmx[0]` a `self.dmx[27]` correspondent aux canaux DMX 1-28 (base 1). Cette convention est implicite dans tout le code. Un commentaire unique en en-tete de `defile_formes.py` eviterait toute confusion lors d'une reprise.
+
+---
+
+## Documentation-Specialist
+
+1. **Deplacer `docs/ASSEMBLEE_GENERALE_2025.md` dans `docs/archive/`** — ce document date de septembre 2025 et a valeur historique uniquement. Il rompt la coherence du dossier `docs/` qui ne devrait contenir que la documentation active.
+2. **Creer `CHANGELOG.md`** a la racine — trois entrees suffisent pour commencer : v0.1 (renommage LuxCore), v0.2 (multi-univers + 23 canaux), v1.0 (show complet boucle infinie). Permet a tout observateur du depot de comprendre l'evolution en 30 secondes.
+3. Verifier que `python3 demo_scripts/artnet_text.py` lance bien une boucle infinie autonome (sans passer par `defile_formes.py`) — le README l'annonce ainsi mais `artnet_text.run()` a ete refactore. Si ce n'est plus le cas, mettre a jour le README.
+
+---
+
+## Recapitulatif seance 2026-03-22
+
+| Theme | Priorite | Statut |
+|---|---|---|
+| Commentaire errone demo_finale (23ch) | basse | en attente |
+| blackout_spots(n=len(POSITIONS)) | basse | en attente |
+| Constante SCREEN_PX_RANGE | basse | en attente |
+| Commit + tag v1.0 | haute | en attente |
+| GDTF mis a jour 23 canaux | moyenne | en attente |
+| ArtPollReply 3 univers | moyenne | en attente |
+| ASSEMBLEE_GENERALE_2025 → archive | basse | en attente |
+| CHANGELOG.md racine | basse | en attente |
+| Mode --interactive | moyenne | en attente |
+| Premiere demonstration publique | haute | en attente |
+
+---
+
+*Seance du 2026-03-22 — President : Martin Vert*
+
+---
+
 *Seance du 2026-03-18 — President : Martin Vert*

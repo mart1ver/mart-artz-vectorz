@@ -6,6 +6,13 @@ LUXCORE DMX ENGINE - DÉFILÉ DES 15 FORMES
 Affiche chaque forme une par une, avec 7 spots arrangés,
 fond blanc, blades encadrantes et couleur thématique.
 Author: Martin Vert
+
+Convention d'indexation DMX (base 0) :
+  self.dmx[0..2]   = canaux DMX 1-3   (RGB fond)
+  self.dmx[3..18]  = canaux DMX 4-19  (8 blades 16-bit)
+  self.dmx[19]     = canal DMX 20     (blend mode global)
+  self.dmx[20..27] = canaux DMX 21-28 (effets PostFX)
+  self.dmx[28 + spot_id * 23 + offset] = parametre spot (canaux 29+)
 """
 
 import time
@@ -49,6 +56,11 @@ def positions_3_rings(r1=8000, r2=16000):
     return pos
 
 POSITIONS = positions_3_rings()
+
+# Plage pixel totale calibrée empiriquement pour une fenêtre 1920px.
+# Processing mappe 0-65535 sur la largeur réelle de la fenêtre ; cette valeur
+# est à ajuster si la fenêtre est redimensionnée via le GUI (data/window_size.txt).
+SCREEN_PX_RANGE = 2430
 
 
 class DefileFormes:
@@ -492,7 +504,9 @@ class DefileFormes:
             self.dmx[i] = 0
 
     # ── Blackout (spots alpha = 0) ────────────────────────────────────────────
-    def blackout_spots(self, n=19):
+    def blackout_spots(self, n=None):
+        if n is None:
+            n = len(POSITIONS)
         for i in range(n):
             base = 28 + i * 23
             self.dmx[base + 3] = 0  # alpha = 0
@@ -506,15 +520,15 @@ class DefileFormes:
 
     def word_positions(self, word, spacing_px=108, y_16=32767):
         """Positions 16-bit centrées pour les lettres d'un mot (écran ~1920px)."""
-        px_to_u = 65535 / 2430  # 2430px = plage totale sur 1920 écran
+        px_to_u = 65535 / SCREEN_PX_RANGE
         step = int(spacing_px * px_to_u)
         start = int(32767 - (len(word) - 1) * step / 2)
         return [(start + i * step, y_16) for i in range(len(word))]
 
     # ── FINALE ────────────────────────────────────────────────────────────────
     def demo_finale(self, duree=90.0):
-        """5 actes, 48 spots sur 2 univers ArtNet, tous les paramètres, texte dynamique."""
-        N = 48   # (1024 - 28) / 20 = 49.8 → 48 spots sur 2 univers ArtNet
+        """5 actes, 48 spots sur 3 univers ArtNet, tous les paramètres, texte dynamique."""
+        N = 48   # 28 + 48 × 23 = 1132 octets → 3 univers nécessaires (dmx = 1536)
         WORDS = ["LUXCORE", "MARTIN", "ART DMX"]
 
         print("\n  🌟  FINALE — L'APOTHÉOSE (5 actes)")
