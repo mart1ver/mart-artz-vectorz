@@ -20,4 +20,3 @@ String iface_address ;
 PFont  f ;
 PFont[] font_cache = {};
 String[] available_fonts = {};
-int    selected_font_idx  = 0;

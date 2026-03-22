@@ -46,11 +46,4 @@ void do_gui() {
   gui.textSet("Actual blend mode: ", return_blend_mode());
   gui.popFolder();
 
-  gui.pushFolder("font");
-  if (available_fonts.length > 0) {
-    int new_idx = gui.sliderInt("Font index", selected_font_idx, 0, available_fonts.length - 1);
-    gui.textSet("Font name", available_fonts[constrain(new_idx, 0, available_fonts.length - 1)]);
-    if (new_idx != selected_font_idx) load_font(new_idx);
-  }
-  gui.popFolder();
 }

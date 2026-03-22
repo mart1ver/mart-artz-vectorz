@@ -32,7 +32,7 @@ FORMES = [
     {"id": 10, "nom": "Flèche",     "r":  60, "g": 220, "b":  80, "blend": 227},  # SCREEN   → vert lumineux
     {"id": 11, "nom": "Plus",       "r": 180, "g": 180, "b": 180, "blend": 142},  # DIFFERENCE → gris inversé
     {"id": 12, "nom": "Cœur",       "r": 240, "g":  40, "b":  80, "blend":  29},  # ADD      → lueur rouge passion
-    {"id": 13, "nom": "Segment",    "r": 180, "g": 255, "b": 255, "blend":  29},  # ADD      → lignes cyan lumineuses
+    {"id": 13, "nom": "Segment",    "r": 180, "g": 255, "b": 255, "blend":  29, "duree": 15.0},  # ADD → lignes cyan lumineuses
     {"id": 14, "nom": "Fleur",      "r":  80, "g": 200, "b": 200, "blend": 227},  # SCREEN   → fleur délicate
 ]
 
@@ -130,9 +130,64 @@ class DefileFormes:
         # Blend mode propre à la forme
         self.dmx[19] = forme["blend"]
 
-        # Effets PostFX — timeline complète
-        self.set_effects(t_local, duree)
+        # Effets PostFX
+        if fid == 13:
+            self._segment_effects(t_local, duree)
+        else:
+            self.set_effects(t_local, duree)
 
+        # ── Mode spécial Segment : lignes arc-en-ciel, épaisseur dramatique ─────
+        if fid == 13:
+            N = len(POSITIONS)
+            t = t_local
+            for i in range(N):
+                phase = i * 2 * math.pi / N
+
+                # Arc-en-ciel : chaque ligne a sa propre teinte qui dérive lentement
+                hue = (t * 0.06 + i / N) % 1.0
+                r, g, b = lxa.hsv(hue, 1.0, 1.0)
+                alpha = int(230 * alpha_factor)
+                sa    = int(230 * alpha_factor)
+
+                # Longueur : très longue + pulsation ample
+                size_pan = int(max(8000, 58000 + 10000 * math.sin(t * 0.38 + phase * 0.7)))
+
+                # ÉPAISSEUR : de fil (1px) à poutre (80px) — rythme propre à chaque ligne
+                # size_tilt / 500.0 = épaisseur en pixels dans Processing
+                thick = 0.5 + 0.5 * math.sin(t * (0.55 + i * 0.09) + phase)
+                size_tilt = int(300 + 40000 * thick)  # ~0.6px → ~80px
+
+                # Rotation : 3 groupes, vitesses variables avec accélération
+                if i == 0:
+                    rot = int((t * 10) % 360 * 65535 / 360)
+                elif i <= 6:
+                    speed = 22 + 10 * math.sin(t * 0.28 + i)
+                    rot = int(((i - 1) * 30 + t * speed) % 360 * 65535 / 360)
+                else:
+                    speed = 38 + 14 * math.sin(t * 0.22 + i)
+                    rot = int(((i - 7) * 15 - t * speed) % 360 * 65535 / 360)
+
+                # Mouvement : orbites par groupe, amplitude importante
+                if i <= 6:
+                    # Centre + anneau intérieur : petite orbite rapide autour du centre
+                    orb_r = int(3500 * abs(math.sin(t * 0.32 + phase)))
+                    orb_a = t * 0.55 + phase
+                    pan  = max(0, min(65535, 32767 + int(orb_r * math.cos(orb_a))))
+                    tilt = max(0, min(65535, 32767 + int(orb_r * math.sin(orb_a))))
+                else:
+                    # Anneau extérieur : va-et-vient entre leur position et le centre
+                    px0, py0 = POSITIONS[i]
+                    pull = 0.15 + 0.2 * abs(math.sin(t * 0.25 + phase))
+                    # Oscillation transversale supplémentaire
+                    perp = int(2000 * math.sin(t * 0.5 + phase + math.pi / 2))
+                    pan  = max(0, min(65535, int(32767 + (px0 - 32767) * pull) + perp))
+                    tilt = max(0, min(65535, int(32767 + (py0 - 32767) * pull) + int(perp * 0.6)))
+
+                self.set_spot(i, r, g, b, alpha, 0, sa, r, g, b,
+                              size_pan, size_tilt, rot, pan, tilt, fid)
+            return
+
+        # ── Rendu générique ───────────────────────────────────────────────────
         for i, (px, py) in enumerate(POSITIONS):
             phase = i * math.pi / 3.5
 
@@ -156,9 +211,9 @@ class DefileFormes:
             sb = int(max(0, min(255, (b * 0.4 + r * 0.6))))
 
             # Taille : centre grand, anneau intérieur moyen, anneau extérieur petit
-            base_size = 14000 if i == 0 else (8500 if i <= 6 else 5500)
-            size_pan  = int(base_size + 3000 * math.sin(t_local * 0.6 + phase))
-            size_tilt = int(base_size + 3000 * math.sin(t_local * 0.6 + phase + math.pi / 2))
+            base_size = 22000 if i == 0 else (14000 if i <= 6 else 9000)
+            size_pan  = int(base_size + 4000 * math.sin(t_local * 0.6 + phase))
+            size_tilt = int(base_size + 4000 * math.sin(t_local * 0.6 + phase + math.pi / 2))
 
             # Rotation 16-bit rapide, sens alterné
             rot_speed = 45 if i % 2 == 0 else -30
@@ -169,9 +224,121 @@ class DefileFormes:
             pan  = max(0, min(65535, px + orbit))
             tilt = max(0, min(65535, py + int(orbit * 0.6)))
 
-            font_val = int(i * 256 / len(POSITIONS)) if fid == 2 else 0
+            # Police : cycle temporel sur les 20 polices pour la forme Texte
+            if fid == 2:
+                font_val = (int(t_local * 1.5 + i) % 20) * 256 // 20
+            else:
+                font_val = 0
+            en, sblend = self._creative_enable_blend(fid, i, t_local, phase, len(POSITIONS))
             self.set_spot(i, r, g, b, alpha, sw, sa, sr, sg, sb,
-                          size_pan, size_tilt, rot, pan, tilt, fid, font=font_val)
+                          size_pan, size_tilt, rot, pan, tilt, fid,
+                          enable=en, spot_blend=sblend, font=font_val)
+
+    # ── Enable et blend créatifs par forme ───────────────────────────────────
+    def _creative_enable_blend(self, fid, i, t, phase, N):
+        """Retourne (enable, spot_blend) selon la forme et le spot.
+        Blend DMX : ADD=29  LIGHTEST=114  DIFFERENCE=142  EXCLUSION=170  MULTIPLY=199  SCREEN=227
+        enable    : 0=off, 255=on"""
+        en, sb = 255, 0  # sb=0 → utilise le blend global de la forme
+
+        if fid == 0:    # Ellipse — ADD rouge : vague d'extinction + halos SCREEN
+            en = 255 if math.sin(t * 2.5 - i * math.pi / N) > -0.45 else 0
+            sb = 227 if i % 3 == 0 else 0           # 1 spot/3 en SCREEN
+
+        elif fid == 1:  # Rectangle — BLEND bleu : scanner (1 spot off tournant) + DIFFERENCE
+            en = 0 if int(t * 2.2) % N == i else 255
+            sb = 142 if int(t * 0.6) % 2 == 0 else 0  # flash DIFFERENCE toutes les 1.7s
+
+        elif fid == 2:  # Texte — SCREEN violet : strobe décalé + boost ADD
+            en = 255 if int(t * 5.0 + i * 1.7) % 4 != 0 else 0
+            sb = 29 if math.sin(t * 1.2 + phase * 2) > 0.6 else 0
+
+        elif fid == 3:  # Triangle — DIFFERENCE doré : heartbeat + EXCLUSION alternée
+            en = 0 if (t % 0.83) < 0.08 else 255    # ~72 BPM
+            sb = 170 if i % 2 == 0 else 0            # alternance EXCLUSION / DIFFERENCE
+
+        elif fid == 4:  # Pentagone — BLEND vert : vague sinusoïdale + ADD centre blazing
+            en = 255 if math.sin(t * 1.1 - i * math.pi / N) > -0.3 else 0
+            sb = 29 if i == 0 else 0                 # centre en ADD
+
+        elif fid == 5:  # Hexagone — ADD cyan : inner/outer bascule + SCREEN outer
+            grp = 0.0 if i <= 6 else math.pi
+            en = 255 if math.sin(t * 1.3 + grp) > 0 else 0
+            sb = 227 if i > 6 else 0                 # outer en SCREEN, inner en ADD
+
+        elif fid == 6:  # Losange — EXCLUSION rose : spirale + glitch DIFFERENCE
+            frac = (i / N - t * 0.28) % 1.0
+            en = 255 if frac > 0.2 else 0
+            sb = 142 if int(t * 0.55 + i * 0.15) % 2 == 0 else 0
+
+        elif fid == 7:  # Octogone — LIGHTEST bleu : breathe + burst ADD au sommet
+            breathe = 0.5 + 0.5 * math.sin(t * 0.75 + phase * 0.25)
+            en = 255 if breathe > 0.15 else 0
+            sb = 29 if breathe > 0.88 else 0
+
+        elif fid == 8:  # Étoile — ADD doré : strobe outer rapide + SCREEN centre
+            en = 255 if (i <= 6 or int(t * 7 + i) % 3 != 0) else 0
+            sb = 227 if i == 0 else 0                # halo SCREEN centre
+
+        elif fid == 9:  # Croix — BLEND rouge : groupes contra-rhythm + MULTIPLY inner
+            en = 255 if int(t * 2.8 + i % 2) % 2 == 0 else 0
+            sb = 199 if (i <= 6 and int(t * 0.5) % 3 == 0) else 0
+
+        elif fid == 10: # Flèche — SCREEN vert : sweep séquentiel + éclairs ADD
+            en = 255 if i <= (t * 2.2) % (N + 4) else 0
+            sb = 29 if int(t * 3.5 + i) % 6 == 0 else 0
+
+        elif fid == 11: # Plus — DIFFERENCE gris : checker flash + cycle 3 blends
+            en = 255 if (int(t * 3.5) + i) % 2 == 0 else 0
+            sb = [0, 170, 227][int(t * 0.4) % 3]    # BLEND→EXCLUSION→SCREEN
+
+        elif fid == 12: # Cœur — ADD rouge passion : double battement + SCREEN glow
+            beat = t % 0.75  # ~80 BPM
+            en = 0 if (beat < 0.06 or 0.16 < beat < 0.23) else 255
+            sb = 227 if i % 3 == 0 else 0
+
+        elif fid == 14: # Fleur — SCREEN turquoise : révélation pétale + LIGHTEST
+            en = 255 if i <= (t * 0.7) % N else 0
+            sb = 114 if i % 2 == 0 else 0            # alternance SCREEN / LIGHTEST
+
+        return en, sb
+
+    # ── Effets spéciaux pour le Segment ──────────────────────────────────────
+    def _segment_effects(self, t, duree=15.0):
+        """Timeline d'effets pour la forme Segment : sobel / pixelate / chromatic
+        en séquence et parfois en simultané — sans blur qui noircit."""
+
+        def bell(t, peak, width, max_val):
+            x = (t - peak) / (width / 2)
+            return int(max_val * max(0.0, 1.0 - x * x)) if abs(x) < 1.0 else 0
+
+        def gate(t, start, end):
+            return 255 if start <= t <= end else 0
+
+        # Canaux 20-27 : blur off, tout le reste séquencé
+        self.dmx[20] = 0   # blur size  — désactivé
+        self.dmx[21] = 0   # blur sigma — désactivé
+
+        # Pixelate : pic à 25% et à 75% (deux vagues)
+        pix1 = bell(t, duree * 0.25, duree * 0.18, 200)
+        pix2 = bell(t, duree * 0.75, duree * 0.16, 240)
+        self.dmx[22] = max(pix1, pix2)
+
+        # Sobel : ON entre 40%-55% et entre 85%-95%
+        sobel = gate(t, duree * 0.40, duree * 0.55) or gate(t, duree * 0.85, duree * 0.95)
+        self.dmx[23] = 255 if sobel else 0
+
+        # RGB split : deux pics — l'un avant sobel, l'autre après
+        self.dmx[24] = bell(t, duree * 0.33, duree * 0.18, 160) + \
+                       bell(t, duree * 0.62, duree * 0.14, 120)
+
+        # Saturation : légère poussée en milieu de séquence
+        self.dmx[25] = bell(t, duree * 0.50, duree * 0.30, 140)
+        self.dmx[26] = bell(t, duree * 0.52, duree * 0.24, 100)
+
+        # Chromatic aberration : deux éclats courts
+        chroma = gate(t, duree * 0.47, duree * 0.53) or gate(t, duree * 0.80, duree * 0.84)
+        self.dmx[27] = 255 if chroma else 0
 
     # ── Timeline effets PostFX ────────────────────────────────────────────────
     def set_effects(self, t, duree=6.0):
@@ -385,9 +552,10 @@ class DefileFormes:
                         rot = int((t*120 + i*18) % 360 * 65535/360)
                         alpha = min(255, int(tp * 500))
                         sw = int(20*abs(math.sin(t*4 + i*0.3)))
+                        font_a1 = (int(t * 2 + i * 3) % 20) * 256 // 20
                         self.set_spot(i, r, g, b, alpha, sw, 200,
                                       255-r, 255-g, 255-b,
-                                      sz, sz, rot, pan, tilt, i % 15)
+                                      sz, sz, rot, pan, tilt, i % 15, font=font_a1)
 
                 # ─────────────────────────────────────
                 # ACTE 2 — CONSTELLATION  (p: 0.17→0.38)
@@ -492,9 +660,11 @@ class DefileFormes:
                         rot = int((t*15*(1 if idx%2==0 else -1) + idx*12) % 360 * 65535/360)
                         tc = LT_COLORS[idx % len(LT_COLORS)]
                         tp_u = max(0, min(65535, tilt_u + int(1800*math.sin(t*1.1 + idx*0.5))))
+                        # Police différente par lettre, change à chaque mot
+                        font_lt = ((wi * 7 + idx * 3) % 20) * 256 // 20
                         self.set_spot(idx, tc[0], tc[1], tc[2], alpha_l,
                                       10, 220, 255-tc[0], 255-tc[1], 255-tc[2],
-                                      sz_pan, sz_tilt, rot, pan_u, tp_u, 2)
+                                      sz_pan, sz_tilt, rot, pan_u, tp_u, 2, font=font_lt)
 
                     # Spots géométriques qui orbitent autour des lettres
                     n_text = len(word)
@@ -548,9 +718,10 @@ class DefileFormes:
                         alpha = int(210 + 45*math.sin(t*2.3 + i))
                         sw = int(14*abs(math.sin(t*4.5 + i*0.4)))
                         fid = (i + int(t*4)) % 15   # forme change !
+                        font_a4 = (int(t * 1.8 + i * 3) % 20) * 256 // 20
                         self.set_spot(i, r, g, b, alpha, sw, 220,
                                       255-r, 255-g, 255-b,
-                                      sz, int(sz*1.35), rot, pan, tilt, fid)
+                                      sz, int(sz*1.35), rot, pan, tilt, fid, font=font_a4)
 
                 # ─────────────────────────────────────
                 # ACTE 5 — SUPERNOVA  (p: 0.80→1.0)
@@ -584,9 +755,10 @@ class DefileFormes:
                         alpha = int(255 * max(0.0, 1.0 - tp*1.3))
                         rot = int((t*(220 + i*3) + i*18) % 360 * 65535/360)
                         sw = int(25 * max(0.0, 1.0 - tp*1.6))
+                        font_a5 = (int(t * 2.5 + i * 3) % 20) * 256 // 20
                         self.set_spot(i, r, g, b, alpha, sw, int(220*fade),
                                       255, 255, 255,
-                                      sz, sz, rot, pan, tilt, i % 15)
+                                      sz, sz, rot, pan, tilt, i % 15, font=font_a5)
 
                 self.send()
                 time.sleep(0.016)
@@ -632,25 +804,26 @@ class DefileFormes:
                 print()
 
                 for forme in FORMES:
+                    duree_forme = forme.get("duree", duree_par_forme)
                     print(f"  ▶  Forme {forme['id']:2d} — {forme['nom']}")
 
                     # --- Affichage principal ---
                     t0 = time.time()
                     while True:
                         t_local = time.time() - t0
-                        if t_local >= duree_par_forme:
+                        if t_local >= duree_forme:
                             break
 
                         # Fade in (0.4s) et fade out (0.4s)
                         if t_local < 0.4:
                             af = t_local / 0.4
-                        elif t_local > duree_par_forme - 0.4:
-                            af = (duree_par_forme - t_local) / 0.4
+                        elif t_local > duree_forme - 0.4:
+                            af = (duree_forme - t_local) / 0.4
                         else:
                             af = 1.0
 
                         self.set_base(t_local)
-                        self.render_forme(forme, t_local, af, duree_par_forme)
+                        self.render_forme(forme, t_local, af, duree_forme)
                         self.send()
 
                         fps_count += 1

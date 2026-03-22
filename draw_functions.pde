@@ -106,15 +106,7 @@ void initialize_font() {
     font_cache[i] = createFont(sketchPath("data/fonts/") + available_fonts[i], 200);
   }
   f = font_cache[0];
-  selected_font_idx = 0;
   println("Polices chargées : " + available_fonts.length);
-}
-
-void load_font(int idx) {
-  idx = constrain(idx, 0, available_fonts.length - 1);
-  selected_font_idx = idx;
-  f = font_cache[idx];
-  println("Police : " + available_fonts[idx]);
 }
 
 void do_blade_blur() {
