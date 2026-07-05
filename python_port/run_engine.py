@@ -9,6 +9,7 @@ l'ArtNet (p.ex. demo_scripts/defile_formes.py) et regarder la source NDI
     python_port/.venv/bin/python python_port/run_engine.py --spots 15 --duration 0
 """
 import argparse
+import os
 import queue
 import threading
 import time
@@ -28,7 +29,14 @@ def main():
     ap.add_argument("--spots", type=int, default=15)
     ap.add_argument("--duration", type=float, default=20.0, help="0 = jusqu'à Ctrl+C")
     ap.add_argument("--name", default="LuxCore")
+    ap.add_argument("--snapshot-dir", help="sauve un PNG toutes les --snapshot-interval s")
+    ap.add_argument("--snapshot-interval", type=float, default=2.0)
     args = ap.parse_args()
+
+    snap_idx = 0
+    last_snap = 0.0
+    if args.snapshot_dir:
+        os.makedirs(args.snapshot_dir, exist_ok=True)
 
     W, H, FPS = args.width, args.height, args.fps
     eng = LuxCoreEngine(W, H)
@@ -86,6 +94,12 @@ def main():
             if n > 0:
                 pbos[prev].read_into(bufs[prev])
                 send_q.put(views[prev])
+                if args.snapshot_dir and now - last_snap >= args.snapshot_interval:
+                    from PIL import Image
+                    path = os.path.join(args.snapshot_dir, f"snap_{snap_idx:03d}.png")
+                    Image.frombytes("RGBA", (W, H), bytes(bufs[prev])).save(path)
+                    snap_idx += 1
+                    last_snap = now
             n += 1
 
             next_tick += frame_dt
