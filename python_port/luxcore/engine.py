@@ -24,6 +24,7 @@ from . import geometry as geo
 from . import stroke as stroke_mod
 from .constants import BlendMode, Shape
 from .dmx import SpotState, decode_all
+from .text import FontCache
 
 # Contour : ellipse/rect utilisent strokeWeight plein ; les autres polygones
 # strokeWeight/5 (cf. render_*_optimized).
@@ -55,12 +56,46 @@ uniform vec4 u_color;        // straight alpha (r,g,b,a) 0..1
 void main() { frag = u_color; }
 """
 
+# Programme texte : même transform, avec UV pour échantillonner le glyphe
+TEXT_VERT = """
+#version 330
+in vec2 in_pos;
+in vec2 in_uv;
+out vec2 uv;
+uniform vec2 u_scale;
+uniform float u_rot;
+uniform vec2 u_translate;
+uniform vec2 u_res;
+void main() {
+    vec2 p = in_pos * u_scale;
+    float c = cos(u_rot), s = sin(u_rot);
+    vec2 r = vec2(p.x * c - p.y * s, p.x * s + p.y * c);
+    vec2 world = r + u_translate;
+    gl_Position = vec4(world.x / u_res.x * 2.0 - 1.0,
+                       world.y / u_res.y * 2.0 - 1.0, 0.0, 1.0);
+    uv = in_uv;
+}
+"""
+
+TEXT_FRAG = """
+#version 330
+in vec2 uv;
+out vec4 frag;
+uniform sampler2D glyph;
+uniform vec4 u_color;        // couleur de remplissage du texte
+void main() {
+    float a = texture(glyph, uv).a;      // couverture du glyphe
+    frag = vec4(u_color.rgb, u_color.a * a);
+}
+"""
+
 # Formes rendues comme éventail depuis l'origine (toutes sauf TEXTE et SEGMENT)
 _FAN_SHAPES = [s for s in Shape if s not in (Shape.TEXTE, Shape.SEGMENT)]
 
 
 class LuxCoreEngine:
-    def __init__(self, width: int, height: int, ctx: moderngl.Context | None = None):
+    def __init__(self, width: int, height: int, ctx: moderngl.Context | None = None,
+                 fonts_dir: str | None = None):
         self.width, self.height = width, height
         self.ctx = ctx or moderngl.create_context(standalone=True, backend="egl")
         self.prog = self.ctx.program(vertex_shader=VERT, fragment_shader=FRAG)
@@ -76,6 +111,17 @@ class LuxCoreEngine:
         self._dyn_vbo = self.ctx.buffer(reserve=8192, dynamic=True)
         self._dyn_vao = self.ctx.vertex_array(
             self.prog, [(self._dyn_vbo, "2f4", "in_pos")])
+
+        # -- texte : polices + programme + quad dynamique (pos+uv) + cache textures --
+        self.fonts = FontCache(fonts_dir) if fonts_dir else None
+        self.n_fonts = self.fonts.count if self.fonts else 0
+        self._text_prog = self.ctx.program(vertex_shader=TEXT_VERT,
+                                            fragment_shader=TEXT_FRAG)
+        self._text_prog["u_res"] = (float(width), float(height))
+        self._text_vbo = self.ctx.buffer(reserve=4 * 4 * 4, dynamic=True)  # 4 verts×4f
+        self._text_vao = self.ctx.vertex_array(
+            self._text_prog, [(self._text_vbo, "2f4 2f4", "in_pos", "in_uv")])
+        self._glyph_tex: dict[tuple[int, str], moderngl.Texture] = {}
 
         self.ctx.enable(moderngl.BLEND)
 
@@ -127,12 +173,16 @@ class LuxCoreEngine:
             if not sp.is_drawable():
                 continue
             shape = sp.shape
-            if shape == Shape.TEXTE:           # reporté (atlas de glyphes)
-                continue
             self._apply_blend(sp.blend_mode)
 
             cx = self.width * 0.5 + sp.position_pan
             cy = self.height * 0.5 + sp.position_tilt
+
+            if shape == Shape.TEXTE:
+                if self.fonts:
+                    self._draw_text(sp, cx, cy)
+                continue
+
             self.prog["u_rot"] = math.radians(sp.rotation)
             self.prog["u_translate"] = (cx, cy)
 
@@ -173,8 +223,37 @@ class LuxCoreEngine:
                                 sp.stroke_alpha / 255.0)
         self._dyn_vao.render(moderngl.TRIANGLE_STRIP, vertices=4)
 
-    def render_dmx(self, dmx_buf, num_spots: int, n_fonts: int = 0):
-        base, spots = decode_all(dmx_buf, num_spots, self.width, self.height, n_fonts)
+    def _draw_text(self, sp: SpotState, cx: float, cy: float):
+        char = sp.text_char
+        arr, w, h = self.fonts.glyph(sp.font_index, char)
+        if w <= 1 and h <= 1:                  # glyphe vide (espace)
+            return
+        key = (sp.font_index, char)
+        tex = self._glyph_tex.get(key)
+        if tex is None:
+            tex = self.ctx.texture((w, h), 4, arr.tobytes())
+            tex.filter = (moderngl.LINEAR, moderngl.LINEAR)
+            tex.repeat_x = tex.repeat_y = False    # clamp : pas de bleed aux bords
+            self._glyph_tex[key] = tex
+
+        hw, hh = w * 0.5, h * 0.5              # glyphe centré (textAlign CENTER)
+        quad = np.array([-hw, -hh, 0.0, 0.0,
+                         hw, -hh, 1.0, 0.0,
+                         -hw, hh, 0.0, 1.0,
+                         hw, hh, 1.0, 1.0], dtype="f4")
+        self._text_vbo.write(quad.tobytes())
+        scale = sp.size_pan / 80.0             # scale(size_pan/80) de Processing
+        self._text_prog["u_scale"] = (scale, scale)
+        self._text_prog["u_rot"] = math.radians(sp.rotation)
+        self._text_prog["u_translate"] = (cx, cy)
+        self._text_prog["u_color"] = (*[c / 255.0 for c in sp.fill], sp.alpha / 255.0)
+        tex.use(0)
+        self._text_prog["glyph"] = 0
+        self._text_vao.render(moderngl.TRIANGLE_STRIP, vertices=4)
+
+    def render_dmx(self, dmx_buf, num_spots: int, n_fonts: int | None = None):
+        nf = self.n_fonts if n_fonts is None else n_fonts
+        base, spots = decode_all(dmx_buf, num_spots, self.width, self.height, nf)
         self.render(base.bg, spots)
         return base, spots
 

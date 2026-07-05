@@ -35,7 +35,14 @@ def main():
                     help="ouvre une fenêtre d'aperçu à l'écran (en plus du NDI)")
     ap.add_argument("--preview-scale", type=float, default=0.66,
                     help="taille de la fenêtre d'aperçu (× la résolution de rendu)")
+    ap.add_argument("--fonts-dir",
+                    default=os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                         "..", "data", "fonts"),
+                    help="dossier des polices .ttf (mode TEXTE)")
+    ap.add_argument("--no-fonts", action="store_true", help="désactive le texte")
     args = ap.parse_args()
+
+    fonts_dir = None if args.no_fonts else args.fonts_dir
 
     snap_idx = 0
     last_snap = 0.0
@@ -54,7 +61,7 @@ def main():
         window = pyglet.window.Window(width=Wp, height=Hp, resizable=True,
                                       caption=f"LuxCore — aperçu ({args.name})")
         ctx = moderngl.create_context()
-        eng = LuxCoreEngine(W, H, ctx=ctx)
+        eng = LuxCoreEngine(W, H, ctx=ctx, fonts_dir=fonts_dir)
         # programme de blit : FBO (top-down pour NDI) -> écran, V inversé pour être droit
         blit_prog = ctx.program(
             vertex_shader="#version 330\nin vec2 p;out vec2 uv;"
@@ -72,7 +79,7 @@ def main():
             closing["v"] = True
         print(f"[preview] fenêtre {Wp}x{Hp} ouverte")
     else:
-        eng = LuxCoreEngine(W, H)
+        eng = LuxCoreEngine(W, H, fonts_dir=fonts_dir)
         closing = {"v": False}
     print(f"[GL] {eng.ctx.info['GL_RENDERER']}")
 
@@ -128,7 +135,7 @@ def main():
                 window.dispatch_events()
 
             dmx = artnet.snapshot()
-            eng.render_dmx(dmx, args.spots, n_fonts=0)
+            eng.render_dmx(dmx, args.spots)
 
             # aperçu écran : blit du FBO vers la fenêtre
             if blit is not None:
