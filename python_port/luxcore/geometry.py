@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import math
 
+import numpy as np
+
 from .constants import Shape
 
 TWO_PI = 2.0 * math.pi
@@ -201,3 +203,22 @@ def scaled_polygon(shape: Shape, size_pan: float, size_tilt: float) -> list[Vec2
     """Sommets à l'échelle réelle (utile pour tests / rendu CPU de référence)."""
     sx, sy = scale_factors(shape, size_pan, size_tilt)
     return [(x * sx, y * sy) for (x, y) in unit_polygon(shape)]
+
+
+# Cache numpy des polygones-unité (chemin chaud du renderer, sans boucle Python)
+_UNIT_NP_CACHE: dict[Shape, np.ndarray] = {}
+
+
+def unit_polygon_np(shape: Shape) -> np.ndarray:
+    """Polygone-unité en tableau numpy (N,2) float32, mis en cache."""
+    arr = _UNIT_NP_CACHE.get(shape)
+    if arr is None:
+        arr = np.array(unit_polygon(shape), dtype="f4")
+        _UNIT_NP_CACHE[shape] = arr
+    return arr
+
+
+def scaled_polygon_np(shape: Shape, size_pan: float, size_tilt: float) -> np.ndarray:
+    """Comme scaled_polygon, vectorisé numpy (pas de boucle Python par sommet)."""
+    sx, sy = scale_factors(shape, size_pan, size_tilt)
+    return unit_polygon_np(shape) * np.array((sx, sy), dtype="f4")

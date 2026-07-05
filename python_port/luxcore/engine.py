@@ -203,7 +203,7 @@ class LuxCoreEngine:
 
     def _draw_stroke(self, sp: SpotState, shape: Shape):
         width = sp.stroke_weight if shape in _FULL_STROKE else sp.stroke_weight / 5.0
-        poly = geo.scaled_polygon(shape, sp.size_pan, sp.size_tilt)
+        poly = geo.scaled_polygon_np(shape, sp.size_pan, sp.size_tilt)
         ribbon = stroke_mod.outline_ribbon(poly, width)
         if ribbon.size == 0:
             return

@@ -18,40 +18,50 @@ MITER_LIMIT = 4.0    # évite les pointes infinies aux angles aigus
 
 def outline_ribbon(points, width: float) -> np.ndarray:
     """points: séquence de sommets (x,y) d'un polygone FERMÉ (N distincts).
-    Renvoie un tableau plat float32 de sommets en TRIANGLE_STRIP (ruban fermé)."""
-    pts = np.asarray(points, dtype=np.float64)
+    Renvoie un tableau plat float32 de sommets en TRIANGLE_STRIP (ruban fermé).
+
+    Écrit sans np.roll / np.stack / appels de fonction : sur le chemin chaud
+    (un appel par spot par frame), le surcoût par-appel de numpy domine, donc on
+    minimise le nombre d'opérations numpy.
+    """
+    pts = np.asarray(points, dtype=np.float32)
     n = len(pts)
     if n < 2 or width <= 0:
         return np.empty(0, dtype="f4")
 
-    prev = np.roll(pts, 1, axis=0)
-    nxt = np.roll(pts, -1, axis=0)
+    # arête sortante e2[i] = pts[i+1] - pts[i] (bouclée), normalisée
+    e2 = np.empty_like(pts)
+    e2[:-1] = pts[1:] - pts[:-1]
+    e2[-1] = pts[0] - pts[-1]
+    ln = np.sqrt(e2[:, 0] ** 2 + e2[:, 1] ** 2)
+    ln[ln == 0] = 1.0
+    e2 /= ln[:, None]
+    # arête entrante e1[i] = e2[i-1] (décalage par slice, pas de roll)
+    e1 = np.empty_like(e2)
+    e1[1:] = e2[:-1]
+    e1[0] = e2[-1]
 
-    def _norm(v):
-        ln = np.hypot(v[:, 0], v[:, 1])
-        ln[ln == 0] = 1.0
-        return v / ln[:, None]
+    # normales perpendiculaires (y, -x) ; miter m = normalize(n1 + n2)
+    mx = e1[:, 1] + e2[:, 1]
+    my = -e1[:, 0] - e2[:, 0]
+    mln = np.sqrt(mx * mx + my * my)
+    mln[mln == 0] = 1.0
+    mx /= mln
+    my /= mln
+    # denom = dot(m, n1) avec n1 = (e1.y, -e1.x)
+    denom = mx * e1[:, 1] - my * e1[:, 0]
+    np.clip(denom, 1.0 / MITER_LIMIT, None, out=denom)
+    k = (width * 0.5) / denom
+    ox = mx * k
+    oy = my * k
 
-    e1 = _norm(pts - prev)     # direction arête entrante
-    e2 = _norm(nxt - pts)      # direction arête sortante
-    # normales (perpendiculaires) de chaque arête
-    n1 = np.stack([e1[:, 1], -e1[:, 0]], axis=1)
-    n2 = np.stack([e2[:, 1], -e2[:, 0]], axis=1)
-    m = _norm(n1 + n2)         # bissectrice (direction miter)
-
-    denom = np.sum(m * n1, axis=1)
-    denom = np.clip(denom, 1.0 / MITER_LIMIT, None)
-    offset = m * (width * 0.5) / denom[:, None]
-
-    outer = pts + offset
-    inner = pts - offset
-
-    # entrelace outer/inner puis referme le ruban
     strip = np.empty((2 * n + 2, 2), dtype="f4")
-    strip[0:2 * n:2] = outer
-    strip[1:2 * n:2] = inner
-    strip[2 * n] = outer[0]
-    strip[2 * n + 1] = inner[0]
+    strip[0:2 * n:2, 0] = pts[:, 0] + ox      # outer
+    strip[0:2 * n:2, 1] = pts[:, 1] + oy
+    strip[1:2 * n:2, 0] = pts[:, 0] - ox      # inner
+    strip[1:2 * n:2, 1] = pts[:, 1] - oy
+    strip[2 * n] = strip[0]
+    strip[2 * n + 1] = strip[1]
     return strip.reshape(-1)
 
 
