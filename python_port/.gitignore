@@ -1,3 +1,7 @@
 .venv/
 __pycache__/
 *.pyc
+
+# rendus générés
+render_demo.png
+*.png
