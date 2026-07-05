@@ -20,10 +20,11 @@ import math
 import moderngl
 import numpy as np
 
+from . import blades as blades_mod
 from . import geometry as geo
 from . import stroke as stroke_mod
 from .constants import BlendMode, Shape
-from .dmx import SpotState, decode_all
+from .dmx import BaseState, SpotState, decode_all
 from .text import FontCache
 
 # Contour : ellipse/rect utilisent strokeWeight plein ; les autres polygones
@@ -164,9 +165,9 @@ class LuxCoreEngine:
             ctx.blend_func = (moderngl.SRC_ALPHA, moderngl.ONE_MINUS_SRC_ALPHA)
 
     # -- rendu d'une frame --
-    def render(self, base_bg, spots: list[SpotState]):
+    def render(self, base: BaseState, spots: list[SpotState]):
         self.fbo.use()
-        r, g, b = base_bg
+        r, g, b = base.bg
         self.ctx.clear(r / 255.0, g / 255.0, b / 255.0, 1.0)
 
         for sp in spots:
@@ -200,6 +201,22 @@ class LuxCoreEngine:
             # -- contour (stroke), seulement s'il est visible --
             if sp.stroke_alpha > 0 and sp.stroke_weight > 0:
                 self._draw_stroke(sp, shape)
+
+        self._draw_blades(base)
+
+    def _draw_blades(self, base: BaseState):
+        # 4 quads noirs opaques, en pixels absolus, après les spots
+        self._apply_blend(BlendMode.BLEND)
+        self.prog["u_scale"] = (1.0, 1.0)
+        self.prog["u_rot"] = 0.0
+        self.prog["u_translate"] = (0.0, 0.0)
+        self.prog["u_color"] = (0.0, 0.0, 0.0, 1.0)
+        quads = blades_mod.blade_quads(base.blades_16, self.width, self.height)
+        for i, quad in enumerate(quads):
+            if not blades_mod.blade_is_active(base.blades_16, i):
+                continue
+            self._dyn_vbo.write(quad.tobytes())
+            self._dyn_vao.render(moderngl.TRIANGLE_FAN, vertices=4)
 
     def _draw_stroke(self, sp: SpotState, shape: Shape):
         width = sp.stroke_weight if shape in _FULL_STROKE else sp.stroke_weight / 5.0
@@ -254,7 +271,7 @@ class LuxCoreEngine:
     def render_dmx(self, dmx_buf, num_spots: int, n_fonts: int | None = None):
         nf = self.n_fonts if n_fonts is None else n_fonts
         base, spots = decode_all(dmx_buf, num_spots, self.width, self.height, nf)
-        self.render(base.bg, spots)
+        self.render(base, spots)
         return base, spots
 
     def read_rgba(self, into: bytearray | None = None):
