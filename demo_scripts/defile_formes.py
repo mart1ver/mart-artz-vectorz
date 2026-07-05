@@ -57,6 +57,10 @@ def positions_3_rings(r1=8000, r2=16000):
 
 POSITIONS = positions_3_rings()
 
+# Slot de départ des fixtures vidéo (aligné sur luxcore.constants.VIDEO_FIXTURE_SLOT0).
+# Les fixtures vidéo occupent les slots 48+ : aucune collision avec les 48 spots.
+VIDEO_FIXTURE_SLOT0 = 48
+
 # Plage pixel totale calibrée empiriquement pour une fenêtre 1920px.
 # Processing mappe 0-65535 sur la largeur réelle de la fenêtre ; cette valeur
 # est à ajuster si la fenêtre est redimensionnée via le GUI (data/window_size.txt).
@@ -822,22 +826,23 @@ class DefileFormes:
                 for ch in [3, 5, 7, 9, 11, 13, 15, 17]:
                     self.set16(ch, margin)
 
-                # Tous les spots éteints par défaut (on n'allume que les utiles)
-                self.blackout_spots(48)
+                # Tous les spots ET fixtures vidéo éteints par défaut
+                self.blackout_spots(VIDEO_FIXTURE_SLOT0 + 16)
 
                 if p < 0.5:
-                    # ── Phase 1 : grand panneau central + orbite de formes ──
+                    # ── Phase 1 : grand panneau vidéo central + orbite de formes ──
+                    # Le panneau est la fixture vidéo 0 ; les 12 formes sont des spots.
                     w = 900
                     h = int(w * 9 / 16)
                     fx = int(60 * math.sin(t * 0.5))
                     fy = int(36 * math.sin(t * 0.7))
                     rot = int((3.0 * math.sin(t * 0.4)) % 360 * 65535 / 360)
-                    self.set_spot(0, 255, 255, 255, 255, 0, 0, 0, 0, 0,
+                    self.set_spot(VIDEO_FIXTURE_SLOT0, 255, 255, 255, 255, 0, 0, 0, 0, 0,
                                   int(w / 1000 * 65535), int(h / 1000 * 65535),
                                   rot, to_u(fx), to_u(fy), 15)
 
-                    for i in range(1, 13):
-                        a = 2 * math.pi * (i - 1) / 12 + t * 0.4
+                    for i in range(12):
+                        a = 2 * math.pi * i / 12 + t * 0.4
                         px = int(780 * math.cos(a))
                         py = int(430 * math.sin(a))
                         r, g, b = self.hsv((i / 12 + t * 0.1) % 1.0)
@@ -848,7 +853,7 @@ class DefileFormes:
                                       sz, sz, rr, to_u(px), to_u(py), i % 15,
                                       spot_blend=29)
                 else:
-                    # ── Phase 2 : mur de vidéos 3×2 qui pulse ──
+                    # ── Phase 2 : mur de 6 fixtures vidéo (grille 3×2) qui pulse ──
                     xoffs = [-620, 0, 620]
                     yoffs = [-260, 260]
                     pw = 560
@@ -858,8 +863,8 @@ class DefileFormes:
                         for cx in range(3):
                             pulse = 0.82 + 0.18 * math.sin(t * 3.0 + idx * 1.1)
                             alpha = int(255 * (0.6 + 0.4 * math.sin(t * 2.0 + idx)))
-                            self.set_spot(idx, 255, 255, 255, max(60, alpha),
-                                          0, 0, 0, 0, 0,
+                            self.set_spot(VIDEO_FIXTURE_SLOT0 + idx, 255, 255, 255,
+                                          max(60, alpha), 0, 0, 0, 0, 0,
                                           int(pw * pulse / 1000 * 65535),
                                           int(ph * pulse / 1000 * 65535), 0,
                                           to_u(xoffs[cx]), to_u(yoffs[ry]), 15)
@@ -871,8 +876,8 @@ class DefileFormes:
         except KeyboardInterrupt:
             raise
 
-        # Transition : blackout
-        self.blackout_spots(48)
+        # Transition : blackout (spots + fixtures vidéo)
+        self.blackout_spots(VIDEO_FIXTURE_SLOT0 + 16)
         self.dmx[0] = self.dmx[1] = self.dmx[2] = 0
         self.send()
 
