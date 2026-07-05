@@ -21,8 +21,13 @@ import moderngl
 import numpy as np
 
 from . import geometry as geo
+from . import stroke as stroke_mod
 from .constants import BlendMode, Shape
 from .dmx import SpotState, decode_all
+
+# Contour : ellipse/rect utilisent strokeWeight plein ; les autres polygones
+# strokeWeight/5 (cf. render_*_optimized).
+_FULL_STROKE = (Shape.ELLIPSE, Shape.RECTANGLE)
 
 VERT = """
 #version 330
@@ -66,6 +71,12 @@ class LuxCoreEngine:
         self.fbo = self.ctx.framebuffer(color_attachments=[self.tex])
 
         self._build_shape_vbo()
+
+        # VBO dynamique pour contours/segments (ruban recalculé par spot)
+        self._dyn_vbo = self.ctx.buffer(reserve=8192, dynamic=True)
+        self._dyn_vao = self.ctx.vertex_array(
+            self.prog, [(self._dyn_vbo, "2f4", "in_pos")])
+
         self.ctx.enable(moderngl.BLEND)
 
     # -- construction des VBO-unité (une fois) --
@@ -116,21 +127,51 @@ class LuxCoreEngine:
             if not sp.is_drawable():
                 continue
             shape = sp.shape
-            if shape not in self._ranges:      # TEXTE / SEGMENT : reportés
+            if shape == Shape.TEXTE:           # reporté (atlas de glyphes)
                 continue
             self._apply_blend(sp.blend_mode)
 
+            cx = self.width * 0.5 + sp.position_pan
+            cy = self.height * 0.5 + sp.position_tilt
+            self.prog["u_rot"] = math.radians(sp.rotation)
+            self.prog["u_translate"] = (cx, cy)
+
+            if shape == Shape.SEGMENT:
+                self._draw_segment(sp)
+                continue
+
+            # -- remplissage (fan rétained-mode) --
             sx, sy = geo.scale_factors(shape, sp.size_pan, sp.size_tilt)
             self.prog["u_scale"] = (sx, sy)
-            self.prog["u_rot"] = math.radians(sp.rotation)
-            self.prog["u_translate"] = (self.width * 0.5 + sp.position_pan,
-                                        self.height * 0.5 + sp.position_tilt)
-            fr, fg, fb = sp.fill
-            self.prog["u_color"] = (fr / 255.0, fg / 255.0, fb / 255.0,
-                                    sp.alpha / 255.0)
-
+            self.prog["u_color"] = (*[c / 255.0 for c in sp.fill], sp.alpha / 255.0)
             first, count = self._ranges[shape]
             self.vao.render(moderngl.TRIANGLE_FAN, vertices=count, first=first)
+
+            # -- contour (stroke), seulement s'il est visible --
+            if sp.stroke_alpha > 0 and sp.stroke_weight > 0:
+                self._draw_stroke(sp, shape)
+
+    def _draw_stroke(self, sp: SpotState, shape: Shape):
+        width = sp.stroke_weight if shape in _FULL_STROKE else sp.stroke_weight / 5.0
+        poly = geo.scaled_polygon(shape, sp.size_pan, sp.size_tilt)
+        ribbon = stroke_mod.outline_ribbon(poly, width)
+        if ribbon.size == 0:
+            return
+        self._dyn_vbo.write(ribbon.tobytes())
+        self.prog["u_scale"] = (1.0, 1.0)      # ruban déjà en pixels locaux
+        self.prog["u_color"] = (*[c / 255.0 for c in sp.stroke],
+                                sp.stroke_alpha / 255.0)
+        self._dyn_vao.render(moderngl.TRIANGLE_STRIP, vertices=ribbon.size // 2)
+
+    def _draw_segment(self, sp: SpotState):
+        # SEGMENT : trait épais en couleur de contour (size_tilt -> épaisseur)
+        thickness = max(1.0, sp.size_tilt / 500.0)
+        quad = stroke_mod.segment_quad(sp.size_pan, thickness)
+        self._dyn_vbo.write(quad.tobytes())
+        self.prog["u_scale"] = (1.0, 1.0)
+        self.prog["u_color"] = (*[c / 255.0 for c in sp.stroke],
+                                sp.stroke_alpha / 255.0)
+        self._dyn_vao.render(moderngl.TRIANGLE_STRIP, vertices=4)
 
     def render_dmx(self, dmx_buf, num_spots: int, n_fonts: int = 0):
         base, spots = decode_all(dmx_buf, num_spots, self.width, self.height, n_fonts)

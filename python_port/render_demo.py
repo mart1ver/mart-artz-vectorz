@@ -35,12 +35,17 @@ def size_to_16(size_px: float) -> int:
     return int(size_px / 1000 * 65535)
 
 
-def set_spot(dmx, spot_id, shape, dx, dy, size, color, rot_deg=0.0):
+def set_spot(dmx, spot_id, shape, dx, dy, size, color, rot_deg=0.0,
+             stroke_color=(255, 255, 255), stroke_weight=30, stroke_alpha=255,
+             size_tilt=None):
     base = C.spot_base_addr(spot_id)
     dmx[base + C.SP_FILL_R], dmx[base + C.SP_FILL_G], dmx[base + C.SP_FILL_B] = color
     dmx[base + C.SP_ALPHA] = 255
+    dmx[base + C.SP_STROKE_R], dmx[base + C.SP_STROKE_G], dmx[base + C.SP_STROKE_B] = stroke_color
+    dmx[base + C.SP_STROKE_WEIGHT] = stroke_weight
+    dmx[base + C.SP_STROKE_ALPHA] = stroke_alpha
     set16(dmx, base + C.SP_SIZE_PAN, size_to_16(size))
-    set16(dmx, base + C.SP_SIZE_TILT, size_to_16(size))
+    set16(dmx, base + C.SP_SIZE_TILT, size_to_16(size_tilt if size_tilt is not None else size))
     set16(dmx, base + C.SP_ROTATION, int(rot_deg / 360 * 65535))
     set16(dmx, base + C.SP_POS_PAN, px_to_pos16(dx, HALF_W))
     set16(dmx, base + C.SP_POS_TILT, px_to_pos16(dy, HALF_H))
@@ -58,11 +63,14 @@ def main():
     cols = [-500, -250, 0, 250, 500]
     rows = [-220, 0, 220]
     for i in range(num_spots):
+        shape = Shape(i)
         dx = cols[i % 5]
         dy = rows[i // 5]
         color = hsv(i / num_spots)
-        rot = 20.0 if Shape(i) in (Shape.TRIANGLE, Shape.FLECHE, Shape.ETOILE) else 0.0
-        set_spot(dmx, i, Shape(i), dx, dy, 190, color, rot)
+        rot = 20.0 if shape in (Shape.TRIANGLE, Shape.FLECHE, Shape.ETOILE) else 0.0
+        # segment : size_tilt encode l'épaisseur (thickness = size_tilt/500, max 2px)
+        st = 1000 if shape == Shape.SEGMENT else None
+        set_spot(dmx, i, shape, dx, dy, 190, color, rot, size_tilt=st)
 
     eng = LuxCoreEngine(W, H)
     # fond gris foncé pour voir les formes sombres
