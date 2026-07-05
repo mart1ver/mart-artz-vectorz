@@ -40,6 +40,8 @@ def main():
                                          "..", "data", "fonts"),
                     help="dossier des polices .ttf (mode TEXTE)")
     ap.add_argument("--no-fonts", action="store_true", help="désactive le texte")
+    ap.add_argument("--no-gui", action="store_true",
+                    help="désactive le panneau GUI imgui (aperçu seul)")
     args = ap.parse_args()
 
     fonts_dir = None if args.no_fonts else args.fonts_dir
@@ -51,18 +53,25 @@ def main():
 
     W, H, FPS = args.width, args.height, args.fps
 
+    # état partagé avec le GUI
+    state = {"spots": args.spots, "effects": True, "restart_artnet": False}
+
     # -- contexte GL : fenêtre d'aperçu (pyglet) ou headless (EGL standalone) --
     window = None
     blit = None
+    gui_impl = None
     if args.preview:
-        import moderngl
-        import pyglet
+        # fenêtre moderngl-window : contexte GL + intégration imgui via moderngl
+        # (pas de PyOpenGL, robuste sur Wayland/X11)
+        import moderngl_window as mglw
         Wp, Hp = int(W * args.preview_scale), int(H * args.preview_scale)
-        window = pyglet.window.Window(width=Wp, height=Hp, resizable=True,
-                                      caption=f"LuxCore — aperçu ({args.name})")
-        ctx = moderngl.create_context()
+        window_cls = mglw.get_local_window_cls()
+        window = window_cls(size=(Wp, Hp), title=f"LuxCore — aperçu ({args.name})",
+                            gl_version=(3, 3), vsync=False, resizable=True)
+        mglw.activate_context(window=window)
+        ctx = window.ctx
         eng = LuxCoreEngine(W, H, ctx=ctx, fonts_dir=fonts_dir)
-        # programme de blit : FBO (top-down pour NDI) -> écran, V inversé pour être droit
+        # blit : FBO (top-down pour NDI) -> écran, V inversé pour être droit
         blit_prog = ctx.program(
             vertex_shader="#version 330\nin vec2 p;out vec2 uv;"
                           "void main(){uv=p*0.5+0.5;gl_Position=vec4(p,0,1);}",
@@ -72,15 +81,24 @@ def main():
         blit_vao = ctx.vertex_array(blit_prog, [(quad, "2f4", "p")])
         blit = (ctx, blit_prog, blit_vao)
 
-        closing = {"v": False}
-
-        @window.event
-        def on_close():
-            closing["v"] = True
+        # -- GUI imgui (rendu via moderngl) --
+        if not args.no_gui:
+            from imgui_bundle import imgui
+            from luxcore.imgui_backend import Imgui192Renderer
+            imgui.create_context()
+            gui_impl = Imgui192Renderer(window)
+            window.mouse_position_event_func = gui_impl.mouse_position_event
+            window.mouse_drag_event_func = gui_impl.mouse_drag_event
+            window.mouse_press_event_func = gui_impl.mouse_press_event
+            window.mouse_release_event_func = gui_impl.mouse_release_event
+            window.mouse_scroll_event_func = gui_impl.mouse_scroll_event
+            window.key_event_func = gui_impl.key_event
+            window.unicode_char_entered_func = gui_impl.unicode_char_entered
+            window.resize_func = gui_impl.resize
+            print("[gui] panneau imgui actif")
         print(f"[preview] fenêtre {Wp}x{Hp} ouverte")
     else:
         eng = LuxCoreEngine(W, H, fonts_dir=fonts_dir)
-        closing = {"v": False}
     print(f"[GL] {eng.ctx.info['GL_RENDERER']}")
 
     # -- sortie NDI (readback PBO + worker, cf. spike) --
@@ -126,27 +144,47 @@ def main():
             now = time.perf_counter()
             if args.duration and now - t0 >= args.duration:
                 break
-            if closing["v"]:
+            if window is not None and window.is_closing:
                 print("\n[preview] fenêtre fermée.")
                 break
 
-            if window is not None:
-                window.switch_to()
-                window.dispatch_events()
+            # contrôles GUI appliqués à la frame
+            eng.enable_effects = state["effects"]
+            if state["restart_artnet"]:
+                state["restart_artnet"] = False
+                artnet.stop()
+                artnet = ArtNetReceiver()
+                artnet.start()
+                print("[artnet] redémarré")
 
             dmx = artnet.snapshot()
-            eng.render_dmx(dmx, args.spots)
+            base, _ = eng.render_dmx(dmx, state["spots"])
 
-            # aperçu écran : blit du FBO vers la fenêtre
+            # aperçu écran : blit du FBO vers le framebuffer de la fenêtre
             if blit is not None:
                 ctx, blit_prog, blit_vao = blit
-                ctx.screen.use()
-                ctx.viewport = (0, 0, window.width, window.height)
+                window.use()
                 eng.tex.use(0)
                 blit_prog["t"] = 0
                 import moderngl as _mgl
                 blit_vao.render(_mgl.TRIANGLE_STRIP)
-                window.flip()
+
+                if gui_impl is not None:
+                    from imgui_bundle import imgui
+                    from luxcore.gui import draw_gui
+                    imgui.new_frame()
+                    status = {"fps": n / max(1e-6, time.perf_counter() - t0),
+                              "packets": artnet.packets,
+                              "universe": artnet.last_universe_seen,
+                              "ndi": args.name,
+                              "res": f"{W}x{H} @ {FPS}",
+                              "blend": base.blend_global.name}
+                    draw_gui(state, status)
+                    imgui.render()
+                    gui_impl.update_textures()
+                    gui_impl.render(imgui.get_draw_data())
+
+                window.swap_buffers()
 
             cur, prev = n % NB, (n - 1) % NB
             eng.fbo.read_into(pbos[cur], components=4, dtype="f1")

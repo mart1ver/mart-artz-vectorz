@@ -124,6 +124,7 @@ class LuxCoreEngine:
             self._text_prog, [(self._text_vbo, "2f4 2f4", "in_pos", "in_uv")])
         self._glyph_tex: dict[tuple[int, str], moderngl.Texture] = {}
 
+        self.enable_effects = True             # bypassable depuis le GUI
         self._build_effects()
         self.ctx.enable(moderngl.BLEND)
 
@@ -245,6 +246,8 @@ class LuxCoreEngine:
         return af, at, cf, ct               # buffers échangés
 
     def _apply_effects(self, base, cf, ct, af, at):
+        if not self.enable_effects:
+            return cf, ct, af, at
         self.ctx.disable(moderngl.BLEND)      # les effets écrasent, pas de blend
         if base.pixelate > 1:
             amt = pmap(base.pixelate, 0, 255, 255, 20)
@@ -266,7 +269,7 @@ class LuxCoreEngine:
         return cf, ct, af, at
 
     def _apply_blur(self, base, cf, ct, af, at):
-        if base.blur_size <= 0.1 and base.blur_sigma <= 0.1:
+        if not self.enable_effects or (base.blur_size <= 0.1 and base.blur_sigma <= 0.1):
             return cf, ct, af, at
         self.ctx.disable(moderngl.BLEND)
         prog = self._fx["blur"]
