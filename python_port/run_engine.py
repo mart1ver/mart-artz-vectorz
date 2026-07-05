@@ -31,6 +31,10 @@ def main():
     ap.add_argument("--name", default="LuxCore")
     ap.add_argument("--snapshot-dir", help="sauve un PNG toutes les --snapshot-interval s")
     ap.add_argument("--snapshot-interval", type=float, default=2.0)
+    ap.add_argument("--preview", action="store_true",
+                    help="ouvre une fenêtre d'aperçu à l'écran (en plus du NDI)")
+    ap.add_argument("--preview-scale", type=float, default=0.66,
+                    help="taille de la fenêtre d'aperçu (× la résolution de rendu)")
     args = ap.parse_args()
 
     snap_idx = 0
@@ -39,7 +43,37 @@ def main():
         os.makedirs(args.snapshot_dir, exist_ok=True)
 
     W, H, FPS = args.width, args.height, args.fps
-    eng = LuxCoreEngine(W, H)
+
+    # -- contexte GL : fenêtre d'aperçu (pyglet) ou headless (EGL standalone) --
+    window = None
+    blit = None
+    if args.preview:
+        import moderngl
+        import pyglet
+        Wp, Hp = int(W * args.preview_scale), int(H * args.preview_scale)
+        window = pyglet.window.Window(width=Wp, height=Hp, resizable=True,
+                                      caption=f"LuxCore — aperçu ({args.name})")
+        ctx = moderngl.create_context()
+        eng = LuxCoreEngine(W, H, ctx=ctx)
+        # programme de blit : FBO (top-down pour NDI) -> écran, V inversé pour être droit
+        blit_prog = ctx.program(
+            vertex_shader="#version 330\nin vec2 p;out vec2 uv;"
+                          "void main(){uv=p*0.5+0.5;gl_Position=vec4(p,0,1);}",
+            fragment_shader="#version 330\nin vec2 uv;out vec4 f;uniform sampler2D t;"
+                            "void main(){f=texture(t,vec2(uv.x,1.0-uv.y));}")
+        quad = ctx.buffer(np.array([-1, -1, 1, -1, -1, 1, 1, 1], dtype="f4").tobytes())
+        blit_vao = ctx.vertex_array(blit_prog, [(quad, "2f4", "p")])
+        blit = (ctx, blit_prog, blit_vao)
+
+        closing = {"v": False}
+
+        @window.event
+        def on_close():
+            closing["v"] = True
+        print(f"[preview] fenêtre {Wp}x{Hp} ouverte")
+    else:
+        eng = LuxCoreEngine(W, H)
+        closing = {"v": False}
     print(f"[GL] {eng.ctx.info['GL_RENDERER']}")
 
     # -- sortie NDI (readback PBO + worker, cf. spike) --
@@ -85,9 +119,27 @@ def main():
             now = time.perf_counter()
             if args.duration and now - t0 >= args.duration:
                 break
+            if closing["v"]:
+                print("\n[preview] fenêtre fermée.")
+                break
+
+            if window is not None:
+                window.switch_to()
+                window.dispatch_events()
 
             dmx = artnet.snapshot()
             eng.render_dmx(dmx, args.spots, n_fonts=0)
+
+            # aperçu écran : blit du FBO vers la fenêtre
+            if blit is not None:
+                ctx, blit_prog, blit_vao = blit
+                ctx.screen.use()
+                ctx.viewport = (0, 0, window.width, window.height)
+                eng.tex.use(0)
+                blit_prog["t"] = 0
+                import moderngl as _mgl
+                blit_vao.render(_mgl.TRIANGLE_STRIP)
+                window.flip()
 
             cur, prev = n % NB, (n - 1) % NB
             eng.fbo.read_into(pbos[cur], components=4, dtype="f1")
