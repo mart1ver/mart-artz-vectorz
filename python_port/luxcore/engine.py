@@ -24,7 +24,7 @@ from . import blades as blades_mod
 from . import geometry as geo
 from . import stroke as stroke_mod
 from .constants import BlendMode, Shape
-from .dmx import BaseState, SpotState, decode_all
+from .dmx import BaseState, SpotState, decode_all, pmap
 from .text import FontCache
 
 # Contour : ellipse/rect utilisent strokeWeight plein ; les autres polygones
@@ -124,7 +124,27 @@ class LuxCoreEngine:
             self._text_prog, [(self._text_vbo, "2f4 2f4", "in_pos", "in_uv")])
         self._glyph_tex: dict[tuple[int, str], moderngl.Texture] = {}
 
+        self._build_effects()
         self.ctx.enable(moderngl.BLEND)
+
+    # -- post-effets : 2e FBO (ping-pong) + programmes plein écran --
+    def _build_effects(self):
+        from . import effects as fx
+        self._tex2 = self.ctx.texture((self.width, self.height), 4)
+        self._fbo2 = self.ctx.framebuffer(color_attachments=[self._tex2])
+        fs = self.ctx.buffer(
+            np.array([-1, -1, 1, -1, -1, 1, 1, 1], dtype="f4").tobytes())
+        res = (float(self.width), float(self.height))
+        self._fx = {}
+        self._fx_vao = {}
+        for name, frag in [("pixelate", fx.PIXELATE_FRAG), ("sobel", fx.SOBEL_FRAG),
+                           ("rgbsplit", fx.RGBSPLIT_FRAG), ("saturation", fx.SATURATION_FRAG),
+                           ("chromatic", fx.CHROMATIC_FRAG), ("blur", fx.BLUR_FRAG)]:
+            prog = self.ctx.program(vertex_shader=fx.FULLSCREEN_VERT, fragment_shader=frag)
+            if "resolution" in prog:
+                prog["resolution"] = res
+            self._fx[name] = prog
+            self._fx_vao[name] = self.ctx.vertex_array(prog, [(fs, "2f4", "in_pos")])
 
     # -- construction des VBO-unité (une fois) --
     def _build_shape_vbo(self):
@@ -202,7 +222,63 @@ class LuxCoreEngine:
             if sp.stroke_alpha > 0 and sp.stroke_weight > 0:
                 self._draw_stroke(sp, shape)
 
+        # -- pipeline : effets (bg+spots) -> blades -> blur (do_blade_blur) --
+        cf, ct, af, at = self.fbo, self.tex, self._fbo2, self._tex2
+        cf, ct, af, at = self._apply_effects(base, cf, ct, af, at)
+
+        cf.use()
         self._draw_blades(base)
+
+        cf, ct, af, at = self._apply_blur(base, cf, ct, af, at)
+
+        if ct is not self.tex:                 # le résultat final doit être dans self.tex
+            self.ctx.copy_framebuffer(self.fbo, cf)
+
+    def _fx_pass(self, name, cf, ct, af, at, setup=None):
+        af.use()
+        ct.use(0)
+        prog = self._fx[name]
+        prog["tex"] = 0
+        if setup:
+            setup(prog)
+        self._fx_vao[name].render(moderngl.TRIANGLE_STRIP)
+        return af, at, cf, ct               # buffers échangés
+
+    def _apply_effects(self, base, cf, ct, af, at):
+        self.ctx.disable(moderngl.BLEND)      # les effets écrasent, pas de blend
+        if base.pixelate > 1:
+            amt = pmap(base.pixelate, 0, 255, 255, 20)
+            cf, ct, af, at = self._fx_pass("pixelate", cf, ct, af, at,
+                                           lambda p: p.__setitem__("amount", amt))
+        if base.sobel:
+            cf, ct, af, at = self._fx_pass("sobel", cf, ct, af, at)
+        if base.rgb_split > 1:
+            cf, ct, af, at = self._fx_pass("rgbsplit", cf, ct, af, at,
+                                           lambda p: p.__setitem__("delta", float(base.rgb_split)))
+        if base.saturation_a > 0.001 or base.saturation_b > 0.001:
+            def _su(p):
+                p["saturation"] = float(base.saturation_a)
+                p["vibrance"] = float(base.saturation_b)
+            cf, ct, af, at = self._fx_pass("saturation", cf, ct, af, at, _su)
+        if base.chromatic:
+            cf, ct, af, at = self._fx_pass("chromatic", cf, ct, af, at)
+        self.ctx.enable(moderngl.BLEND)
+        return cf, ct, af, at
+
+    def _apply_blur(self, base, cf, ct, af, at):
+        if base.blur_size <= 0.1 and base.blur_sigma <= 0.1:
+            return cf, ct, af, at
+        self.ctx.disable(moderngl.BLEND)
+        prog = self._fx["blur"]
+        prog["texOffset"] = (1.0 / self.width, 1.0 / self.height)
+        prog["blurSize"] = int(base.blur_size)
+        prog["sigma"] = max(0.1, float(base.blur_sigma))
+        prog["horizontalPass"] = 1
+        cf, ct, af, at = self._fx_pass("blur", cf, ct, af, at)
+        prog["horizontalPass"] = 0
+        cf, ct, af, at = self._fx_pass("blur", cf, ct, af, at)
+        self.ctx.enable(moderngl.BLEND)
+        return cf, ct, af, at
 
     def _draw_blades(self, base: BaseState):
         # 4 quads noirs opaques, en pixels absolus, après les spots
