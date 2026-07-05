@@ -1,22 +1,14 @@
-# python_port — Spike de dé-risquage (portage moderngl)
+# python_port — LuxCore DMX Engine (portage Python / moderngl)
 
-Prototype **isolé** validant l'ossature du futur moteur Python. Il ne touche à
-**aucun** fichier `.pde` du projet Processing.
+Portage du moteur Processing en Python, motivé par deux fonctions impossibles
+sous Processing : **sortie NDI** et **player vidéo**. Le rendu reproduit le
+pipeline Processing complet, en moderngl, sans JVM.
 
-But : prouver que la boucle temps-réel tient la cible avec, dans un **seul
-process Python sans JVM**, les quatre capacités que Processing/py5 ne font pas
-proprement :
-
-1. contexte OpenGL possédé — **moderngl** (EGL standalone, marche sans fenêtre)
-2. **vidéo décodée** (PyAV) → texture GL
-3. post-effet **shader GLSL** (sobel, dose modulée par ArtNet)
-4. lecture framebuffer → **sortie NDI** (cyndilib)
-5. réception **ArtNet** UDP:6454 → canal 1 = intensité de l'effet
+**Aucun fichier `.pde` n'est modifié** — ce dossier est une réécriture parallèle.
 
 ## Installation
 
-Le runtime NDI (`libndi.so`) doit être présent sur le système (déjà le cas ici,
-`/usr/local/lib/libndi.so.6`). Puis :
+Runtime NDI (`libndi.so`) requis sur le système. Puis :
 
 ```bash
 python3 -m venv --without-pip .venv          # (ensurepip absent sur py3.14)
@@ -27,44 +19,61 @@ curl -sS https://bootstrap.pypa.io/get-pip.py | .venv/bin/python
 ## Lancer
 
 ```bash
-# mire procédurale, 1080p60, 20 s
-.venv/bin/python spike_ndi.py
+# aperçu écran + GUI + sortie NDI, piloté par ArtNet (défilé, etc.)
+.venv/bin/python run_engine.py --preview --spots 48 --duration 0
 
-# vidéo réelle
-.venv/bin/python spike_ndi.py --video ../ma_video.mp4 --width 1920 --height 1080 --fps 60
+# avec une source vidéo (mode forme 15)
+.venv/bin/python run_engine.py --preview --video ../ma_video.mp4 --duration 0
 
-# jusqu'à Ctrl+C
-.venv/bin/python spike_ndi.py --duration 0
+# headless (NDI seul, pour serveur) : retirer --preview
 ```
+Source NDI **`LuxCore`** visible dans OBS (plugin NDI) / vMix / Resolume.
+Piloter en envoyant de l'ArtNet sur `127.0.0.1:6454` (`demo_scripts/*.py`).
 
-Puis ouvrir un **récepteur NDI** (OBS + plugin NDI, vMix, Resolume, NDI Studio
-Monitor) et sélectionner la source **`LuxCore-Spike`**.
-Envoyer de l'ArtNet sur le canal 1 (p.ex. `demo_scripts/luxcore_artnet.py`) fait
-varier la dose de sobel en direct.
+Options : `--width/--height/--fps`, `--no-gui`, `--no-fonts`, `--preview-scale`,
+`--snapshot-dir` (dump PNG périodique).
 
-## Résultats mesurés (Intel UHD 630, iGPU 2018 — quasi pire-cas)
+## Architecture (`luxcore/`)
 
-| Résolution | FPS      | read (GL) | upload | send NDI (worker) | verdict |
-|-----------:|---------:|----------:|-------:|------------------:|:--------|
-| 1280×720   | **59.9** | 5.8 ms    | 2.4 ms | 16.5 ms           | **tient 60** |
-| 1920×1080  | ~51.5    | 8.5 ms    | 4.9 ms | 19.2 ms           | ~52 fps |
+| Module | Rôle |
+|---|---|
+| `constants.py` | mapping DMX 0-indexé, LUT blend, enums formes/blend |
+| `dmx.py` | décodage 1:1 de `SpotData.update_from_dmx` (BaseState + SpotState) |
+| `artnet.py` | réception UDP multi-univers (thread), compatible `send_multi` |
+| `geometry.py` | les 15 formes en polygones-unité (rétained-mode VBO) |
+| `stroke.py` | ruban de contour (miter) + segment |
+| `text.py` | cache de glyphes 20 polices (mode TEXTE) |
+| `blades.py` | 4 couteaux de cadrage 16-bit |
+| `effects.py` | 6 post-effets bildspur portés en GLSL 330 |
+| `video.py` | décodage vidéo PyAV (mode forme VIDEO = 15) |
+| `gui.py` + `imgui_backend.py` | panneau imgui (config + status) |
+| `engine.py` | pipeline : `fond → spots → effets → blades → blur → NDI` |
 
-Optimisations déjà intégrées : readback **PBO** double-buffer (async), envoi NDI
-**asynchrone** délégué à un **worker thread** (triple-buffer). Le chemin critique
-GL en 1080p n'est que 13.4 ms (80 % du budget) ; le plafond restant est l'étape
-d'envoi NDI (~19 ms, largement fixe → *pacing* cyndilib, peu sensible à la
-résolution).
+Pipeline fidèle à Processing : `do_background → do_spots → do_effects →
+do_blades → do_blade_blur`.
 
-## Pistes pour 1080p60 plein (non implémentées)
+## Pipeline DMX (rappel + extension)
 
-- **Sortie UYVY** (2 octets/pixel au lieu de 4 en RGBA) : conversion sur GPU
-  dans un shader, NDI n'a plus à convertir. À valider (le coût d'envoi observé
-  est surtout fixe, gain incertain).
-- Toute GPU postérieure à 2018 (readback/upload bien plus rapides).
-- `sender.clock_video` / réglage fin du rythme cyndilib.
+Identique au mapping Processing (`z_fixture_definition.pde`), **plus** :
+- **mode +19 = 15 → VIDEO** : quad texturé par la source vidéo, positionné/
+  dimensionné (`size_pan × size_tilt`) / tourné comme un rectangle, opacité =
+  alpha du spot. Extension propre au portage.
 
-## Conclusion
+## Tests
 
-Architecture **validée** : les quatre sous-systèmes tournent ensemble en un seul
-process Python natif. Aucun blocage architectural — la sortie NDI et le player
-vidéo, impossibles proprement sous Processing/py5, sont ici de première classe.
+```bash
+for t in dmx geometry stroke blades engine text effects; do
+  .venv/bin/python tests/test_$t.py; done
+```
+41 tests (décodage, géométrie recalculée depuis le `.pde`, contour, blades,
+intégration GL, polices, post-effets).
+
+## État
+
+Pipeline de rendu **complet** : 15 formes (fill/contour/texte/segment) + VIDEO,
+blades, 6 post-effets, GUI, sortie NDI. Perf ~45-56 fps à 1080p/48 spots sur
+iGPU Intel UHD 630 (2018) — plafond = readback NDI, pas le rendu.
+
+Optimisations connues pour 60 fps garanti sur scènes très denses : instancing
+des formes (une passe par type) + sortie NDI UYVY. Calibration fine possible des
+post-effets vs Processing (cf. audit).
