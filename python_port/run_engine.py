@@ -43,6 +43,8 @@ def main():
     ap.add_argument("--no-gui", action="store_true",
                     help="désactive le panneau GUI imgui (aperçu seul)")
     ap.add_argument("--video", help="fichier vidéo source pour le mode forme VIDEO (mode 15)")
+    ap.add_argument("--video-fixtures", type=int, default=6,
+                    help="nombre de fixtures vidéo rendues (réglable ensuite dans le GUI)")
     args = ap.parse_args()
 
     fonts_dir = None if args.no_fonts else args.fonts_dir
@@ -55,7 +57,8 @@ def main():
     W, H, FPS = args.width, args.height, args.fps
 
     # état partagé avec le GUI
-    state = {"spots": args.spots, "effects": True, "restart_artnet": False}
+    state = {"spots": args.spots, "video": args.video_fixtures, "effects": True,
+             "restart_artnet": False, "gui_visible": True}
 
     # -- contexte GL : fenêtre d'aperçu (pyglet) ou headless (EGL standalone) --
     window = None
@@ -87,16 +90,28 @@ def main():
             from imgui_bundle import imgui
             from luxcore.imgui_backend import Imgui192Renderer
             imgui.create_context()
+            try:
+                imgui.get_io().set_ini_filename("")   # pas de imgui.ini dans le repo
+            except Exception:
+                pass
             gui_impl = Imgui192Renderer(window)
             window.mouse_position_event_func = gui_impl.mouse_position_event
             window.mouse_drag_event_func = gui_impl.mouse_drag_event
             window.mouse_press_event_func = gui_impl.mouse_press_event
             window.mouse_release_event_func = gui_impl.mouse_release_event
             window.mouse_scroll_event_func = gui_impl.mouse_scroll_event
-            window.key_event_func = gui_impl.key_event
             window.unicode_char_entered_func = gui_impl.unicode_char_entered
             window.resize_func = gui_impl.resize
-            print("[gui] panneau imgui actif")
+
+            def on_key(key, action, modifiers, _w=window, _s=state):
+                if action == _w.keys.ACTION_PRESS:
+                    if key == _w.keys.H:            # masquer / afficher le menu
+                        _s["gui_visible"] = not _s["gui_visible"]
+                    elif key == _w.keys.G:          # (dés)activer le plein écran
+                        _w.fullscreen = not _w.fullscreen
+                gui_impl.key_event(key, action, modifiers)
+            window.key_event_func = on_key
+            print("[gui] panneau imgui actif — h: masquer menu, g: plein écran")
         print(f"[preview] fenêtre {Wp}x{Hp} ouverte")
     else:
         eng = LuxCoreEngine(W, H, fonts_dir=fonts_dir, video_path=args.video)
@@ -159,7 +174,7 @@ def main():
                 print("[artnet] redémarré")
 
             dmx = artnet.snapshot()
-            base, _ = eng.render_dmx(dmx, state["spots"])
+            base, _ = eng.render_dmx(dmx, state["spots"], state["video"])
 
             # aperçu écran : blit du FBO vers le framebuffer de la fenêtre
             if blit is not None:
@@ -170,7 +185,7 @@ def main():
                 import moderngl as _mgl
                 blit_vao.render(_mgl.TRIANGLE_STRIP)
 
-                if gui_impl is not None:
+                if gui_impl is not None and state["gui_visible"]:
                     from imgui_bundle import imgui
                     from luxcore.gui import draw_gui
                     imgui.new_frame()

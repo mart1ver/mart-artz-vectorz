@@ -6,6 +6,7 @@ restart ArtNet) + dossier `status` (usage, blend mode). Adapté au moteur Python
 
 `draw_gui(state, status)` lit/écrit le dict `state` partagé avec la boucle :
   state["spots"]           : int  — nombre de spots rendus
+  state["video"]           : int  — nombre de fixtures vidéo rendues
   state["effects"]         : bool — post-effets activés
   state["restart_artnet"]  : bool — mis à True au clic (consommé par la boucle)
 """
@@ -18,9 +19,12 @@ def draw_gui(state: dict, status: dict) -> None:
     imgui.begin("LuxCore DMX Engine")
 
     imgui.separator_text("config")
-    changed, v = imgui.slider_int("Nb. of spots", state["spots"], 0, 256)
+    changed, v = imgui.slider_int("Nb. of spots", state["spots"], 0, 48)
     if changed:
         state["spots"] = v
+    changed, v = imgui.slider_int("Nb. de vidéos", state["video"], 0, 16)
+    if changed:
+        state["video"] = v
     changed, v = imgui.checkbox("Post-effets", state["effects"])
     if changed:
         state["effects"] = v
@@ -34,5 +38,9 @@ def draw_gui(state: dict, status: dict) -> None:
     imgui.text(f"NDI        : {status['ndi']}")
     imgui.text(f"Résolution : {status['res']}")
     imgui.text(f"Blend      : {status['blend']}")
+
+    imgui.separator_text("raccourcis")
+    imgui.text("h : masquer ce menu")
+    imgui.text("g : plein écran")
 
     imgui.end()

@@ -54,6 +54,20 @@ def spot_base_addr(spot_id: int) -> int:
 
 
 # ---------------------------------------------------------------------------
+# Fixtures vidéo — famille de fixtures dédiée (même layout 23 canaux qu'un spot,
+# mais toujours rendue en vidéo, mode forcé). Placées APRÈS le bloc des spots
+# (à partir du slot MAX_SPOTS) pour ne jamais entrer en collision avec eux.
+# ---------------------------------------------------------------------------
+MAX_SPOTS = 48                    # slots 0..47 réservés aux spots
+VIDEO_FIXTURE_SLOT0 = MAX_SPOTS   # les fixtures vidéo commencent au slot 48
+
+
+def video_base_addr(fixture_id: int) -> int:
+    """Index DMX du premier canal d'une fixture vidéo."""
+    return spot_base_addr(VIDEO_FIXTURE_SLOT0 + fixture_id)
+
+
+# ---------------------------------------------------------------------------
 # Formes (canal +19)
 # ---------------------------------------------------------------------------
 class Shape(IntEnum):

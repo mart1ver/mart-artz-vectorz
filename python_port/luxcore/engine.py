@@ -23,8 +23,9 @@ import numpy as np
 from . import blades as blades_mod
 from . import geometry as geo
 from . import stroke as stroke_mod
+from . import constants as C
 from .constants import BlendMode, Shape
-from .dmx import BaseState, SpotState, decode_all, pmap
+from .dmx import BaseState, SpotState, decode_all, decode_spot, pmap
 from .text import FontCache
 
 # Contour : ellipse/rect utilisent strokeWeight plein ; les autres polygones
@@ -403,9 +404,18 @@ class LuxCoreEngine:
         self._video_prog["vid"] = 0
         self._video_vao.render(moderngl.TRIANGLE_STRIP, vertices=4)
 
-    def render_dmx(self, dmx_buf, num_spots: int, n_fonts: int | None = None):
+    def render_dmx(self, dmx_buf, num_spots: int, num_video: int = 0,
+                   n_fonts: int | None = None):
         nf = self.n_fonts if n_fonts is None else n_fonts
         base, spots = decode_all(dmx_buf, num_spots, self.width, self.height, nf)
+        # fixtures vidéo dédiées : même layout, mode forcé VIDEO
+        if num_video:
+            half_w, half_h = self.width * 0.5, self.height * 0.5
+            for i in range(num_video):
+                vf = decode_spot(dmx_buf, C.video_base_addr(i), half_w, half_h,
+                                 base.blend_global, nf)
+                vf.mode = int(Shape.VIDEO)
+                spots.append(vf)
         self.render(base, spots)
         return base, spots
 
