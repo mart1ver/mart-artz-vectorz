@@ -792,13 +792,100 @@ class DefileFormes:
         self.dmx = [0] * 1536
         self.send()
 
+    # ── SCÈNE VIDÉO : le player vidéo comme forme (mode 15) ──────────────────
+    def demo_video(self, duree=28.0):
+        """Met en scène le player vidéo (mode forme 15, extension du portage).
+        Phase 1 : grand panneau central qui flotte, formes géométriques en orbite.
+        Phase 2 : mur de vidéos (grille 3×2) qui pulse en rythme.
+        Nécessite un moteur lancé avec --video ; sinon les panneaux restent noirs."""
+        print("  🎬  Vidéo — player intégré (mode 15)")
+
+        def to_u(px_off):
+            return max(0, min(65535, int(32767 + px_off * 65535 / SCREEN_PX_RANGE)))
+
+        t0 = time.time()
+        try:
+            while True:
+                t = time.time() - t0
+                if t >= duree:
+                    break
+                p = t / duree
+
+                # Fond noir, blend global BLEND, effets off
+                self.dmx[0] = self.dmx[1] = self.dmx[2] = 0
+                self.dmx[19] = 0
+                for i in range(20, 28):
+                    self.dmx[i] = 0
+
+                # Blades : cadre large qui respire
+                margin = int(2200 + 1000 * math.sin(t * 0.5))
+                for ch in [3, 5, 7, 9, 11, 13, 15, 17]:
+                    self.set16(ch, margin)
+
+                # Tous les spots éteints par défaut (on n'allume que les utiles)
+                self.blackout_spots(48)
+
+                if p < 0.5:
+                    # ── Phase 1 : grand panneau central + orbite de formes ──
+                    w = 900
+                    h = int(w * 9 / 16)
+                    fx = int(60 * math.sin(t * 0.5))
+                    fy = int(36 * math.sin(t * 0.7))
+                    rot = int((3.0 * math.sin(t * 0.4)) % 360 * 65535 / 360)
+                    self.set_spot(0, 255, 255, 255, 255, 0, 0, 0, 0, 0,
+                                  int(w / 1000 * 65535), int(h / 1000 * 65535),
+                                  rot, to_u(fx), to_u(fy), 15)
+
+                    for i in range(1, 13):
+                        a = 2 * math.pi * (i - 1) / 12 + t * 0.4
+                        px = int(780 * math.cos(a))
+                        py = int(430 * math.sin(a))
+                        r, g, b = self.hsv((i / 12 + t * 0.1) % 1.0)
+                        sz = int(4200 + 1500 * math.sin(t * 2 + i))
+                        rr = int((t * 60 + i * 30) % 360 * 65535 / 360)
+                        self.set_spot(i, r, g, b, 220, 8, 200,
+                                      255 - r, 255 - g, 255 - b,
+                                      sz, sz, rr, to_u(px), to_u(py), i % 15,
+                                      spot_blend=29)
+                else:
+                    # ── Phase 2 : mur de vidéos 3×2 qui pulse ──
+                    xoffs = [-620, 0, 620]
+                    yoffs = [-260, 260]
+                    pw = 560
+                    ph = int(pw * 9 / 16)
+                    idx = 0
+                    for ry in range(2):
+                        for cx in range(3):
+                            pulse = 0.82 + 0.18 * math.sin(t * 3.0 + idx * 1.1)
+                            alpha = int(255 * (0.6 + 0.4 * math.sin(t * 2.0 + idx)))
+                            self.set_spot(idx, 255, 255, 255, max(60, alpha),
+                                          0, 0, 0, 0, 0,
+                                          int(pw * pulse / 1000 * 65535),
+                                          int(ph * pulse / 1000 * 65535), 0,
+                                          to_u(xoffs[cx]), to_u(yoffs[ry]), 15)
+                            idx += 1
+
+                self.send()
+                time.sleep(0.02)
+
+        except KeyboardInterrupt:
+            raise
+
+        # Transition : blackout
+        self.blackout_spots(48)
+        self.dmx[0] = self.dmx[1] = self.dmx[2] = 0
+        self.send()
+
     # ── Boucle principale ────────────────────────────────────────────────────
-    def run(self, duree_par_forme=6.0, transition=0.6, duree_intro=20.0, duree_text=30.0):
-        total = duree_text + duree_intro + len(FORMES) * (duree_par_forme + transition) + 180
+    def run(self, duree_par_forme=6.0, transition=0.6, duree_intro=20.0,
+            duree_text=30.0, duree_video=28.0):
+        total = (duree_text + duree_intro + duree_video
+                 + len(FORMES) * (duree_par_forme + transition) + 180)
         print("🎭 LUXCORE - DÉFILÉ DES 15 FORMES + FINALE (48 spots / 2 univers)")
         print("=" * 48)
         print(f"   Texte intro : {duree_text:.0f}s (artnet_text)")
         print(f"   Intro       : {duree_intro:.0f}s (blades / couleurs / blur)")
+        print(f"   Vidéo       : {duree_video:.0f}s (player intégré, mode 15)")
         print(f"   {len(FORMES)} formes × {duree_par_forme}s + {transition}s transition")
         print(f"   Finale      : 180s (5 actes, 48 spots / 2 univers)")
         print(f"   Durée totale : {total:.0f}s")
@@ -815,6 +902,9 @@ class DefileFormes:
                 print()
 
                 self.demo_intro(duree_intro)
+                print()
+
+                self.demo_video(duree_video)
                 print()
 
                 for forme in FORMES:
