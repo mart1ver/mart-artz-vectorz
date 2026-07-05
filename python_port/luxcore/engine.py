@@ -90,13 +90,29 @@ void main() {
 }
 """
 
-# Formes rendues comme éventail depuis l'origine (toutes sauf TEXTE et SEGMENT)
-_FAN_SHAPES = [s for s in Shape if s not in (Shape.TEXTE, Shape.SEGMENT)]
+# Formes rendues comme éventail depuis l'origine (toutes sauf TEXTE/SEGMENT/VIDEO)
+_FAN_SHAPES = [s for s in Shape
+               if s not in (Shape.TEXTE, Shape.SEGMENT, Shape.VIDEO)]
+
+# Quad-unité texturé (pos + uv), TRIANGLE_STRIP — pour le mode VIDEO
+_VIDEO_QUAD = np.array([-0.5, -0.5, 0.0, 0.0,
+                        0.5, -0.5, 1.0, 0.0,
+                        -0.5, 0.5, 0.0, 1.0,
+                        0.5, 0.5, 1.0, 1.0], dtype="f4")
+
+VIDEO_FRAG = """
+#version 330
+in vec2 uv; out vec4 frag;
+uniform sampler2D vid;
+uniform float alpha;
+void main() { vec4 c = texture(vid, uv); frag = vec4(c.rgb, c.a * alpha); }
+"""
 
 
 class LuxCoreEngine:
     def __init__(self, width: int, height: int, ctx: moderngl.Context | None = None,
-                 fonts_dir: str | None = None):
+                 fonts_dir: str | None = None, video_path: str | None = None,
+                 video_size: tuple[int, int] = (640, 360)):
         self.width, self.height = width, height
         self.ctx = ctx or moderngl.create_context(standalone=True, backend="egl")
         self.prog = self.ctx.program(vertex_shader=VERT, fragment_shader=FRAG)
@@ -126,7 +142,26 @@ class LuxCoreEngine:
 
         self.enable_effects = True             # bypassable depuis le GUI
         self._build_effects()
+        self._build_video(video_path, video_size)
         self.ctx.enable(moderngl.BLEND)
+
+    # -- mode VIDEO : décodeur + texture + programme quad texturé --
+    def _build_video(self, video_path, video_size):
+        self.video = None
+        self._video_version = -1
+        self._video_prog = self.ctx.program(vertex_shader=TEXT_VERT,
+                                             fragment_shader=VIDEO_FRAG)
+        self._video_prog["u_res"] = (float(self.width), float(self.height))
+        self._video_vbo = self.ctx.buffer(_VIDEO_QUAD.tobytes())
+        self._video_vao = self.ctx.vertex_array(
+            self._video_prog, [(self._video_vbo, "2f4 2f4", "in_pos", "in_uv")])
+        vw, vh = video_size
+        self._video_tex = self.ctx.texture((vw, vh), 4)
+        self._video_tex.repeat_x = self._video_tex.repeat_y = False
+        if video_path:
+            from .video import VideoDecoder
+            self.video = VideoDecoder(video_path, vw, vh)
+            self.video.start()
 
     # -- post-effets : 2e FBO (ping-pong) + programmes plein écran --
     def _build_effects(self):
@@ -187,6 +222,13 @@ class LuxCoreEngine:
 
     # -- rendu d'une frame --
     def render(self, base: BaseState, spots: list[SpotState]):
+        # téléverse la dernière frame vidéo une fois par frame de rendu
+        if self.video is not None:
+            frame, ver = self.video.latest()
+            if frame is not None and ver != self._video_version:
+                self._video_tex.write(frame.tobytes())
+                self._video_version = ver
+
         self.fbo.use()
         r, g, b = base.bg
         self.ctx.clear(r / 255.0, g / 255.0, b / 255.0, 1.0)
@@ -203,6 +245,10 @@ class LuxCoreEngine:
             if shape == Shape.TEXTE:
                 if self.fonts:
                     self._draw_text(sp, cx, cy)
+                continue
+
+            if shape == Shape.VIDEO:
+                self._draw_video(sp, cx, cy)
                 continue
 
             self.prog["u_rot"] = math.radians(sp.rotation)
@@ -346,6 +392,16 @@ class LuxCoreEngine:
         tex.use(0)
         self._text_prog["glyph"] = 0
         self._text_vao.render(moderngl.TRIANGLE_STRIP, vertices=4)
+
+    def _draw_video(self, sp: SpotState, cx: float, cy: float):
+        # quad texturé par la vidéo, dimensionné/positionné comme un rectangle
+        self._video_prog["u_scale"] = (sp.size_pan, sp.size_tilt)
+        self._video_prog["u_rot"] = math.radians(sp.rotation)
+        self._video_prog["u_translate"] = (cx, cy)
+        self._video_prog["alpha"] = sp.alpha / 255.0
+        self._video_tex.use(0)
+        self._video_prog["vid"] = 0
+        self._video_vao.render(moderngl.TRIANGLE_STRIP, vertices=4)
 
     def render_dmx(self, dmx_buf, num_spots: int, n_fonts: int | None = None):
         nf = self.n_fonts if n_fonts is None else n_fonts

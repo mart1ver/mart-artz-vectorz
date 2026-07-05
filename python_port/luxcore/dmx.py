@@ -49,8 +49,8 @@ class SpotState:
 
     @property
     def shape(self) -> Shape:
-        """Forme effective : hors 0..14 -> RECTANGLE (case default du switch)."""
-        return Shape(self.mode) if 0 <= self.mode <= 14 else Shape.RECTANGLE
+        """Forme effective : hors 0..15 -> RECTANGLE (case default du switch)."""
+        return Shape(self.mode) if 0 <= self.mode <= C.MAX_SHAPE_MODE else Shape.RECTANGLE
 
     @property
     def text_char(self) -> str:

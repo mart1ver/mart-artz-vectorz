@@ -89,10 +89,18 @@ def test_mode_out_of_range_is_rectangle():
     base = C.spot_base_addr(0)
     buf[base + C.SP_ENABLE] = 1
     buf[base + C.SP_ALPHA] = 255
-    for raw in (15, 100, 200, 255):         # hors 0..14 -> default rect
+    for raw in (16, 100, 200, 255):         # hors 0..15 -> default rect (15 = VIDEO)
         buf[base + C.SP_MODE] = raw
         s = dmx.decode_spot(buf, base, 960, 540, BlendMode.BLEND, 20)
         assert s.shape == Shape.RECTANGLE
+
+
+def test_mode_15_is_video():
+    buf = _blank_buf()
+    base = C.spot_base_addr(0)
+    buf[base + C.SP_MODE] = 15
+    s = dmx.decode_spot(buf, base, 960, 540, BlendMode.BLEND, 20)
+    assert s.shape == Shape.VIDEO
 
 
 def test_spot_blend_zero_uses_global():

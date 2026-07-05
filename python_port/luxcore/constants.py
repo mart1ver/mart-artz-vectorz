@@ -72,7 +72,11 @@ class Shape(IntEnum):
     COEUR = 12
     SEGMENT = 13
     FLEUR = 14
-    # Toute valeur hors 0..14 -> rectangle (case default du switch Processing)
+    VIDEO = 15                     # extension du portage : quad texturé par la vidéo
+    # Toute valeur hors 0..15 -> rectangle (case default du switch Processing)
+
+
+MAX_SHAPE_MODE = 15                # dernière forme reconnue (au-delà -> rectangle)
 
 
 # ---------------------------------------------------------------------------

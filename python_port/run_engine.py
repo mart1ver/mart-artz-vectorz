@@ -42,6 +42,7 @@ def main():
     ap.add_argument("--no-fonts", action="store_true", help="désactive le texte")
     ap.add_argument("--no-gui", action="store_true",
                     help="désactive le panneau GUI imgui (aperçu seul)")
+    ap.add_argument("--video", help="fichier vidéo source pour le mode forme VIDEO (mode 15)")
     args = ap.parse_args()
 
     fonts_dir = None if args.no_fonts else args.fonts_dir
@@ -70,7 +71,7 @@ def main():
                             gl_version=(3, 3), vsync=False, resizable=True)
         mglw.activate_context(window=window)
         ctx = window.ctx
-        eng = LuxCoreEngine(W, H, ctx=ctx, fonts_dir=fonts_dir)
+        eng = LuxCoreEngine(W, H, ctx=ctx, fonts_dir=fonts_dir, video_path=args.video)
         # blit : FBO (top-down pour NDI) -> écran, V inversé pour être droit
         blit_prog = ctx.program(
             vertex_shader="#version 330\nin vec2 p;out vec2 uv;"
@@ -98,7 +99,7 @@ def main():
             print("[gui] panneau imgui actif")
         print(f"[preview] fenêtre {Wp}x{Hp} ouverte")
     else:
-        eng = LuxCoreEngine(W, H, fonts_dir=fonts_dir)
+        eng = LuxCoreEngine(W, H, fonts_dir=fonts_dir, video_path=args.video)
     print(f"[GL] {eng.ctx.info['GL_RENDERER']}")
 
     # -- sortie NDI (readback PBO + worker, cf. spike) --
