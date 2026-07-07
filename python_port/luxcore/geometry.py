@@ -42,7 +42,6 @@ SCALE_MODE: dict[Shape, str] = {
     Shape.OCTOGONE: "pan_only",
     Shape.ETOILE: "pan_only",
     Shape.CROIX: "pan_only",
-    Shape.PLUS: "pan_only",
     Shape.FLEUR: "pan_only",
     # TEXTE : cas spécial (pas de polygone)
 }
@@ -109,14 +108,6 @@ def _cross() -> list[Vec2]:
             (-t / 2, t / 2), (-a, t / 2), (-a, -t / 2), (-t / 2, -t / 2)]
 
 
-def _plus() -> list[Vec2]:
-    t = 0.15                                     # size_pan * 0.15 (bras fins)
-    a = 0.50
-    return [(-t / 2, -a), (t / 2, -a), (t / 2, -t / 2), (a, -t / 2),
-            (a, t / 2), (t / 2, t / 2), (t / 2, a), (-t / 2, a),
-            (-t / 2, t / 2), (-a, t / 2), (-a, -t / 2), (-t / 2, -t / 2)]
-
-
 def _arrow() -> list[Vec2]:
     # unité : size_pan = size_tilt = 1
     head_w = 0.6                                 # size_pan * 0.6
@@ -173,7 +164,6 @@ _GENERATORS = {
     Shape.ETOILE: _star,
     Shape.CROIX: _cross,
     Shape.FLECHE: _arrow,
-    Shape.PLUS: _plus,
     Shape.COEUR: _heart,
     Shape.SEGMENT: _segment,
     Shape.FLEUR: _flower,
@@ -222,3 +212,82 @@ def scaled_polygon_np(shape: Shape, size_pan: float, size_tilt: float) -> np.nda
     """Comme scaled_polygon, vectorisé numpy (pas de boucle Python par sommet)."""
     sx, sy = scale_factors(shape, size_pan, size_tilt)
     return unit_polygon_np(shape) * np.array((sx, sy), dtype="f4")
+
+
+# ---------------------------------------------------------------------------
+# Triangulation (ear clipping) — remplissage correct des polygones CONCAVES.
+#
+# L'éventail-depuis-l'origine (ancien rendu) ne fonctionne que pour les formes
+# « étoilées » vis-à-vis de leur centre (l'origine voit chaque sommet). La
+# flèche ne l'est pas : l'origine, dans le fût, ne « voit » pas les barbes ->
+# les triangles de l'éventail se recouvraient (croisements visibles). Le cœur
+# a le même défaut latent (creux du haut). L'ear clipping découpe le polygone
+# en triangles disjoints, universellement corrects. Pour les formes convexes /
+# étoilées, la surface couverte est identique à l'éventail : rendu inchangé.
+# ---------------------------------------------------------------------------
+def _signed_area(pts: list[Vec2]) -> float:
+    a = 0.0
+    n = len(pts)
+    for i in range(n):
+        x0, y0 = pts[i]
+        x1, y1 = pts[(i + 1) % n]
+        a += x0 * y1 - x1 * y0
+    return 0.5 * a
+
+
+def _point_in_triangle(p: Vec2, a: Vec2, b: Vec2, c: Vec2) -> bool:
+    (px, py), (ax, ay), (bx, by), (cx, cy) = p, a, b, c
+    d1 = (px - bx) * (ay - by) - (ax - bx) * (py - by)
+    d2 = (px - cx) * (by - cy) - (bx - cx) * (py - cy)
+    d3 = (px - ax) * (cy - ay) - (cx - ax) * (py - ay)
+    has_neg = d1 < 0 or d2 < 0 or d3 < 0
+    has_pos = d1 > 0 or d2 > 0 or d3 > 0
+    return not (has_neg and has_pos)
+
+
+def _triangulate(pts: list[Vec2]) -> list[Vec2]:
+    """Ear clipping d'un polygone simple. Renvoie une liste plate de sommets,
+    3 consécutifs par triangle (à rendre en GL_TRIANGLES)."""
+    if len(pts) < 3:
+        return []
+    verts = list(pts)
+    if _signed_area(verts) < 0:              # normaliser en sens anti-horaire
+        verts.reverse()
+    idx = list(range(len(verts)))
+    tris: list[Vec2] = []
+    guard = 0
+    while len(idx) > 3 and guard < 10000:
+        guard += 1
+        m = len(idx)
+        ear_found = False
+        for i in range(m):
+            i0, i1, i2 = idx[(i - 1) % m], idx[i], idx[(i + 1) % m]
+            a, b, c = verts[i0], verts[i1], verts[i2]
+            cross = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+            if cross <= 0:                   # sommet réflexe/plat -> pas une oreille
+                continue
+            if any(k not in (i0, i1, i2) and _point_in_triangle(verts[k], a, b, c)
+                   for k in idx):
+                continue                     # un autre sommet est dans l'oreille
+            tris.extend((a, b, c))
+            del idx[i]
+            ear_found = True
+            break
+        if not ear_found:                    # polygone dégénéré : stop
+            break
+    if len(idx) == 3:
+        tris.extend((verts[idx[0]], verts[idx[1]], verts[idx[2]]))
+    return tris
+
+
+_UNIT_TRI_CACHE: dict[Shape, np.ndarray] = {}
+
+
+def unit_triangles_np(shape: Shape) -> np.ndarray:
+    """Triangulation-unité (M,2) float32 d'une forme remplie, mise en cache.
+    3 sommets consécutifs = 1 triangle (GL_TRIANGLES)."""
+    arr = _UNIT_TRI_CACHE.get(shape)
+    if arr is None:
+        arr = np.array(_triangulate(unit_polygon(shape)), dtype="f4").reshape(-1, 2)
+        _UNIT_TRI_CACHE[shape] = arr
+    return arr

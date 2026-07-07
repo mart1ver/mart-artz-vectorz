@@ -5,9 +5,10 @@ FBO prêt pour NDI. Rétained-mode : chaque forme est un VBO-unité construit un
 fois, mis à l'échelle/tourné/positionné par spot via des uniforms.
 
 Couverture actuelle :
-  - 14 formes remplies via TRIANGLE_FAN depuis l'origine (correct pour toutes les
-    formes étoilées-convexes : ellipse, rect, polygones réguliers, losange,
-    triangle, étoile, croix, plus, fleur ; cœur/flèche ~corrects, earcut en 3b).
+  - 13 formes remplies via GL_TRIANGLES (triangulation ear-clip pré-calculée,
+    cf. geometry.unit_triangles_np) : ellipse, rect, polygones réguliers,
+    losange, triangle, étoile, croix, flèche, cœur, fleur — correct y compris
+    pour les formes concaves (flèche/cœur) que l'éventail-origine recouvrait.
   - blend mode par spot (BLEND/ADD/SCREEN/MULTIPLY/LIGHTEST/DARKEST ; les autres
     retombent sur BLEND pour l'instant).
   - fond RGB (do_background).
@@ -91,9 +92,15 @@ void main() {
 }
 """
 
-# Formes rendues comme éventail depuis l'origine (toutes sauf TEXTE/SEGMENT/VIDEO)
-_FAN_SHAPES = [s for s in Shape
-               if s not in (Shape.TEXTE, Shape.SEGMENT, Shape.VIDEO)]
+# Formes remplies par triangulation (toutes sauf TEXTE/SEGMENT/VIDEO)
+_FILL_SHAPES = [s for s in Shape
+                if s not in (Shape.TEXTE, Shape.SEGMENT, Shape.VIDEO)]
+
+# Les fixtures vidéo peuvent couvrir tout l'écran : le décodage de taille plafonne
+# à 1000px (pmap 0-65535 -> 0-1000), insuffisant pour du 1920px plein cadre. On
+# ré-échelonne donc UNIQUEMENT les fixtures vidéo (les formes ne sont pas touchées).
+# Doit rester synchronisé avec sz_px() côté demo_scripts (÷ 1000·VIDEO_SIZE_SCALE).
+VIDEO_SIZE_SCALE = 2.5
 
 # Quad-unité texturé (pos + uv), TRIANGLE_STRIP — pour le mode VIDEO
 _VIDEO_QUAD = np.array([-0.5, -0.5, 0.0, 0.0,
@@ -113,6 +120,7 @@ void main() { vec4 c = texture(vid, uv); frag = vec4(c.rgb, c.a * alpha); }
 class LuxCoreEngine:
     def __init__(self, width: int, height: int, ctx: moderngl.Context | None = None,
                  fonts_dir: str | None = None, video_path: str | None = None,
+                 video_paths: list[str] | None = None,
                  video_size: tuple[int, int] = (640, 360)):
         self.width, self.height = width, height
         self.ctx = ctx or moderngl.create_context(standalone=True, backend="egl")
@@ -143,13 +151,18 @@ class LuxCoreEngine:
 
         self.enable_effects = True             # bypassable depuis le GUI
         self._build_effects()
-        self._build_video(video_path, video_size)
+        paths = list(video_paths) if video_paths else ([video_path] if video_path else [])
+        self._build_video(paths, video_size)
         self.ctx.enable(moderngl.BLEND)
 
-    # -- mode VIDEO : décodeur + texture + programme quad texturé --
-    def _build_video(self, video_path, video_size):
-        self.video = None
-        self._video_version = -1
+    # -- mode VIDEO : POOL de décodeurs (1 par fichier) + ring buffer par source --
+    # Chaque source garde ses N dernières frames dans un anneau de textures, ce qui
+    # permet de DÉSYNCHRONISER les panneaux (chacun échantillonne une frame retardée
+    # différente) même quand plusieurs affichent la même vidéo. Le canal +22 de la
+    # fixture vidéo sélectionne QUELLE vidéo du dossier est projetée.
+    _VID_RING = 32                    # frames d'historique par source (désync)
+
+    def _build_video(self, video_paths, video_size):
         self._video_prog = self.ctx.program(vertex_shader=TEXT_VERT,
                                              fragment_shader=VIDEO_FRAG)
         self._video_prog["u_res"] = (float(self.width), float(self.height))
@@ -157,12 +170,16 @@ class LuxCoreEngine:
         self._video_vao = self.ctx.vertex_array(
             self._video_prog, [(self._video_vbo, "2f4 2f4", "in_pos", "in_uv")])
         vw, vh = video_size
-        self._video_tex = self.ctx.texture((vw, vh), 4)
-        self._video_tex.repeat_x = self._video_tex.repeat_y = False
-        if video_path:
-            from .video import VideoDecoder
-            self.video = VideoDecoder(video_path, vw, vh)
-            self.video.start()
+        from .video import VideoDecoder
+        self._vid = []                # une entrée par vidéo du dossier
+        for path in video_paths:
+            dec = VideoDecoder(path, vw, vh)
+            dec.start()
+            ring = [self.ctx.texture((vw, vh), 4) for _ in range(self._VID_RING)]
+            for t in ring:
+                t.repeat_x = t.repeat_y = False
+            self._vid.append({"dec": dec, "ring": ring, "head": 0, "filled": 0, "ver": -1})
+        self.n_videos = len(self._vid)
 
     # -- post-effets : 2e FBO (ping-pong) + programmes plein écran --
     def _build_effects(self):
@@ -185,16 +202,18 @@ class LuxCoreEngine:
 
     # -- construction des VBO-unité (une fois) --
     def _build_shape_vbo(self):
-        verts: list[float] = []
+        # Remplissage par triangulation ear-clip (GL_TRIANGLES) : correct pour
+        # les formes concaves (flèche, cœur) que l'éventail-origine recouvrait.
+        chunks: list[np.ndarray] = []
         self._ranges: dict[Shape, tuple[int, int]] = {}
-        for shape in _FAN_SHAPES:
-            poly = geo.unit_polygon(shape)
-            fan = [(0.0, 0.0)] + list(poly) + [poly[0]]   # centre + contour fermé
-            first = len(verts) // 2
-            for (x, y) in fan:
-                verts.extend((x, y))
-            self._ranges[shape] = (first, len(fan))
-        arr = np.array(verts, dtype="f4")
+        first = 0
+        for shape in _FILL_SHAPES:
+            tris = geo.unit_triangles_np(shape)               # (M,2), 3 sommets/triangle
+            count = len(tris)
+            self._ranges[shape] = (first, count)
+            chunks.append(tris)
+            first += count
+        arr = np.concatenate(chunks).astype("f4") if chunks else np.empty((0, 2), "f4")
         self.vbo = self.ctx.buffer(arr.tobytes())
         self.vao = self.ctx.vertex_array(self.prog, [(self.vbo, "2f4", "in_pos")])
 
@@ -223,17 +242,23 @@ class LuxCoreEngine:
 
     # -- rendu d'une frame --
     def render(self, base: BaseState, spots: list[SpotState]):
-        # téléverse la dernière frame vidéo une fois par frame de rendu
-        if self.video is not None:
-            frame, ver = self.video.latest()
-            if frame is not None and ver != self._video_version:
-                self._video_tex.write(frame.tobytes())
-                self._video_version = ver
+        # téléverse la dernière frame de CHAQUE source dans son anneau (désync)
+        for s in self._vid:
+            frame, ver = s["dec"].latest()
+            if frame is not None and ver != s["ver"]:
+                s["ring"][s["head"]].write(frame.tobytes())
+                s["head"] = (s["head"] + 1) % self._VID_RING
+                s["filled"] = min(s["filled"] + 1, self._VID_RING)
+                s["ver"] = ver
+
+        # nb de fixtures vidéo visibles -> répartition des délais de désync
+        n_vid = sum(1 for sp in spots if sp.is_drawable() and sp.shape == Shape.VIDEO)
 
         self.fbo.use()
         r, g, b = base.bg
         self.ctx.clear(r / 255.0, g / 255.0, b / 255.0, 1.0)
 
+        vid_ord = 0
         for sp in spots:
             if not sp.is_drawable():
                 continue
@@ -249,7 +274,8 @@ class LuxCoreEngine:
                 continue
 
             if shape == Shape.VIDEO:
-                self._draw_video(sp, cx, cy)
+                self._draw_video(sp, cx, cy, vid_ord, n_vid)
+                vid_ord += 1
                 continue
 
             self.prog["u_rot"] = math.radians(sp.rotation)
@@ -264,7 +290,7 @@ class LuxCoreEngine:
             self.prog["u_scale"] = (sx, sy)
             self.prog["u_color"] = (*[c / 255.0 for c in sp.fill], sp.alpha / 255.0)
             first, count = self._ranges[shape]
-            self.vao.render(moderngl.TRIANGLE_FAN, vertices=count, first=first)
+            self.vao.render(moderngl.TRIANGLES, vertices=count, first=first)
 
             # -- contour (stroke), seulement s'il est visible --
             if sp.stroke_alpha > 0 and sp.stroke_weight > 0:
@@ -394,13 +420,24 @@ class LuxCoreEngine:
         self._text_prog["glyph"] = 0
         self._text_vao.render(moderngl.TRIANGLE_STRIP, vertices=4)
 
-    def _draw_video(self, sp: SpotState, cx: float, cy: float):
-        # quad texturé par la vidéo, dimensionné/positionné comme un rectangle
+    def _draw_video(self, sp: SpotState, cx: float, cy: float, ord: int = 0, n_vid: int = 1):
+        # quad texturé par la vidéo, dimensionné/positionné comme un rectangle.
+        # Choix de la source (canal +22) + frame retardée (désync entre panneaux).
+        if self.n_videos == 0:
+            return
+        vidx = getattr(sp, "video_index", 0) % self.n_videos
+        s = self._vid[vidx]
+        if s["filled"] == 0:
+            return                              # rien encore décodé
+        delay = 0
+        if n_vid > 1:                           # >1 panneau -> on les désynchronise
+            delay = int(round(ord / n_vid * (s["filled"] - 1)))
+        tex = s["ring"][(s["head"] - 1 - delay) % self._VID_RING]
         self._video_prog["u_scale"] = (sp.size_pan, sp.size_tilt)
         self._video_prog["u_rot"] = math.radians(sp.rotation)
         self._video_prog["u_translate"] = (cx, cy)
         self._video_prog["alpha"] = sp.alpha / 255.0
-        self._video_tex.use(0)
+        tex.use(0)
         self._video_prog["vid"] = 0
         self._video_vao.render(moderngl.TRIANGLE_STRIP, vertices=4)
 
@@ -415,6 +452,11 @@ class LuxCoreEngine:
                 vf = decode_spot(dmx_buf, C.video_base_addr(i), half_w, half_h,
                                  base.blend_global, nf)
                 vf.mode = int(Shape.VIDEO)
+                vf.size_pan *= VIDEO_SIZE_SCALE      # plein écran possible (cf. constante)
+                vf.size_tilt *= VIDEO_SIZE_SCALE
+                # canal +22 = sélecteur de vidéo du dossier (raw 0-255 -> index)
+                raw_sel = dmx_buf[C.video_base_addr(i) + C.SP_FONT]
+                vf.video_index = (raw_sel * max(1, self.n_videos)) // 256
                 spots.append(vf)
         self.render(base, spots)
         return base, spots

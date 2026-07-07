@@ -45,7 +45,8 @@ SP_POS_TILT = 17                  # 16-bit ; 32767 = centre
 SP_MODE = 19
 SP_ENABLE = 20
 SP_BLEND = 21                     # 0 = blend global ; sinon même LUT que canal 19
-SP_FONT = 22
+SP_FONT = 22                      # spot Texte : police ; fixture VIDÉO : sélecteur de
+                                  # vidéo du dossier (raw 0-255 -> index, cf. engine)
 
 
 def spot_base_addr(spot_id: int) -> int:
@@ -82,15 +83,14 @@ class Shape(IntEnum):
     ETOILE = 8
     CROIX = 9
     FLECHE = 10
-    PLUS = 11
-    COEUR = 12
-    SEGMENT = 13
-    FLEUR = 14
-    VIDEO = 15                     # extension du portage : quad texturé par la vidéo
-    # Toute valeur hors 0..15 -> rectangle (case default du switch Processing)
+    COEUR = 11
+    SEGMENT = 12
+    FLEUR = 13
+    VIDEO = 14                     # extension du portage : quad texturé par la vidéo
+    # Toute valeur hors 0..14 -> rectangle (case default du switch Processing)
 
 
-MAX_SHAPE_MODE = 15                # dernière forme reconnue (au-delà -> rectangle)
+MAX_SHAPE_MODE = 14                # dernière forme reconnue (au-delà -> rectangle)
 
 
 # ---------------------------------------------------------------------------

@@ -29,7 +29,7 @@ def test_vertex_counts():
         Shape.RECTANGLE: 4, Shape.TRIANGLE: 3, Shape.PENTAGONE: 5,
         Shape.HEXAGONE: 6, Shape.LOSANGE: 4, Shape.OCTOGONE: 8,
         Shape.ETOILE: 10, Shape.CROIX: 12, Shape.FLECHE: 7,
-        Shape.PLUS: 12, Shape.COEUR: 72, Shape.FLEUR: 180,
+        Shape.COEUR: 72, Shape.FLEUR: 180,
         Shape.SEGMENT: 2, Shape.ELLIPSE: geo.ELLIPSE_SEGMENTS,
     }
     for shape, n in expected.items():
@@ -134,6 +134,47 @@ def test_texte_is_not_polygon():
     except ValueError:
         return
     raise AssertionError("TEXTE devrait lever ValueError")
+
+
+# ---------------------------------------------------------------------------
+# Triangulation (ear clipping) — remplissage correct, y compris concaves
+# ---------------------------------------------------------------------------
+def _poly_area(pts):
+    a = 0.0
+    n = len(pts)
+    for i in range(n):
+        x0, y0 = pts[i]
+        x1, y1 = pts[(i + 1) % n]
+        a += x0 * y1 - x1 * y0
+    return abs(a) / 2
+
+
+def test_triangulation_covers_full_area():
+    # chaque forme remplie : n-2 triangles disjoints couvrant EXACTEMENT l'aire
+    # du polygone (les triangles disjoints => somme des aires == aire polygone).
+    fill_shapes = [s for s in Shape
+                   if s not in (Shape.TEXTE, Shape.SEGMENT, Shape.VIDEO)]
+    for shape in fill_shapes:
+        poly = geo.unit_polygon(shape)
+        tris = geo.unit_triangles_np(shape)
+        n_tri = len(tris) // 3
+        assert n_tri == len(poly) - 2, (shape, n_tri, len(poly))
+        tri_area = sum(_poly_area([tuple(tris[i]), tuple(tris[i + 1]),
+                                   tuple(tris[i + 2])])
+                       for i in range(0, len(tris), 3))
+        assert abs(tri_area - _poly_area(poly)) < 1e-5, shape
+
+
+def test_arrow_triangulation_no_overlap():
+    # La flèche est CONCAVE : l'ancien éventail-origine se recouvrait. La
+    # triangulation ear-clip doit couvrir exactement l'aire (pas de recouvrement,
+    # qui gonflerait la somme des aires au-delà de l'aire réelle).
+    poly = geo.unit_polygon(Shape.FLECHE)
+    tris = geo.unit_triangles_np(Shape.FLECHE)
+    tri_area = sum(_poly_area([tuple(tris[i]), tuple(tris[i + 1]),
+                               tuple(tris[i + 2])])
+                   for i in range(0, len(tris), 3))
+    assert abs(tri_area - _poly_area(poly)) < 1e-6
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-LUXCORE DMX ENGINE - DÉFILÉ DES 15 FORMES
+LUXCORE DMX ENGINE - DÉFILÉ DES 14 FORMES
 ==========================================
 Affiche chaque forme une par une, avec 7 spots arrangés,
 fond blanc, blades encadrantes et couleur thématique.
@@ -37,10 +37,9 @@ FORMES = [
     {"id": 8,  "nom": "Étoile",     "r": 240, "g": 200, "b":  40, "blend":  29},  # ADD      → étoile dorée
     {"id": 9,  "nom": "Croix",      "r": 220, "g":  60, "b":  60, "blend":   0},  # BLEND    → propre
     {"id": 10, "nom": "Flèche",     "r":  60, "g": 220, "b":  80, "blend": 227},  # SCREEN   → vert lumineux
-    {"id": 11, "nom": "Plus",       "r": 180, "g": 180, "b": 180, "blend": 142},  # DIFFERENCE → gris inversé
-    {"id": 12, "nom": "Cœur",       "r": 240, "g":  40, "b":  80, "blend":  29},  # ADD      → lueur rouge passion
-    {"id": 13, "nom": "Segment",    "r": 180, "g": 255, "b": 255, "blend":  29, "duree": 15.0},  # ADD → lignes cyan lumineuses
-    {"id": 14, "nom": "Fleur",      "r":  80, "g": 200, "b": 200, "blend": 227},  # SCREEN   → fleur délicate
+    {"id": 11, "nom": "Cœur",       "r": 240, "g":  40, "b":  80, "blend":  29},  # ADD      → lueur rouge passion
+    {"id": 12, "nom": "Segment",    "r": 180, "g": 255, "b": 255, "blend":  29, "duree": 15.0},  # ADD → lignes cyan lumineuses
+    {"id": 13, "nom": "Fleur",      "r":  80, "g": 200, "b": 200, "blend": 227},  # SCREEN   → fleur délicate
 ]
 
 # ── 19 positions : 1 centre + 6 anneau intérieur + 12 anneau extérieur ───────
@@ -60,11 +59,96 @@ POSITIONS = positions_3_rings()
 # Slot de départ des fixtures vidéo (aligné sur luxcore.constants.VIDEO_FIXTURE_SLOT0).
 # Les fixtures vidéo occupent les slots 48+ : aucune collision avec les 48 spots.
 VIDEO_FIXTURE_SLOT0 = 48
+NUM_VIDEO_FIXTURES = 12          # lancer le moteur avec --video-fixtures 12
 
 # Plage pixel totale calibrée empiriquement pour une fenêtre 1920px.
 # Processing mappe 0-65535 sur la largeur réelle de la fenêtre ; cette valeur
 # est à ajuster si la fenêtre est redimensionnée via le GUI (data/window_size.txt).
 SCREEN_PX_RANGE = 2430
+
+
+# ── Géométrie d'écran : offset pixel (depuis le centre) -> position 16-bit ────
+# Le moteur mappe pan sur [-255-960, 255+960] et tilt sur [-255-540, 255+540].
+# Les deux axes ont donc des échelles DIFFÉRENTES : on convertit chaque axe
+# séparément pour que les cercles soient ronds et les grilles régulières.
+_HALF_W, _HALF_H = 960, 540
+
+
+def to_pan(dx):
+    return max(0, min(65535, int((dx + 255 + _HALF_W) / (2 * (255 + _HALF_W)) * 65535)))
+
+
+def to_tilt(dy):
+    return max(0, min(65535, int((dy + 255 + _HALF_H) / (2 * (255 + _HALF_H)) * 65535)))
+
+
+# Le moteur ré-échelonne les fixtures vidéo par VIDEO_SIZE_SCALE (=2.5) pour
+# autoriser le plein écran ; on divise donc par 1000·2.5 = 2500 (rester synchro).
+VIDEO_SIZE_SCALE = 2.5
+
+
+def sz_px(px):
+    """Largeur/hauteur vidéo en px -> valeur 16-bit (size_pan), compte tenu du
+    ré-échelonnage moteur des fixtures vidéo."""
+    return max(0, min(65535, int(px / (1000 * VIDEO_SIZE_SCALE) * 65535)))
+
+
+def vspread(k, n):
+    """Valeur du canal +22 pour répartir le panneau k (sur n) sur les vidéos du
+    dossier : le moteur mappe 0-255 -> index. Panneaux voisins -> vidéos variées."""
+    return int((k + 0.5) / max(1, n) * 256)
+
+
+# ── Générateurs de dispositions SYMÉTRIQUES (offsets pixel depuis le centre) ──
+def lay_ring(n, R, phase=0.0):
+    """n points régulièrement espacés sur un cercle de rayon R."""
+    return [(R * math.cos(2 * math.pi * k / n + phase),
+             R * math.sin(2 * math.pi * k / n + phase)) for k in range(n)]
+
+
+def lay_rings(specs, phase=0.0):
+    """Anneaux concentriques (mandala). specs = [(n, R, phase_offset), ...]."""
+    pts = []
+    for (n, R, ph) in specs:
+        pts += lay_ring(n, R, phase + ph)
+    return pts
+
+
+def lay_phyllo(n, scale, phase=0.0):
+    """Spirale de phyllotaxie (tournesol) — angle d'or, densité naturelle."""
+    ga = math.pi * (3 - math.sqrt(5))
+    return [(scale * math.sqrt(k + 0.5) * math.cos(k * ga + phase),
+             scale * math.sqrt(k + 0.5) * math.sin(k * ga + phase)) for k in range(n)]
+
+
+def lay_rose(n, k, R, phase=0.0):
+    """Points le long d'une rosace r = R·cos(k·θ) — symétrie à k (ou 2k) pétales."""
+    pts = []
+    for j in range(n):
+        th = math.pi * j / n                 # un demi-tour : la rosace se referme
+        r = R * math.cos(k * th)
+        pts.append((r * math.cos(th + phase), r * math.sin(th + phase)))
+    return pts
+
+
+def lay_polygons(sides, layers, R0, dR, phase=0.0):
+    """Polygones réguliers concentriques — symétrie d'ordre `sides`."""
+    pts = []
+    for L in range(layers):
+        pts += lay_ring(sides, R0 + L * dR, phase + L * math.pi / sides)
+    return pts
+
+
+def lay_grid(cols, rows, sx, sy, rot=0.0):
+    """Grille centrée, éventuellement tournée d'un angle rot (reste symétrique)."""
+    ca, sa = math.cos(rot), math.sin(rot)
+    pts = []
+    for r in range(rows):
+        for c in range(cols):
+            x = (c - (cols - 1) / 2) * sx
+            y = (r - (rows - 1) / 2) * sy
+            pts.append((x * ca - y * sa, x * sa + y * ca))
+    return pts
 
 
 class DefileFormes:
@@ -147,13 +231,21 @@ class DefileFormes:
         self.dmx[19] = forme["blend"]
 
         # Effets PostFX
-        if fid == 13:
+        if fid == 12:
             self._segment_effects(t_local, duree)
         else:
             self.set_effects(t_local, duree)
 
+        # Repartir d'une ardoise propre : tous les spots ET fixtures vidéo éteints,
+        # puis on rallume seulement ceux de la disposition courante (évite les
+        # résidus d'une forme à l'autre quand le nombre de spots change).
+        self.blackout_spots(VIDEO_FIXTURE_SLOT0 + NUM_VIDEO_FIXTURES)
+
+        # Fixtures vidéo présentes TOUT AU LONG du défilé (arrangement par forme)
+        self._video_backdrop(fid, t_local, alpha_factor)
+
         # ── Mode spécial Segment : lignes arc-en-ciel, épaisseur dramatique ─────
-        if fid == 13:
+        if fid == 12:
             N = len(POSITIONS)
             t = t_local
             for i in range(N):
@@ -203,52 +295,147 @@ class DefileFormes:
                               size_pan, size_tilt, rot, pan, tilt, fid)
             return
 
-        # ── Rendu générique ───────────────────────────────────────────────────
-        for i, (px, py) in enumerate(POSITIONS):
-            phase = i * math.pi / 3.5
+        # ── Rendu générique : disposition SYMÉTRIQUE riche, propre à la forme ──
+        positions = self._forme_positions(fid, t_local)
+        N = len(positions)
+        # Plus il y a de spots, plus ils sont fins (lisibilité de la symétrie)
+        base_size = 13000 if N <= 24 else (9500 if N <= 38 else 7400)
+        # Respiration radiale : même facteur pour TOUS -> la symétrie est préservée
+        breath = 1.0 + 0.06 * math.sin(t_local * 1.2)
+
+        for i, (dx, dy) in enumerate(positions):
+            phase = i * 2 * math.pi / N
 
             # RGB fill : modulation douce autour de la teinte thématique
             r = int(max(0, min(255, r0 * (0.75 + 0.25 * math.sin(t_local * 0.8 + phase)))))
             g = int(max(0, min(255, g0 * (0.75 + 0.25 * math.sin(t_local * 0.9 + phase + 1)))))
             b = int(max(0, min(255, b0 * (0.75 + 0.25 * math.sin(t_local * 0.7 + phase + 2)))))
 
-            # Alpha avec fade
-            alpha = int(200 * alpha_factor * (0.85 + 0.15 * math.sin(t_local * 1.1 + phase)))
-
-            # Stroke weight : pulsation de 0 à 35, indépendante du fill
-            sw = int(max(0, 18 * abs(math.sin(t_local * 0.9 + phase))))
-
-            # Stroke alpha : ondulation propre
-            sa = int(max(0, min(255, 130 + 125 * math.sin(t_local * 0.7 + phase + 1.5))))
-
-            # Stroke color : décalé de 120° en teinte par rapport au fill
+            alpha = int(210 * alpha_factor * (0.85 + 0.15 * math.sin(t_local * 1.1 + phase)))
+            sw = int(max(0, 13 * abs(math.sin(t_local * 0.9 + phase))))
+            sa = int(max(0, min(255, 120 + 120 * math.sin(t_local * 0.7 + phase + 1.5))))
             sr = int(max(0, min(255, (r * 0.4 + g * 0.6))))
             sg = int(max(0, min(255, (g * 0.4 + b * 0.6))))
             sb = int(max(0, min(255, (b * 0.4 + r * 0.6))))
 
-            # Taille : centre grand, anneau intérieur moyen, anneau extérieur petit
-            base_size = 22000 if i == 0 else (14000 if i <= 6 else 9000)
-            size_pan  = int(base_size + 4000 * math.sin(t_local * 0.6 + phase))
-            size_tilt = int(base_size + 4000 * math.sin(t_local * 0.6 + phase + math.pi / 2))
+            size_pan  = int(base_size + 2600 * math.sin(t_local * 0.6 + phase))
+            size_tilt = int(base_size + 2600 * math.sin(t_local * 0.6 + phase + math.pi / 2))
 
-            # Rotation 16-bit rapide, sens alterné
             rot_speed = 45 if i % 2 == 0 else -30
             rot = int((t_local * rot_speed + i * 25) % 360 * 65535 / 360)
 
-            # Position orbitale légère autour de la position de base
-            orbit = int(600 * math.sin(t_local * 0.5 + phase))
-            pan  = max(0, min(65535, px + orbit))
-            tilt = max(0, min(65535, py + int(orbit * 0.6)))
+            pan  = to_pan(dx * breath)
+            tilt = to_tilt(dy * breath)
 
             # Police : cycle temporel sur les 20 polices pour la forme Texte
-            if fid == 2:
-                font_val = (int(t_local * 1.5 + i) % 20) * 256 // 20
-            else:
-                font_val = 0
-            en, sblend = self._creative_enable_blend(fid, i, t_local, phase, len(POSITIONS))
+            font_val = (int(t_local * 1.5 + i) % 20) * 256 // 20 if fid == 2 else 0
+            en, sblend = self._creative_enable_blend(fid, i, t_local, phase, N)
             self.set_spot(i, r, g, b, alpha, sw, sa, sr, sg, sb,
                           size_pan, size_tilt, rot, pan, tilt, fid,
                           enable=en, spot_blend=sblend, font=font_val)
+
+    # ── Disposition symétrique propre à chaque forme (offsets pixel) ──────────
+    def _forme_positions(self, fid, t):
+        """Retourne une liste d'offsets pixel (dx, dy), arrangement symétrique
+        distinct par forme, en rotation lente pour la vie sans casser la symétrie."""
+        ph = t * 0.14
+        if fid == 0:      # Ellipse — mandala à 3 anneaux
+            return lay_rings([(1, 0, 0), (8, 210, 0), (16, 410, 0)], ph)
+        if fid == 1:      # Rectangle — grille 6×6 lentement tournée
+            return lay_grid(6, 6, 150, 128, rot=ph * 0.4)
+        if fid == 3:      # Triangle — triangles concentriques (symétrie 3)
+            return lay_polygons(3, 4, 150, 108, ph)
+        if fid == 4:      # Pentagone — pentagones concentriques (symétrie 5)
+            return lay_polygons(5, 3, 165, 128, ph)
+        if fid == 5:      # Hexagone — pavage hexagonal (symétrie 6)
+            return lay_rings([(1, 0, 0), (6, 150, 0), (12, 300, 0), (18, 440, 0)], ph)
+        if fid == 6:      # Losange — rosace k=2 (symétrie 4)
+            return lay_rose(40, 2, 460, ph)
+        if fid == 7:      # Octogone — octogones concentriques (symétrie 8)
+            return lay_polygons(8, 3, 170, 128, ph)
+        if fid == 8:      # Étoile — phyllotaxie (tournesol d'étoiles)
+            return lay_phyllo(42, 74, ph)
+        if fid == 9:      # Croix — anneaux 4-fold sur les axes
+            return lay_rings([(1, 0, 0), (4, 170, 0), (4, 320, math.pi / 4),
+                              (8, 470, 0)], ph)
+        if fid == 10:     # Flèche — GRILLE plein écran (8×5) + rosace centrale
+            grid = lay_grid(8, 5, 248, 230)      # 40 flèches, couvre tout l'écran
+            rose = lay_rose(8, 5, 300, ph)       # + 8 de la rosace (déjà en place)
+            return grid + rose                    # 48 spots (plafond du moteur)
+        if fid == 11:     # Cœur — anneaux concentriques (symétrie miroir)
+            return lay_rings([(1, 0, 0), (7, 200, 0), (14, 400, 0)], ph)
+        if fid == 13:     # Fleur — rosace k=6 (fleur de fleurs)
+            return lay_rose(48, 6, 470, ph)
+        # Texte (2) et défaut — anneau de lettres
+        return lay_ring(26, 430, ph * 0.6)
+
+    # ── Fixtures vidéo : un panneau texturé par la source vidéo ───────────────
+    def _set_video(self, idx, dx, dy, w, rot_deg, alpha, blend=0, vsel=0):
+        """Place la fixture vidéo `idx` (16:9) — largeur w px, centre (dx,dy).
+        vsel (0-255) = canal +22 : choisit la vidéo du dossier (le moteur mappe
+        vers l'index disponible). Répartir vsel entre panneaux -> vidéos variées."""
+        if idx >= NUM_VIDEO_FIXTURES:
+            return
+        self.set_spot(VIDEO_FIXTURE_SLOT0 + idx, 255, 255, 255,
+                      int(max(0, min(255, alpha))), 0, 0, 0, 0, 0,
+                      sz_px(w), sz_px(w * 9.0 / 16.0),
+                      int(rot_deg % 360 * 65535 / 360),
+                      to_pan(dx), to_tilt(dy), 14, spot_blend=blend,
+                      font=int(max(0, min(255, vsel))))
+
+    # ── Décor vidéo présent en permanence — un preset symétrique par forme ────
+    def _video_backdrop(self, fid, t, af):
+        """6 arrangements vidéo symétriques (cyclés par forme) démontrant les
+        possibilités du player : panneau héros, miroir, anneau, coins, grille,
+        spirale. Rotation / pulsation / échelle animées."""
+        a0 = int(210 * af)
+        preset = fid % 6
+
+        if preset == 0:        # panneau central unique (héros) : rotation + respiration
+            w = 680 + 60 * math.sin(t * 0.5)
+            self._set_video(0, 0, 0, w, 6 * math.sin(t * 0.3), int(a0 * 0.95))
+
+        elif preset == 1:      # paire miroir gauche/droite, contra-rotation
+            for s, idx in ((-1, 0), (1, 1)):
+                self._set_video(idx, s * 520, 30 * math.sin(t * 0.6), 470,
+                                s * 10 * math.sin(t * 0.4), a0, vsel=vspread(idx, 2))
+
+        elif preset == 2:      # anneau de 6 panneaux tournants (ADD, lumineux)
+            for k in range(6):
+                a = 2 * math.pi * k / 6 + t * 0.35
+                self._set_video(k, 470 * math.cos(a), 300 * math.sin(a), 300,
+                                math.degrees(a) + t * 20, int(a0 * 0.9), blend=29,
+                                vsel=vspread(k, 6))
+
+        elif preset == 3:      # 4 coins miroir, pulsation synchronisée
+            for k, (sx, sy) in enumerate(((-1, -1), (1, -1), (-1, 1), (1, 1))):
+                pulse = 0.85 + 0.15 * math.sin(t * 2 + k)
+                self._set_video(k, sx * 560, sy * 300, 430 * pulse,
+                                sx * sy * 8 * math.sin(t * 0.5), a0, vsel=vspread(k, 4))
+
+        elif preset == 4:      # grille 3×2 en vague d'opacité
+            idx = 0
+            for yy in (-250, 250):
+                for xx in (-620, 0, 620):
+                    pulse = 0.82 + 0.18 * math.sin(t * 2.5 + idx * 0.9)
+                    self._set_video(idx, xx, yy, 380 * pulse, 0,
+                                    int(a0 * (0.7 + 0.3 * math.sin(t * 1.5 + idx))),
+                                    vsel=vspread(idx, 6))
+                    idx += 1
+
+        else:                  # preset 5 : spirale phyllotaxique de 8 panneaux (ADD)
+            ga = math.pi * (3 - math.sqrt(5))
+            for k in range(8):
+                a = k * ga + t * 0.3
+                rr = 70 * math.sqrt(k + 0.5)
+                self._set_video(k, rr * math.cos(a), rr * math.sin(a) * 0.7,
+                                150 + 26 * k, math.degrees(a),
+                                int(a0 * 0.85), blend=29, vsel=vspread(k, 8))
+
+    def _video_fill(self, alpha=255):
+        """Vidéo plein écran, sans couture : une seule fixture (ré-échelonnée par
+        le moteur) légèrement plus grande que l'écran (1960×1102 > 1920×1080)."""
+        self._set_video(0, 0, 0, 1960, 0, alpha)
 
     # ── Enable et blend créatifs par forme ───────────────────────────────────
     def _creative_enable_blend(self, fid, i, t, phase, N):
@@ -300,20 +487,16 @@ class DefileFormes:
             en = 255 if int(t * 2.8 + i % 2) % 2 == 0 else 0
             sb = 199 if (i <= 6 and int(t * 0.5) % 3 == 0) else 0
 
-        elif fid == 10: # Flèche — SCREEN vert : sweep séquentiel + éclairs ADD
-            en = 255 if i <= (t * 2.2) % (N + 4) else 0
-            sb = 29 if int(t * 3.5 + i) % 6 == 0 else 0
+        elif fid == 10: # Flèche — grille PEUPLÉE : quasi toutes ON + vagues ADD
+            en = 0 if int(t * 5 + i * 0.7) % 11 == 0 else 255   # rares extinctions
+            sb = 29 if int(t * 3 + i) % 5 == 0 else 0           # éclairs ADD qui circulent
 
-        elif fid == 11: # Plus — DIFFERENCE gris : checker flash + cycle 3 blends
-            en = 255 if (int(t * 3.5) + i) % 2 == 0 else 0
-            sb = [0, 170, 227][int(t * 0.4) % 3]    # BLEND→EXCLUSION→SCREEN
-
-        elif fid == 12: # Cœur — ADD rouge passion : double battement + SCREEN glow
+        elif fid == 11: # Cœur — ADD rouge passion : double battement + SCREEN glow
             beat = t % 0.75  # ~80 BPM
             en = 0 if (beat < 0.06 or 0.16 < beat < 0.23) else 255
             sb = 227 if i % 3 == 0 else 0
 
-        elif fid == 14: # Fleur — SCREEN turquoise : révélation pétale + LIGHTEST
+        elif fid == 13: # Fleur — SCREEN turquoise : révélation pétale + LIGHTEST
             en = 255 if i <= (t * 0.7) % N else 0
             sb = 114 if i % 2 == 0 else 0            # alternance SCREEN / LIGHTEST
 
@@ -480,8 +663,13 @@ class DefileFormes:
                 for i in range(22, 28):
                     self.dmx[i] = 0
 
-                # Spots invisibles
-                self.blackout_spots()
+                # Spots (formes) invisibles — le fond est fait par la vidéo
+                self.blackout_spots(VIDEO_FIXTURE_SLOT0 + NUM_VIDEO_FIXTURES)
+
+                # ── Fond VIDÉO plein écran (pavage 2×2) : les couteaux viennent
+                #    le rogner et le révéler tout au long de la démo des blades.
+                self._video_fill(255)
+
                 self.send()
                 time.sleep(0.02)
 
@@ -573,7 +761,7 @@ class DefileFormes:
                         font_a1 = (int(t * 2 + i * 3) % 20) * 256 // 20
                         self.set_spot(i, r, g, b, alpha, sw, 200,
                                       255-r, 255-g, 255-b,
-                                      sz, sz, rot, pan, tilt, i % 15, font=font_a1)
+                                      sz, sz, rot, pan, tilt, i % 14, font=font_a1)
 
                 # ─────────────────────────────────────
                 # ACTE 2 — CONSTELLATION  (p: 0.17→0.38)
@@ -698,7 +886,7 @@ class DefileFormes:
                         rot = int((t*90 + si*22) % 360 * 65535/360)
                         self.set_spot(i, r, g, b, 190, 5, 160,
                                       255-r, 255-g, 255-b,
-                                      sz, sz, rot, pan, tilt, si % 15)
+                                      sz, sz, rot, pan, tilt, si % 14)
 
                 # ─────────────────────────────────────
                 # ACTE 4 — VORTEX  (p: 0.60→0.80)
@@ -735,7 +923,7 @@ class DefileFormes:
                         rot = int((t*(180 + i*2) + i*8) % 360 * 65535/360)
                         alpha = int(210 + 45*math.sin(t*2.3 + i))
                         sw = int(14*abs(math.sin(t*4.5 + i*0.4)))
-                        fid = (i + int(t*4)) % 15   # forme change !
+                        fid = (i + int(t*4)) % 14   # forme change !
                         font_a4 = (int(t * 1.8 + i * 3) % 20) * 256 // 20
                         self.set_spot(i, r, g, b, alpha, sw, 220,
                                       255-r, 255-g, 255-b,
@@ -776,7 +964,7 @@ class DefileFormes:
                         font_a5 = (int(t * 2.5 + i * 3) % 20) * 256 // 20
                         self.set_spot(i, r, g, b, alpha, sw, int(220*fade),
                                       255, 255, 255,
-                                      sz, sz, rot, pan, tilt, i % 15, font=font_a5)
+                                      sz, sz, rot, pan, tilt, i % 14, font=font_a5)
 
                 self.send()
                 time.sleep(0.016)
@@ -796,13 +984,13 @@ class DefileFormes:
         self.dmx = [0] * 1536
         self.send()
 
-    # ── SCÈNE VIDÉO : le player vidéo comme forme (mode 15) ──────────────────
+    # ── SCÈNE VIDÉO : le player vidéo comme forme (mode 14) ──────────────────
     def demo_video(self, duree=28.0):
-        """Met en scène le player vidéo (mode forme 15, extension du portage).
+        """Met en scène le player vidéo (mode forme 14, extension du portage).
         Phase 1 : grand panneau central qui flotte, formes géométriques en orbite.
         Phase 2 : mur de vidéos (grille 3×2) qui pulse en rythme.
         Nécessite un moteur lancé avec --video ; sinon les panneaux restent noirs."""
-        print("  🎬  Vidéo — player intégré (mode 15)")
+        print("  🎬  Vidéo — player intégré (mode 14)")
 
         def to_u(px_off):
             return max(0, min(65535, int(32767 + px_off * 65535 / SCREEN_PX_RANGE)))
@@ -838,8 +1026,8 @@ class DefileFormes:
                     fy = int(36 * math.sin(t * 0.7))
                     rot = int((3.0 * math.sin(t * 0.4)) % 360 * 65535 / 360)
                     self.set_spot(VIDEO_FIXTURE_SLOT0, 255, 255, 255, 255, 0, 0, 0, 0, 0,
-                                  int(w / 1000 * 65535), int(h / 1000 * 65535),
-                                  rot, to_u(fx), to_u(fy), 15)
+                                  sz_px(w), sz_px(h),
+                                  rot, to_u(fx), to_u(fy), 14)   # mode VIDEO (forcé par le moteur)
 
                     for i in range(12):
                         a = 2 * math.pi * i / 12 + t * 0.4
@@ -850,7 +1038,7 @@ class DefileFormes:
                         rr = int((t * 60 + i * 30) % 360 * 65535 / 360)
                         self.set_spot(i, r, g, b, 220, 8, 200,
                                       255 - r, 255 - g, 255 - b,
-                                      sz, sz, rr, to_u(px), to_u(py), i % 15,
+                                      sz, sz, rr, to_u(px), to_u(py), i % 14,
                                       spot_blend=29)
                 else:
                     # ── Phase 2 : mur de 6 fixtures vidéo (grille 3×2) qui pulse ──
@@ -865,9 +1053,8 @@ class DefileFormes:
                             alpha = int(255 * (0.6 + 0.4 * math.sin(t * 2.0 + idx)))
                             self.set_spot(VIDEO_FIXTURE_SLOT0 + idx, 255, 255, 255,
                                           max(60, alpha), 0, 0, 0, 0, 0,
-                                          int(pw * pulse / 1000 * 65535),
-                                          int(ph * pulse / 1000 * 65535), 0,
-                                          to_u(xoffs[cx]), to_u(yoffs[ry]), 15)
+                                          sz_px(pw * pulse), sz_px(ph * pulse), 0,
+                                          to_u(xoffs[cx]), to_u(yoffs[ry]), 14)   # mode VIDEO (forcé)
                             idx += 1
 
                 self.send()
@@ -883,14 +1070,15 @@ class DefileFormes:
 
     # ── Boucle principale ────────────────────────────────────────────────────
     def run(self, duree_par_forme=6.0, transition=0.6, duree_intro=20.0,
-            duree_text=30.0, duree_video=28.0):
-        total = (duree_text + duree_intro + duree_video
+            duree_text=30.0):
+        # La vidéo est désormais présente partout (fond des couteaux + décor de
+        # chaque forme) : la scène vidéo dédiée a été retirée de la séquence.
+        total = (duree_text + duree_intro
                  + len(FORMES) * (duree_par_forme + transition) + 180)
-        print("🎭 LUXCORE - DÉFILÉ DES 15 FORMES + FINALE (48 spots / 2 univers)")
+        print("🎭 LUXCORE - DÉFILÉ DES 14 FORMES + FINALE (48 spots / 2 univers)")
         print("=" * 48)
         print(f"   Texte intro : {duree_text:.0f}s (artnet_text)")
-        print(f"   Intro       : {duree_intro:.0f}s (blades / couleurs / blur)")
-        print(f"   Vidéo       : {duree_video:.0f}s (player intégré, mode 15)")
+        print(f"   Intro       : {duree_intro:.0f}s (blades / vidéo de fond / blur)")
         print(f"   {len(FORMES)} formes × {duree_par_forme}s + {transition}s transition")
         print(f"   Finale      : 180s (5 actes, 48 spots / 2 univers)")
         print(f"   Durée totale : {total:.0f}s")
@@ -907,9 +1095,6 @@ class DefileFormes:
                 print()
 
                 self.demo_intro(duree_intro)
-                print()
-
-                self.demo_video(duree_video)
                 print()
 
                 for forme in FORMES:
@@ -951,7 +1136,7 @@ class DefileFormes:
                         self.send()
                         time.sleep(0.02)
 
-                # --- FINALE après les 15 formes ---
+                # --- FINALE après les 14 formes ---
                 print()
                 self.demo_finale(duree=180.0)
 

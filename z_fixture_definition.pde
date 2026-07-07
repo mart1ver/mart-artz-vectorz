@@ -52,7 +52,7 @@
  +16 pan LSB
  +17 tilt MSB        (position Y, 16-bit, 32767=centre)
  +18 tilt LSB
- +19 mode       (0-14, voir table des formes ci-dessous)
+ +19 mode       (0-13, voir table des formes ci-dessous)
  +20 enable     (0=désactivé, 1-255=actif)
  +21 blend mode (0=utilise le blend mode global ; sinon même LUT que canal 19 base :
                  BLEND=0 ADD=29 SUBTRACT=57 DARKEST=85 LIGHTEST=114
@@ -71,10 +71,9 @@
   8  Étoile (5 branches)
   9  Croix
  10  Flèche
- 11  Plus
- 12  Cœur
- 13  Segment     ← size_pan = longueur, size_tilt = épaisseur (1–130px), rotation = angle
- 14  Fleur
+ 11  Cœur
+ 12  Segment     ← size_pan = longueur, size_tilt = épaisseur (1–130px), rotation = angle
+ 13  Fleur
 
  ###mode texte (mode 2)
  size_tilt encode le caractère ASCII via byte(size_tilt) dans Processing.

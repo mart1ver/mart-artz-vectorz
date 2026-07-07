@@ -120,7 +120,7 @@ def run(duree=None, ip="127.0.0.1", sock=None):
             dmx[base + 20] = 255  # enable
 
         # ── Forme arrière-plan (spot 11)
-        bg_forme = 12 if mot_idx == 4 else 3
+        bg_forme = 11 if mot_idx == 4 else 3   # 11 = Cœur (fond du dernier mot)
         bg_r     = (0, 0, 0) if mot_idx == 4 else (220, 0, 0)
         base_tri = 28 + 11 * 23
         rot_tri  = int((t * 60) % 360 * 65535 / 360)

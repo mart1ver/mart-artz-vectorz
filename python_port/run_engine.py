@@ -11,6 +11,8 @@ l'ArtNet (p.ex. demo_scripts/defile_formes.py) et regarder la source NDI
 import argparse
 import os
 import queue
+import shutil
+import subprocess
 import threading
 import time
 from fractions import Fraction
@@ -42,12 +44,31 @@ def main():
     ap.add_argument("--no-fonts", action="store_true", help="désactive le texte")
     ap.add_argument("--no-gui", action="store_true",
                     help="désactive le panneau GUI imgui (aperçu seul)")
-    ap.add_argument("--video", help="fichier vidéo source pour le mode forme VIDEO (mode 15)")
+    ap.add_argument("--video", help="fichier vidéo unique (compat) pour le mode forme VIDEO")
+    ap.add_argument("--videos-dir",
+                    default=os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                         "..", "data", "videos"),
+                    help="dossier de vidéos ; le canal +22 d'une fixture vidéo choisit "
+                         "laquelle est projetée (trié par nom)")
     ap.add_argument("--video-fixtures", type=int, default=6,
                     help="nombre de fixtures vidéo rendues (réglable ensuite dans le GUI)")
     args = ap.parse_args()
 
     fonts_dir = None if args.no_fonts else args.fonts_dir
+
+    # Liste des vidéos : dossier (trié par nom) + éventuel --video en tête
+    import glob
+    video_paths = []
+    if args.video:
+        video_paths.append(args.video)
+    if args.videos_dir and os.path.isdir(args.videos_dir):
+        for ext in ("*.mp4", "*.mov", "*.mkv", "*.webm", "*.avi"):
+            video_paths.extend(sorted(glob.glob(os.path.join(args.videos_dir, ext))))
+    # dédoublonne en gardant l'ordre
+    video_paths = list(dict.fromkeys(video_paths))
+    if video_paths:
+        print(f"[video] {len(video_paths)} vidéo(s) : "
+              + ", ".join(os.path.basename(p) for p in video_paths))
 
     snap_idx = 0
     last_snap = 0.0
@@ -61,6 +82,36 @@ def main():
              "restart_artnet": False, "gui_visible": True}
 
     # -- contexte GL : fenêtre d'aperçu (pyglet) ou headless (EGL standalone) --
+    # -- plein écran : masquer le curseur + empêcher la mise en veille --------
+    _inhibit = {"proc": None, "xset": False}
+
+    def _sleep_inhibit(on):
+        """Bloque (on=True) / libère la mise en veille idle+sleep de l'ordinateur."""
+        if on and _inhibit["proc"] is None and shutil.which("systemd-inhibit"):
+            _inhibit["proc"] = subprocess.Popen(
+                ["systemd-inhibit", "--what=idle:sleep", "--who=LuxCore",
+                 "--why=LuxCore plein écran", "--mode=block", "sleep", "infinity"])
+        if not on and _inhibit["proc"] is not None:
+            _inhibit["proc"].terminate()
+            _inhibit["proc"] = None
+        # En complément (X11) : désactive économiseur d'écran + DPMS
+        if os.environ.get("DISPLAY") and shutil.which("xset"):
+            if on and not _inhibit["xset"]:
+                subprocess.call(["xset", "s", "off"]); subprocess.call(["xset", "-dpms"])
+                _inhibit["xset"] = True
+            elif not on and _inhibit["xset"]:
+                subprocess.call(["xset", "s", "on"]); subprocess.call(["xset", "+dpms"])
+                _inhibit["xset"] = False
+
+    def _set_fullscreen(_w, full):
+        """Passe en/hors plein écran : masque le curseur et inhibe la veille."""
+        _w.fullscreen = full
+        try:
+            _w.cursor = not full            # curseur masqué en plein écran
+        except Exception:
+            pass
+        _sleep_inhibit(full)
+
     window = None
     blit = None
     gui_impl = None
@@ -74,7 +125,7 @@ def main():
                             gl_version=(3, 3), vsync=False, resizable=True)
         mglw.activate_context(window=window)
         ctx = window.ctx
-        eng = LuxCoreEngine(W, H, ctx=ctx, fonts_dir=fonts_dir, video_path=args.video)
+        eng = LuxCoreEngine(W, H, ctx=ctx, fonts_dir=fonts_dir, video_paths=video_paths)
         # blit : FBO (top-down pour NDI) -> écran, V inversé pour être droit
         blit_prog = ctx.program(
             vertex_shader="#version 330\nin vec2 p;out vec2 uv;"
@@ -108,13 +159,19 @@ def main():
                     if key == _w.keys.H:            # masquer / afficher le menu
                         _s["gui_visible"] = not _s["gui_visible"]
                     elif key == _w.keys.G:          # (dés)activer le plein écran
-                        _w.fullscreen = not _w.fullscreen
+                        _set_fullscreen(_w, not _w.fullscreen)
                 gui_impl.key_event(key, action, modifiers)
             window.key_event_func = on_key
             print("[gui] panneau imgui actif — h: masquer menu, g: plein écran")
-        print(f"[preview] fenêtre {Wp}x{Hp} ouverte")
+        else:
+            # sans GUI : garder au moins le raccourci plein écran (g)
+            def on_key(key, action, modifiers, _w=window):
+                if action == _w.keys.ACTION_PRESS and key == _w.keys.G:
+                    _set_fullscreen(_w, not _w.fullscreen)
+            window.key_event_func = on_key
+        print(f"[preview] fenêtre {Wp}x{Hp} ouverte — g: plein écran")
     else:
-        eng = LuxCoreEngine(W, H, fonts_dir=fonts_dir, video_path=args.video)
+        eng = LuxCoreEngine(W, H, fonts_dir=fonts_dir, video_paths=video_paths)
     print(f"[GL] {eng.ctx.info['GL_RENDERER']}")
 
     # -- sortie NDI (readback PBO + worker, cf. spike) --
@@ -232,6 +289,7 @@ def main():
 
     el = time.perf_counter() - t0
     print(f"\n{n} frames en {el:.1f}s -> {n/el:.1f} fps (cible {FPS})")
+    _sleep_inhibit(False)                 # libère la veille + restaure DPMS
     artnet.stop()
     send_q.put(None)
     time.sleep(0.1)

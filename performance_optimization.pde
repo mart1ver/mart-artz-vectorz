@@ -178,20 +178,16 @@ class SpotData {
       case 10: // Flèche
         render_arrow_optimized();
         break;
-        
-      case 11: // Plus
-        render_plus_optimized();
-        break;
-        
-      case 12: // Cœur simple
+
+      case 11: // Cœur simple
         render_heart_simple_optimized();
         break;
-        
-      case 13: // Segment
+
+      case 12: // Segment
         render_segment_optimized();
         break;
-        
-      case 14: // Fleur 6 pétales
+
+      case 13: // Fleur 6 pétales
         render_flower_optimized();
         break;
         
@@ -329,30 +325,6 @@ class SpotData {
     vertex(-head_width/2, -size_tilt/2 + head_height);         // Gauche pointe
     
     endShape(CLOSE);
-    strokeWeight(stroke_weight);
-  }
-  
-  void render_plus_optimized() {
-    // Plus ✚ en un seul polygone 12 vertices (bras fins)
-    strokeWeight(stroke_weight/5);
-    float t = size_pan * 0.15;   // épaisseur fine
-    float a = size_pan * 0.50;   // demi-longueur des bras
-
-    beginShape();
-    vertex(-t/2, -a);
-    vertex( t/2, -a);
-    vertex( t/2, -t/2);
-    vertex( a,   -t/2);
-    vertex( a,    t/2);
-    vertex( t/2,  t/2);
-    vertex( t/2,  a);
-    vertex(-t/2,  a);
-    vertex(-t/2,  t/2);
-    vertex(-a,    t/2);
-    vertex(-a,   -t/2);
-    vertex(-t/2, -t/2);
-    endShape(CLOSE);
-
     strokeWeight(stroke_weight);
   }
   
