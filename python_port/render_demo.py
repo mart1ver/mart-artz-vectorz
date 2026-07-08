@@ -16,7 +16,6 @@ from PIL import Image
 
 from luxcore import constants as C
 from luxcore.constants import Shape
-from luxcore.dmx import pmap
 from luxcore.engine import LuxCoreEngine
 from luxcore_artnet import set16, hsv
 

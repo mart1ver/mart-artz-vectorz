@@ -3,7 +3,6 @@
 Lancer : python_port/.venv/bin/python -m pytest python_port/tests -q
      ou : python_port/.venv/bin/python python_port/tests/test_dmx.py
 """
-import math
 import os
 import sys
 

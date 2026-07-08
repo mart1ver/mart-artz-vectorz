@@ -38,7 +38,6 @@ class ArtNetReceiver(threading.Thread):
         # diagnostics
         self.packets = 0
         self.last_universe_seen = -1
-        self.bound = False
 
     def run(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -48,7 +47,6 @@ class ArtNetReceiver(threading.Thread):
         except OSError as e:
             print(f"[ArtNet] bind {self.bind_addr}:{self.port} impossible : {e}")
             return
-        self.bound = True
         sock.settimeout(0.25)
         print(f"[ArtNet] écoute UDP {self.bind_addr}:{self.port} "
               f"({self.max_universes} univers)")

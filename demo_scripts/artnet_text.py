@@ -27,7 +27,6 @@ MOTS = [
     {"mot": "made by:",   "spacing": 80, "duree": 4.0, "offsets": [0, 0, 0, 0, 0, 0, 0, 0]},
     {"mot": "Martin VERT","spacing": 80, "duree": 6.0, "offsets": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]},
 ]
-DUREE_MOT = 6.0   # durée par défaut (scène 5)
 
 # Pré-calcul des positions
 for cfg in MOTS:
