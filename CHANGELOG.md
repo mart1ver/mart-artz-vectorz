@@ -2,6 +2,22 @@
 
 ---
 
+## v2.0 — Portage Python / moderngl + NDI (2026-07)
+
+- Nouveau moteur principal : **portage Python / moderngl** (OpenGL) avec **sortie NDI**,
+  dans `python_port/`. Sources Processing d'origine archivées dans `docs/processing/`.
+- **14 formes** denses : forme « Plus » retirée (doublon de la Croix), renumérotation.
+  Remplissage par triangulation ear-clip (flèche/cœur concaves corrects).
+- **Fixture unifiée** : plus de famille vidéo dédiée. Le mode +19 = 14 (VIDEO) transforme
+  toute fixture en panneau vidéo (sélection de la vidéo du dossier via +22, échelle plein écran).
+- **Vidéo** : dossier `data/videos/`, sélection par ArtNet, désynchronisation multi-panneaux,
+  **fixture de fond** (slot 60) pour une vidéo plein écran derrière les spots.
+- Aperçu : plein écran `g` (curseur masqué + veille inhibée via systemd-inhibit), menu `h`.
+- Défilé enrichi : positions symétriques par forme, décor vidéo permanent, finale 5 actes.
+- 45 tests (décodage, géométrie, GL, effets, polices). Ménage : root rangé, code mort retiré.
+
+---
+
 ## v1.0 — Show complet en boucle infinie (2026-03-22)
 
 - `defile_formes.py` tourne en boucle infinie (Ctrl+C pour quitter)

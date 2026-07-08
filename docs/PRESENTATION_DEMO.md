@@ -1,82 +1,75 @@
-# LuxCore DMX Engine — Presentation technique
+# LuxCore DMX Engine — Présentation technique
 **Auteur : Martin Vert**
 
 ---
 
 ## Vue d'ensemble
 
-LuxCore DMX Engine est un moteur de visualisation DMX/ArtNet temps réel developpe en Processing. Il recoit des donnees ArtNet (UDP port 6454) et rend jusqu'a 65 spots simultanees avec 15 formes geometriques, des blades inclinables, des effets PostFX et un fond colorise.
+LuxCore DMX Engine est un moteur de visualisation DMX/ArtNet temps réel. Le moteur
+principal est un **portage Python / moderngl** (OpenGL) avec **sortie NDI**, dérivé
+du sketch Processing d'origine (archivé dans `processing/`). Il reçoit des données
+ArtNet (UDP port 6454) et rend des fixtures avec **14 formes** géométriques (dont la
+vidéo), des blades inclinables, des effets PostFX et un fond colorisé ou vidéo.
 
 ---
 
 ## Lancement rapide
 
 ```bash
-# Show complet en boucle infinie : intro texte + intro blades + 15 formes + finale 5 actes
-python3 demo_scripts/defile_formes.py
+# moteur : aperçu écran + sortie NDI "LuxCore", piloté par ArtNet
+python_port/.venv/bin/python python_port/run_engine.py --preview --spots 60 --duration 0
 
-# Duree par forme personnalisee (ex: 4s)
-python3 demo_scripts/defile_formes.py 127.0.0.1 4
-
-# Animation typographique multi-scenes (boucle infinie)
-python3 demo_scripts/artnet_text.py
-
-# Validation systeme
-python3 demo_scripts/system_validation.py
+# piloter par ArtNet (127.0.0.1:6454)
+python3 demo_scripts/defile_formes.py       # show complet en boucle (Ctrl+C)
+python3 demo_scripts/artnet_text.py         # animation typographique
 ```
+Aperçu : `g` = plein écran (curseur masqué + veille inhibée), `h` = menu.
 
 ---
 
-## Les 15 formes
+## Les 14 formes (canal +19)
 
-| ID | Forme | Detail |
+| ID | Forme | Détail |
 |---|---|---|
 | 0 | Ellipse | cercle/ovale |
 | 1 | Rectangle | rectangle plein |
-| 2 | Texte | caracteres ASCII, police par spot via canal +22 |
-| 3 | Triangle | polygone 3 cotes |
-| 4 | Pentagone | 5 cotes |
-| 5 | Hexagone | 6 cotes |
-| 6 | Losange | diamant 4 cotes |
-| 7 | Octogone | 8 cotes |
-| 8 | Etoile | 5 branches, pointe vers le haut |
-| 9 | Croix | polygone 12 vertices, contour vectoriel propre |
-| 10 | Fleche | pointant vers le haut |
-| 11 | Plus | polygone 12 vertices, bras fins |
-| 12 | Coeur | formule parametrique, 72 vertices |
-| 13 | Segment | ligne ouverte — size_pan=longueur, size_tilt/500=epaisseur px |
-| 14 | Fleur | 6 petales, formule polaire, 180 vertices |
+| 2 | Texte | caractères ASCII, police par fixture via canal +22 |
+| 3 | Triangle | polygone 3 côtés |
+| 4 | Pentagone | 5 côtés |
+| 5 | Hexagone | 6 côtés |
+| 6 | Losange | diamant 4 côtés |
+| 7 | Octogone | 8 côtés |
+| 8 | Étoile | 5 branches |
+| 9 | Croix | polygone 12 vertices, contour propre |
+| 10 | Flèche | remplissage ear-clip (concave correct) |
+| 11 | Cœur | formule paramétrique, 72 vertices |
+| 12 | Segment | ligne ouverte — size_pan=longueur, size_tilt/500=épaisseur px |
+| 13 | Fleur | 6 pétales, formule polaire, 180 vertices |
+| 14 | **Vidéo** | quad texturé par une vidéo du dossier (sélection via +22) |
+
+> L'ancienne forme « Plus » a été retirée lors du portage (doublon de la Croix).
 
 ---
 
 ## Structure DMX
 
-### Parametres de base (28 canaux, offset 0)
+### Paramètres de base (28 canaux, offset 0)
 
-| Canaux | Parametre |
+| Canaux | Paramètre |
 |---|---|
 | 1-3 | RGB background |
-| 4-5 | Blade A1 16-bit (top gauche) |
-| 6-7 | Blade A2 16-bit (top droite) |
-| 8-9 | Blade B1 16-bit (droite haut) |
-| 10-11 | Blade B2 16-bit (droite bas) |
-| 12-13 | Blade C1 16-bit (bas gauche) |
-| 14-15 | Blade C2 16-bit (bas droite) |
-| 16-17 | Blade D1 16-bit (gauche haut) |
-| 18-19 | Blade D2 16-bit (gauche bas) |
+| 4-19 | 8 blades 16-bit (A1/A2/B1/B2/C1/C2/D1/D2) |
 | 20 | Blend mode global |
-| 21 | Blur A — size |
-| 22 | Blur B — sigma |
+| 21-22 | Blur size / sigma |
 | 23 | Pixelate |
 | 24 | Sobel (bistable >128) |
 | 25 | RGB Split |
-| 26 | Saturation A |
-| 27 | Saturation B |
+| 26-27 | Saturation A / B |
 | 28 | Chromatic aberration (bistable >128) |
 
-### Parametres par spot (23 canaux, offset = 28 + spot_id x 23)
+### Paramètres par fixture (23 canaux, offset = 28 + spot_id × 23)
 
-| Offset | Parametre | Resolution |
+| Offset | Paramètre | Résolution |
 |---|---|---|
 | +0 +1 +2 | RGB fill | 8-bit |
 | +3 | Alpha | 8-bit |
@@ -91,7 +84,17 @@ python3 demo_scripts/system_validation.py
 | +19 | Mode (forme 0-14) | 8-bit |
 | +20 | Enable (0=off, 1-255=on) | 8-bit |
 | +21 | Blend mode individuel (0=global, sinon LUT) | 8-bit |
-| +22 | Font index (0-255 -> clamp sur nb polices) | 8-bit |
+| +22 | **mode Texte : police** · **mode VIDEO : sélecteur de vidéo** | 8-bit |
+
+### Fixture unifiée + fond vidéo
+
+- **Une seule sorte de fixture.** Le mode `+19 = 14` (VIDEO) transforme n'importe
+  quelle fixture en panneau vidéo : la vidéo du dossier `data/videos/` est choisie
+  par le canal `+22`, et la taille est ré-échelonnée (plein écran possible).
+- **Désynchronisation** : chaque vidéo garde un anneau de ses dernières frames ;
+  plusieurs panneaux d'une même source échantillonnent des frames décalées.
+- **Fixture de fond** (slot réservé **60**) : en mode 14, vidéo plein écran derrière
+  tous les spots (choisie par +22, `alpha` pour la fondre avec la couleur RGB).
 
 ### Blend modes — valeurs DMX exactes
 
@@ -99,7 +102,6 @@ python3 demo_scripts/system_validation.py
 BLEND=0  ADD=29  SUBTRACT=57  DARKEST=85  LIGHTEST=114
 DIFFERENCE=142  EXCLUSION=170  MULTIPLY=199  SCREEN=227  REPLACE=255
 ```
-
 Sur fond **noir** : ADD, BLEND, LIGHTEST, DIFFERENCE, EXCLUSION, SCREEN fonctionnent.
 Sur fond **blanc** : BLEND, DIFFERENCE, EXCLUSION seulement.
 
@@ -110,86 +112,67 @@ def set16(dmx, idx, val):
     val = max(0, min(65535, int(val)))
     dmx[idx]     = (val >> 8) & 0xFF
     dmx[idx + 1] = val & 0xFF
-
-# Centre ecran = 32767
-# Rotation 180 degres = int(180 * 65535 / 360)
+# Centre écran = 32767 ; Rotation 180° = int(180 * 65535 / 360)
 ```
 
 ### Encodage texte (mode 2)
 
-`size_tilt` encode le caractere ASCII. Utiliser `math.ceil()` obligatoirement :
+`size_tilt` encode le caractère ASCII. Utiliser `math.ceil()` obligatoirement :
 ```python
-tilt_16bit = math.ceil(ord(c) * 65535 / 1000)
+tilt_16bit = math.ceil(ord(c) * 65535 / 1000)   # int() tronque et décale
 ```
-`int()` tronque et decale vers le caractere precedent.
 
 ---
 
-## Capacite DMX
+## Capacité DMX
 
-| Configuration | Spots max |
+| Configuration | Fixtures max |
 |---|---|
-| 1 univers (512 oct.) | 21 spots |
-| 2 univers (1024 oct.) | 43 spots |
-| 3 univers (1536 oct.) | 65 spots |
+| 1 univers (512 oct.) | 21 |
+| 2 univers (1024 oct.) | 43 |
+| 3 univers (1536 oct.) | 65 |
 
 ---
 
-## Polices disponibles (mode Texte)
+## Polices disponibles (mode Texte, canal +22)
 
-20 polices TTF dans `data/fonts/`, indexees 0-19 via canal +22 :
-
-| Index | Fichier | Style |
-|---|---|---|
-| 0 | Audiowide | circulaire/tech |
-| 1 | BebasNeue | display condense |
-| 2 | Cinzel | romain classique |
-| 3 | Comfortaa-Bold | geometrique arrondi |
-| 4 | DejaVuSans-Bold | sans-serif standard |
-| 5 | DejaVuSans | sans-serif leger |
-| 6 | DejaVuSansMono | monospace |
-| 7 | DejaVuSerif | serif classique |
-| 8 | Exo2-Bold | sci-fi propre |
-| 9 | Montserrat-Bold | flat design moderne |
-| 10 | Orbitron | futuriste geometrique |
-| 11 | Oswald-Bold | condense puissant |
-| 12 | Pacifico | script handwritten |
-| 13 | PoiretOne | art deco fin |
-| 14 | PressStart2P | pixel retro jeu |
-| 15 | Raleway-ExtraBold | contraste extreme |
-| 16 | Raleway-Light | elegance fine |
-| 17 | Righteous | retro display |
-| 18 | RobotoBold | sans-serif moderne |
-| 19 | SpaceMono-Bold | monospace tech |
+20 polices TTF dans `data/fonts/`, chargées par `luxcore/text.py` :
+Audiowide · BebasNeue · Cinzel · Comfortaa-Bold · DejaVuSans-Bold · DejaVuSans ·
+DejaVuSansMono · DejaVuSerif · Exo2-Bold · Montserrat-Bold · Orbitron · Oswald-Bold ·
+Pacifico · PoiretOne · PressStart2P · Raleway-ExtraBold · Raleway-Light · Righteous ·
+RobotoBold · SpaceMono-Bold
 
 ---
 
 ## Architecture fichiers
 
 ```
-martz_artz_verctorz.pde       — Point d'entree Processing
-definitions.pde               — Variables globales, constantes DMX
-draw_functions.pde            — Pipeline rendu, font cache
-artnet_functions.pde          — Reception ArtNet UDP, parsing DMX
-gui_functions.pde             — Interface LazyGui
-performance_optimization.pde  — Classe SpotData, pool 256 spots, 15 formes
-z_fixture_definition.pde      — Documentation mapping DMX canal par canal
+python_port/
+  run_engine.py               — boucle live : ArtNet → décodage → rendu → NDI + GUI
+  luxcore/
+    constants.py              — mapping DMX, LUT blend, enums, BG_FIXTURE_SLOT
+    dmx.py                    — décodage BaseState + SpotState
+    artnet.py                 — réception ArtNet UDP multi-univers
+    geometry.py               — 14 formes + triangulation ear-clip
+    stroke.py / text.py       — contour, glyphes 20 polices
+    blades.py / effects.py    — couteaux 16-bit, 6 post-effets GLSL
+    video.py                  — décodage vidéo PyAV
+    engine.py                 — pipeline de rendu complet
+    gui.py / imgui_backend.py — panneau imgui
+  tests/                      — 45 tests (décodage, géométrie, GL, effets…)
 
 demo_scripts/
-  luxcore_artnet.py           — Module partage : set16(), send_multi(), hsv(), char_tilt()
-  defile_formes.py            — Show complet en boucle : intro texte (30s) + intro blades (20s)
-                                + 15 formes (6-15s chacune) + finale 5 actes (180s)
-                                19 spots, enable/blend creatifs par forme, 20 polices cyclees
-  artnet_text.py              — Animation typographique : ArtNet/controled/generator/Martin VERT
-  lettre_a.py                 — Affichage single char (test)
-  system_validation.py        — Validation connexion et performances
+  luxcore_artnet.py           — module partagé : set16(), send_multi(), hsv(), char_tilt()
+  defile_formes.py            — show complet en boucle (intro texte + blades + 14 formes + finale)
+  artnet_text.py              — animation typographique multi-scènes
+
+data/                         — fonts/, videos/, gui/
+docs/processing/              — sources Processing d'origine (archive)
 ```
 
 ---
 
-## Performances mesurees
+## Performances
 
-| Configuration | FPS moyen |
-|---|---|
-| 19 spots, defile formes | ~12-14 FPS |
-| 48 spots, finale | ~12-14 FPS |
+~55-60 FPS à 1080p (48-60 fixtures) sur iGPU Intel UHD 630 (2018). Le plafond est le
+readback NDI, pas le rendu. Sortie NDI `LuxCore` visible dans OBS / vMix / Resolume.
