@@ -46,6 +46,7 @@ class SpotState:
     enabled: bool
     blend_mode: BlendMode
     font_index: int
+    sel_raw: int = 0           # canal +22 brut ; en mode VIDEO : sélecteur de vidéo
 
     @property
     def shape(self) -> Shape:
@@ -132,6 +133,7 @@ def decode_spot(buf, base_addr: int, half_w: float, half_h: float,
         enabled=b(C.SP_ENABLE) > 0,
         blend_mode=blend_mode,
         font_index=font_index,
+        sel_raw=raw_font,          # même canal (+22) réinterprété en mode VIDEO
     )
 
 

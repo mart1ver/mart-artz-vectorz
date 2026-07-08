@@ -103,6 +103,21 @@ def test_mode_14_is_video():
     assert s.shape == Shape.VIDEO
 
 
+def test_sel_raw_is_raw_plus22():
+    # fixture unifiée : +22 est aussi le sélecteur vidéo (brut, non clampé police)
+    buf = _blank_buf()
+    base = C.spot_base_addr(0)
+    buf[base + C.SP_FONT] = 200
+    s = dmx.decode_spot(buf, base, 960, 540, BlendMode.BLEND, n_fonts=20)
+    assert s.sel_raw == 200
+
+
+def test_bg_fixture_address_is_reserved_slot():
+    # la fixture de fond vit à un slot réservé, hors de la plage des spots
+    assert C.bg_fixture_base_addr() == C.spot_base_addr(C.BG_FIXTURE_SLOT)
+    assert C.BG_FIXTURE_SLOT >= 60
+
+
 def test_spot_blend_zero_uses_global():
     buf = _blank_buf()
     base = C.spot_base_addr(0)

@@ -45,7 +45,7 @@ SP_POS_TILT = 17                  # 16-bit ; 32767 = centre
 SP_MODE = 19
 SP_ENABLE = 20
 SP_BLEND = 21                     # 0 = blend global ; sinon même LUT que canal 19
-SP_FONT = 22                      # spot Texte : police ; fixture VIDÉO : sélecteur de
+SP_FONT = 22                      # mode Texte : police ; mode VIDEO : sélecteur de
                                   # vidéo du dossier (raw 0-255 -> index, cf. engine)
 
 
@@ -55,18 +55,23 @@ def spot_base_addr(spot_id: int) -> int:
 
 
 # ---------------------------------------------------------------------------
-# Fixtures vidéo — famille de fixtures dédiée (même layout 23 canaux qu'un spot,
-# mais toujours rendue en vidéo, mode forcé). Placées APRÈS le bloc des spots
-# (à partir du slot MAX_SPOTS) pour ne jamais entrer en collision avec eux.
+# Fixture unifiée : il n'existe qu'UN type de fixture (le spot, 23 canaux).
+# La vidéo n'est plus une famille dédiée : c'est simplement un spot en mode 14
+# (VIDEO), qui gagne alors la sélection de vidéo (+22) et l'échelle plein écran.
 # ---------------------------------------------------------------------------
-MAX_SPOTS = 48                    # slots 0..47 réservés aux spots
-VIDEO_FIXTURE_SLOT0 = MAX_SPOTS   # les fixtures vidéo commencent au slot 48
+
+# ---------------------------------------------------------------------------
+# Fixture de FOND — une fixture 23 canaux (même layout qu'un spot) dessinée
+# DERRIÈRE tous les spots. En mode 14 (VIDEO) elle projette une vidéo plein
+# écran (choisie par +22) en fond ; sinon le fond reste la couleur RGB (0-2).
+# Slot réservé, hors de la plage des spots rendus (garder num_spots <= ce slot).
+# ---------------------------------------------------------------------------
+BG_FIXTURE_SLOT = 60              # adresse = 28 + 60*23 = 1408 (univers 2, offset 384)
 
 
-def video_base_addr(fixture_id: int) -> int:
-    """Index DMX du premier canal d'une fixture vidéo."""
-    return spot_base_addr(VIDEO_FIXTURE_SLOT0 + fixture_id)
-
+def bg_fixture_base_addr() -> int:
+    """Index DMX du premier canal de la fixture de fond."""
+    return spot_base_addr(BG_FIXTURE_SLOT)
 
 # ---------------------------------------------------------------------------
 # Formes (canal +19)

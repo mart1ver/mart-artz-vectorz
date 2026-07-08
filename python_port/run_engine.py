@@ -28,7 +28,8 @@ def main():
     ap.add_argument("--width", type=int, default=1920)
     ap.add_argument("--height", type=int, default=1080)
     ap.add_argument("--fps", type=int, default=60)
-    ap.add_argument("--spots", type=int, default=15)
+    ap.add_argument("--spots", type=int, default=60,
+                    help="nombre de fixtures décodées (une fixture en mode 14 = vidéo)")
     ap.add_argument("--duration", type=float, default=20.0, help="0 = jusqu'à Ctrl+C")
     ap.add_argument("--name", default="LuxCore")
     ap.add_argument("--snapshot-dir", help="sauve un PNG toutes les --snapshot-interval s")
@@ -48,10 +49,8 @@ def main():
     ap.add_argument("--videos-dir",
                     default=os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                          "..", "data", "videos"),
-                    help="dossier de vidéos ; le canal +22 d'une fixture vidéo choisit "
+                    help="dossier de vidéos ; le canal +22 d'un spot en mode 14 choisit "
                          "laquelle est projetée (trié par nom)")
-    ap.add_argument("--video-fixtures", type=int, default=6,
-                    help="nombre de fixtures vidéo rendues (réglable ensuite dans le GUI)")
     args = ap.parse_args()
 
     fonts_dir = None if args.no_fonts else args.fonts_dir
@@ -78,7 +77,7 @@ def main():
     W, H, FPS = args.width, args.height, args.fps
 
     # état partagé avec le GUI
-    state = {"spots": args.spots, "video": args.video_fixtures, "effects": True,
+    state = {"spots": args.spots, "effects": True,
              "restart_artnet": False, "gui_visible": True}
 
     # -- contexte GL : fenêtre d'aperçu (pyglet) ou headless (EGL standalone) --
@@ -94,13 +93,18 @@ def main():
         if not on and _inhibit["proc"] is not None:
             _inhibit["proc"].terminate()
             _inhibit["proc"] = None
-        # En complément (X11) : désactive économiseur d'écran + DPMS
+        # En complément (X11) : désactive économiseur d'écran + DPMS.
+        # Silencieux : certains serveurs X n'ont pas l'extension DPMS (sans gravité,
+        # systemd-inhibit reste le mécanisme principal).
         if os.environ.get("DISPLAY") and shutil.which("xset"):
+            devnull = subprocess.DEVNULL
             if on and not _inhibit["xset"]:
-                subprocess.call(["xset", "s", "off"]); subprocess.call(["xset", "-dpms"])
+                subprocess.call(["xset", "s", "off"], stdout=devnull, stderr=devnull)
+                subprocess.call(["xset", "-dpms"], stdout=devnull, stderr=devnull)
                 _inhibit["xset"] = True
             elif not on and _inhibit["xset"]:
-                subprocess.call(["xset", "s", "on"]); subprocess.call(["xset", "+dpms"])
+                subprocess.call(["xset", "s", "on"], stdout=devnull, stderr=devnull)
+                subprocess.call(["xset", "+dpms"], stdout=devnull, stderr=devnull)
                 _inhibit["xset"] = False
 
     def _set_fullscreen(_w, full):
@@ -231,7 +235,7 @@ def main():
                 print("[artnet] redémarré")
 
             dmx = artnet.snapshot()
-            base, _ = eng.render_dmx(dmx, state["spots"], state["video"])
+            base, _ = eng.render_dmx(dmx, state["spots"])
 
             # aperçu écran : blit du FBO vers le framebuffer de la fenêtre
             if blit is not None:

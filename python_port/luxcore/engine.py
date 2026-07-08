@@ -241,7 +241,8 @@ class LuxCoreEngine:
             ctx.blend_func = (moderngl.SRC_ALPHA, moderngl.ONE_MINUS_SRC_ALPHA)
 
     # -- rendu d'une frame --
-    def render(self, base: BaseState, spots: list[SpotState]):
+    def render(self, base: BaseState, spots: list[SpotState],
+               bg_fix: SpotState | None = None):
         # téléverse la dernière frame de CHAQUE source dans son anneau (désync)
         for s in self._vid:
             frame, ver = s["dec"].latest()
@@ -257,6 +258,10 @@ class LuxCoreEngine:
         self.fbo.use()
         r, g, b = base.bg
         self.ctx.clear(r / 255.0, g / 255.0, b / 255.0, 1.0)
+
+        # fixture de FOND : vidéo plein écran derrière tout (avant les spots)
+        if bg_fix is not None and bg_fix.is_drawable() and bg_fix.shape == Shape.VIDEO:
+            self._draw_bg_video(bg_fix)
 
         vid_ord = 0
         for sp in spots:
@@ -420,12 +425,32 @@ class LuxCoreEngine:
         self._text_prog["glyph"] = 0
         self._text_vao.render(moderngl.TRIANGLE_STRIP, vertices=4)
 
+    def _draw_bg_video(self, sp: SpotState):
+        # vidéo de FOND : plein écran, derrière tous les spots. Respecte le
+        # sélecteur (+22), l'alpha et le blend de la fixture de fond.
+        if self.n_videos == 0:
+            return
+        vidx = min((sp.sel_raw * self.n_videos) // 256, self.n_videos - 1)
+        s = self._vid[vidx]
+        if s["filled"] == 0:
+            return
+        tex = s["ring"][(s["head"] - 1) % self._VID_RING]
+        self._apply_blend(sp.blend_mode)
+        self._video_prog["u_scale"] = (float(self.width), float(self.height))
+        self._video_prog["u_rot"] = 0.0
+        self._video_prog["u_translate"] = (self.width * 0.5, self.height * 0.5)
+        self._video_prog["alpha"] = sp.alpha / 255.0
+        tex.use(0)
+        self._video_prog["vid"] = 0
+        self._video_vao.render(moderngl.TRIANGLE_STRIP, vertices=4)
+
     def _draw_video(self, sp: SpotState, cx: float, cy: float, ord: int = 0, n_vid: int = 1):
         # quad texturé par la vidéo, dimensionné/positionné comme un rectangle.
         # Choix de la source (canal +22) + frame retardée (désync entre panneaux).
+        # N'IMPORTE QUEL spot en mode 14 passe ici : parité totale spot/vidéo.
         if self.n_videos == 0:
             return
-        vidx = getattr(sp, "video_index", 0) % self.n_videos
+        vidx = min((sp.sel_raw * self.n_videos) // 256, self.n_videos - 1)
         s = self._vid[vidx]
         if s["filled"] == 0:
             return                              # rien encore décodé
@@ -433,7 +458,9 @@ class LuxCoreEngine:
         if n_vid > 1:                           # >1 panneau -> on les désynchronise
             delay = int(round(ord / n_vid * (s["filled"] - 1)))
         tex = s["ring"][(s["head"] - 1 - delay) % self._VID_RING]
-        self._video_prog["u_scale"] = (sp.size_pan, sp.size_tilt)
+        # échelle vidéo (permet le plein écran malgré le plafond 1000px du décodage)
+        self._video_prog["u_scale"] = (sp.size_pan * VIDEO_SIZE_SCALE,
+                                       sp.size_tilt * VIDEO_SIZE_SCALE)
         self._video_prog["u_rot"] = math.radians(sp.rotation)
         self._video_prog["u_translate"] = (cx, cy)
         self._video_prog["alpha"] = sp.alpha / 255.0
@@ -441,24 +468,16 @@ class LuxCoreEngine:
         self._video_prog["vid"] = 0
         self._video_vao.render(moderngl.TRIANGLE_STRIP, vertices=4)
 
-    def render_dmx(self, dmx_buf, num_spots: int, num_video: int = 0,
-                   n_fonts: int | None = None):
+    def render_dmx(self, dmx_buf, num_spots: int, n_fonts: int | None = None):
+        # Fixture unifiée : plus de famille vidéo dédiée. Tout spot en mode 14
+        # (VIDEO) est rendu en vidéo, avec sélection (+22) et échelle plein écran.
         nf = self.n_fonts if n_fonts is None else n_fonts
         base, spots = decode_all(dmx_buf, num_spots, self.width, self.height, nf)
-        # fixtures vidéo dédiées : même layout, mode forcé VIDEO
-        if num_video:
-            half_w, half_h = self.width * 0.5, self.height * 0.5
-            for i in range(num_video):
-                vf = decode_spot(dmx_buf, C.video_base_addr(i), half_w, half_h,
-                                 base.blend_global, nf)
-                vf.mode = int(Shape.VIDEO)
-                vf.size_pan *= VIDEO_SIZE_SCALE      # plein écran possible (cf. constante)
-                vf.size_tilt *= VIDEO_SIZE_SCALE
-                # canal +22 = sélecteur de vidéo du dossier (raw 0-255 -> index)
-                raw_sel = dmx_buf[C.video_base_addr(i) + C.SP_FONT]
-                vf.video_index = (raw_sel * max(1, self.n_videos)) // 256
-                spots.append(vf)
-        self.render(base, spots)
+        # fixture de fond (slot réservé, dessinée derrière les spots)
+        bg_fix = decode_spot(dmx_buf, C.bg_fixture_base_addr(),
+                             self.width * 0.5, self.height * 0.5,
+                             base.blend_global, nf)
+        self.render(base, spots, bg_fix)
         return base, spots
 
     def read_rgba(self, into: bytearray | None = None):

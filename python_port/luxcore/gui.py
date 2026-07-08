@@ -5,8 +5,7 @@ restart ArtNet) + dossier `status` (usage, blend mode). Adapté au moteur Python
 (fps, paquets ArtNet, source NDI, bypass des post-effets).
 
 `draw_gui(state, status)` lit/écrit le dict `state` partagé avec la boucle :
-  state["spots"]           : int  — nombre de spots rendus
-  state["video"]           : int  — nombre de fixtures vidéo rendues
+  state["spots"]           : int  — nombre de fixtures rendues (mode 14 = vidéo)
   state["effects"]         : bool — post-effets activés
   state["restart_artnet"]  : bool — mis à True au clic (consommé par la boucle)
 """
@@ -19,12 +18,9 @@ def draw_gui(state: dict, status: dict) -> None:
     imgui.begin("LuxCore DMX Engine")
 
     imgui.separator_text("config")
-    changed, v = imgui.slider_int("Nb. of spots", state["spots"], 0, 48)
+    changed, v = imgui.slider_int("Nb. de fixtures", state["spots"], 0, 64)
     if changed:
         state["spots"] = v
-    changed, v = imgui.slider_int("Nb. de vidéos", state["video"], 0, 16)
-    if changed:
-        state["video"] = v
     changed, v = imgui.checkbox("Post-effets", state["effects"])
     if changed:
         state["effects"] = v

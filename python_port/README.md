@@ -20,18 +20,20 @@ curl -sS https://bootstrap.pypa.io/get-pip.py | .venv/bin/python
 
 ```bash
 # aperçu écran + GUI + sortie NDI, piloté par ArtNet (défilé, etc.)
-.venv/bin/python run_engine.py --preview --spots 48 --duration 0
+.venv/bin/python run_engine.py --preview --spots 60 --duration 0
 
-# avec une source vidéo (mode forme 15)
-.venv/bin/python run_engine.py --preview --video ../ma_video.mp4 --duration 0
+# les vidéos sont chargées depuis un dossier (défaut ../data/videos) ; le
+# canal +22 d'une fixture en mode 14 choisit laquelle est projetée
+.venv/bin/python run_engine.py --preview --videos-dir ../data/videos --duration 0
 
 # headless (NDI seul, pour serveur) : retirer --preview
 ```
 Source NDI **`LuxCore`** visible dans OBS (plugin NDI) / vMix / Resolume.
 Piloter en envoyant de l'ArtNet sur `127.0.0.1:6454` (`demo_scripts/*.py`).
+Aperçu : **`g`** = plein écran (curseur masqué + veille inhibée), **`h`** = menu.
 
 Options : `--width/--height/--fps`, `--no-gui`, `--no-fonts`, `--preview-scale`,
-`--snapshot-dir` (dump PNG périodique).
+`--videos-dir`, `--snapshot-dir` (dump PNG périodique).
 
 ## Architecture (`luxcore/`)
 
@@ -54,10 +56,21 @@ do_blades → do_blade_blur`.
 
 ## Pipeline DMX (rappel + extension)
 
-Identique au mapping Processing (`z_fixture_definition.pde`), **plus** :
-- **mode +19 = 14 → VIDEO** : quad texturé par la source vidéo, positionné/
-  dimensionné (`size_pan × size_tilt`) / tourné comme un rectangle, opacité =
-  alpha du spot. Extension propre au portage.
+Identique au mapping Processing (`z_fixture_definition.pde`), **plus** (extensions
+propres au portage — le bloc de base reste à 28 canaux, aucun décalage) :
+- **Fixture unifiée** : un seul type de fixture (le spot, 23 canaux). Il n'y a
+  PAS de famille vidéo dédiée — la vidéo est simplement un spot en **mode +19 =
+  14 (VIDEO)** : quad texturé, positionné/dimensionné/tourné comme un rectangle,
+  opacité = alpha. En mode 14, le canal **+22** sélectionne la vidéo du dossier
+  (`data/videos`, trié par nom) et la taille est ré-échelonnée (plein écran
+  possible malgré le plafond 1000 px du décodage).
+- **Désynchronisation** : chaque vidéo garde un anneau de ses 32 dernières
+  frames ; quand plusieurs panneaux affichent la même source, chacun échantillonne
+  une frame retardée différente.
+- **Fixture de FOND** (slot réservé `BG_FIXTURE_SLOT = 60`) : une fixture 23
+  canaux dessinée DERRIÈRE tous les spots. En mode 14 = vidéo plein écran de fond
+  (choisie par +22, alpha pour fondre avec la couleur RGB) ; sinon le fond reste
+  la couleur RGB (canaux 1-3). Garder `num_spots <= 60`.
 
 ## Tests
 

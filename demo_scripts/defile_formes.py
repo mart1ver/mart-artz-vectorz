@@ -56,10 +56,12 @@ def positions_3_rings(r1=8000, r2=16000):
 
 POSITIONS = positions_3_rings()
 
-# Slot de départ des fixtures vidéo (aligné sur luxcore.constants.VIDEO_FIXTURE_SLOT0).
-# Les fixtures vidéo occupent les slots 48+ : aucune collision avec les 48 spots.
-VIDEO_FIXTURE_SLOT0 = 48
-NUM_VIDEO_FIXTURES = 12          # lancer le moteur avec --video-fixtures 12
+# Fixture unifiée : plus de famille vidéo dédiée — une « vidéo » est un spot en
+# mode 14. Par convention la démo réserve les slots 48+ à ses panneaux vidéo pour
+# ne pas écraser les 48 spots de formes. Lancer le moteur avec --spots >= 60.
+VIDEO_FIXTURE_SLOT0 = 48         # 1er slot des panneaux vidéo de la démo (convention)
+NUM_VIDEO_FIXTURES = 12          # panneaux vidéo simultanés (slots 48..59)
+BG_FIXTURE_SLOT = 60             # fixture de FOND (aligné sur luxcore.constants.BG_FIXTURE_SLOT)
 
 # Plage pixel totale calibrée empiriquement pour une fenêtre 1920px.
 # Processing mappe 0-65535 sur la largeur réelle de la fenêtre ; cette valeur
@@ -383,6 +385,20 @@ class DefileFormes:
                       to_pan(dx), to_tilt(dy), 14, spot_blend=blend,
                       font=int(max(0, min(255, vsel))))
 
+    def _set_bg_video(self, vsel=0, alpha=255, blend=0):
+        """Fixture de FOND : vidéo plein écran DERRIÈRE tous les spots.
+        vsel (+22) choisit la vidéo ; alpha permet de la fondre avec la couleur
+        RGB de fond. Le moteur force le plein écran (taille/position ignorées)."""
+        self.set_spot(BG_FIXTURE_SLOT, 255, 255, 255,
+                      int(max(0, min(255, alpha))), 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 14, spot_blend=blend,
+                      font=int(max(0, min(255, vsel))))
+
+    def _clear_bg_video(self):
+        """Éteint la fixture de fond (hors plage des blackouts de spots)."""
+        self.set_spot(BG_FIXTURE_SLOT, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                      0, 0, 0, 0, 0, 0, enable=0)
+
     # ── Décor vidéo présent en permanence — un preset symétrique par forme ────
     def _video_backdrop(self, fid, t, af):
         """6 arrangements vidéo symétriques (cyclés par forme) démontrant les
@@ -393,7 +409,9 @@ class DefileFormes:
 
         if preset == 0:        # panneau central unique (héros) : rotation + respiration
             w = 680 + 60 * math.sin(t * 0.5)
-            self._set_video(0, 0, 0, w, 6 * math.sin(t * 0.3), int(a0 * 0.95))
+            # héros = une vidéo différente à chaque occurrence du preset (formes 0/6/12)
+            self._set_video(0, 0, 0, w, 6 * math.sin(t * 0.3), int(a0 * 0.95),
+                            vsel=vspread(fid // 6, 3))
 
         elif preset == 1:      # paire miroir gauche/droite, contra-rotation
             for s, idx in ((-1, 0), (1, 1)):
@@ -432,10 +450,11 @@ class DefileFormes:
                                 150 + 26 * k, math.degrees(a),
                                 int(a0 * 0.85), blend=29, vsel=vspread(k, 8))
 
-    def _video_fill(self, alpha=255):
+    def _video_fill(self, alpha=255, vsel=0):
         """Vidéo plein écran, sans couture : une seule fixture (ré-échelonnée par
-        le moteur) légèrement plus grande que l'écran (1960×1102 > 1920×1080)."""
-        self._set_video(0, 0, 0, 1960, 0, alpha)
+        le moteur) légèrement plus grande que l'écran (1960×1102 > 1920×1080).
+        vsel (+22) choisit la vidéo du dossier."""
+        self._set_video(0, 0, 0, 1960, 0, alpha, vsel=vsel)
 
     # ── Enable et blend créatifs par forme ───────────────────────────────────
     def _creative_enable_blend(self, fid, i, t, phase, N):
@@ -666,9 +685,9 @@ class DefileFormes:
                 # Spots (formes) invisibles — le fond est fait par la vidéo
                 self.blackout_spots(VIDEO_FIXTURE_SLOT0 + NUM_VIDEO_FIXTURES)
 
-                # ── Fond VIDÉO plein écran (pavage 2×2) : les couteaux viennent
-                #    le rogner et le révéler tout au long de la démo des blades.
-                self._video_fill(255)
+                # ── Fond VIDÉO plein écran : les couteaux viennent le rogner et le
+                #    révéler. Cycle des 3 vidéos du dossier en 3 tiers de l'intro.
+                self._video_fill(255, vsel=vspread(min(2, int(p * 3)), 3))
 
                 self.send()
                 time.sleep(0.02)
@@ -1027,7 +1046,8 @@ class DefileFormes:
                     rot = int((3.0 * math.sin(t * 0.4)) % 360 * 65535 / 360)
                     self.set_spot(VIDEO_FIXTURE_SLOT0, 255, 255, 255, 255, 0, 0, 0, 0, 0,
                                   sz_px(w), sz_px(h),
-                                  rot, to_u(fx), to_u(fy), 14)   # mode VIDEO (forcé par le moteur)
+                                  rot, to_u(fx), to_u(fy), 14,   # mode VIDEO
+                                  font=vspread(int(t // 10) % 3, 3))  # cycle des 3 vidéos
 
                     for i in range(12):
                         a = 2 * math.pi * i / 12 + t * 0.4
@@ -1054,7 +1074,8 @@ class DefileFormes:
                             self.set_spot(VIDEO_FIXTURE_SLOT0 + idx, 255, 255, 255,
                                           max(60, alpha), 0, 0, 0, 0, 0,
                                           sz_px(pw * pulse), sz_px(ph * pulse), 0,
-                                          to_u(xoffs[cx]), to_u(yoffs[ry]), 14)   # mode VIDEO (forcé)
+                                          to_u(xoffs[cx]), to_u(yoffs[ry]), 14,   # mode VIDEO
+                                          font=vspread(idx, 6))   # mur : les 3 vidéos réparties
                             idx += 1
 
                 self.send()
