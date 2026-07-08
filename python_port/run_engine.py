@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Moteur LuxCore — boucle live : ArtNet -> décodage -> rendu -> NDI (étape B).
 
-Assemble les trois modules déjà écrits (artnet, dmx, engine) avec la sortie NDI
-optimisée du spike (readback PBO + worker d'envoi). Piloter en envoyant de
-l'ArtNet (p.ex. demo_scripts/defile_formes.py) et regarder la source NDI
-"LuxCore" dans OBS / vMix / Resolume.
+Assemble les trois modules déjà écrits (artnet, dmx, engine) avec une sortie NDI
+optimisée (readback PBO + worker d'envoi). Piloter en envoyant de l'ArtNet
+(p.ex. demo_scripts/defile_formes.py) et regarder la source NDI "LuxCore" dans
+OBS / vMix / Resolume.
 
-    python_port/.venv/bin/python python_port/run_engine.py --spots 15 --duration 0
+    python_port/.venv/bin/python python_port/run_engine.py --spots 60 --duration 0
 """
 import argparse
 import os
@@ -178,7 +178,7 @@ def main():
         eng = LuxCoreEngine(W, H, fonts_dir=fonts_dir, video_paths=video_paths)
     print(f"[GL] {eng.ctx.info['GL_RENDERER']}")
 
-    # -- sortie NDI (readback PBO + worker, cf. spike) --
+    # -- sortie NDI (readback PBO + worker d'envoi) --
     from cyndilib.sender import Sender
     from cyndilib.video_frame import VideoSendFrame
     from cyndilib.wrapper.ndi_structs import FourCC
