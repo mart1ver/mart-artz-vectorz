@@ -116,6 +116,32 @@ uniform float alpha;
 void main() { vec4 c = texture(vid, uv); frag = vec4(c.rgb, c.a * alpha); }
 """
 
+# Packing RGBA -> UYVY 4:2:2 (BT.709, plage vidéo 16-235) pour la sortie NDI.
+# Chaque texel de sortie code 2 pixels source : octets (U, Y0, V, Y1). La cible
+# fait donc W/2 × H en RGBA8, soit un readback de W*H*2 octets (moitié du RGBA).
+UYVY_FRAG = """
+#version 330
+out vec4 frag;
+uniform sampler2D src;
+void main() {
+    int ox = int(gl_FragCoord.x);
+    int y  = int(gl_FragCoord.y);
+    vec3 c0 = texelFetch(src, ivec2(ox * 2,     y), 0).rgb;
+    vec3 c1 = texelFetch(src, ivec2(ox * 2 + 1, y), 0).rgb;
+    vec3 cm = 0.5 * (c0 + c1);
+    float y0 = 0.2126 * c0.r + 0.7152 * c0.g + 0.0722 * c0.b;
+    float y1 = 0.2126 * c1.r + 0.7152 * c1.g + 0.0722 * c1.b;
+    float ym = 0.2126 * cm.r + 0.7152 * cm.g + 0.0722 * cm.b;
+    float cb = (cm.b - ym) / 1.8556;
+    float cr = (cm.r - ym) / 1.5748;
+    float U  = (128.0 + 224.0 * cb) / 255.0;
+    float V  = (128.0 + 224.0 * cr) / 255.0;
+    float Y0 = (16.0 + 219.0 * y0) / 255.0;
+    float Y1 = (16.0 + 219.0 * y1) / 255.0;
+    frag = vec4(U, Y0, V, Y1);      // octets U Y0 V Y1 = UYVY
+}
+"""
+
 
 class LuxCoreEngine:
     def __init__(self, width: int, height: int, ctx: moderngl.Context | None = None,
@@ -151,6 +177,7 @@ class LuxCoreEngine:
 
         self.enable_effects = True             # bypassable depuis le GUI
         self._build_effects()
+        self._build_uyvy()
         paths = list(video_paths) if video_paths else ([video_path] if video_path else [])
         self._build_video(paths, video_size)
         self.ctx.enable(moderngl.BLEND)
@@ -160,7 +187,8 @@ class LuxCoreEngine:
     # permet de DÉSYNCHRONISER les panneaux (chacun échantillonne une frame retardée
     # différente) même quand plusieurs affichent la même vidéo. Le canal +22 de la
     # fixture vidéo sélectionne QUELLE vidéo du dossier est projetée.
-    _VID_RING = 32                    # frames d'historique par source (désync)
+    _VID_RING = 16                    # frames d'historique par source (désync ;
+                                      # 16 suffit pour répartir les délais, ~2× moins de VRAM)
 
     def _build_video(self, video_paths, video_size):
         self._video_prog = self.ctx.program(vertex_shader=TEXT_VERT,
@@ -199,6 +227,29 @@ class LuxCoreEngine:
                 prog["resolution"] = res
             self._fx[name] = prog
             self._fx_vao[name] = self.ctx.vertex_array(prog, [(fs, "2f4", "in_pos")])
+
+    # -- sortie NDI UYVY : FBO demi-largeur + programme de packing --
+    def _build_uyvy(self):
+        from . import effects as fx
+        self._uyvy_tex = self.ctx.texture((self.width // 2, self.height), 4)
+        self._uyvy_fbo = self.ctx.framebuffer(color_attachments=[self._uyvy_tex])
+        self._uyvy_prog = self.ctx.program(vertex_shader=fx.FULLSCREEN_VERT,
+                                           fragment_shader=UYVY_FRAG)
+        self._uyvy_prog["src"] = 0
+        fs = self.ctx.buffer(
+            np.array([-1, -1, 1, -1, -1, 1, 1, 1], dtype="f4").tobytes())
+        self._uyvy_vao = self.ctx.vertex_array(
+            self._uyvy_prog, [(fs, "2f4", "in_pos")])
+
+    def pack_uyvy(self):
+        """Rend self.tex (RGBA) en UYVY 4:2:2 dans _uyvy_fbo (largeur W/2).
+        À lire ensuite pour NDI : W*H*2 octets au lieu de W*H*4. Retourne le FBO."""
+        self._uyvy_fbo.use()
+        self.ctx.disable(moderngl.BLEND)
+        self.tex.use(0)
+        self._uyvy_vao.render(moderngl.TRIANGLE_STRIP)
+        self.ctx.enable(moderngl.BLEND)
+        return self._uyvy_fbo
 
     # -- construction des VBO-unité (une fois) --
     def _build_shape_vbo(self):

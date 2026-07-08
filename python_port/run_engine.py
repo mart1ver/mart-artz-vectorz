@@ -186,13 +186,13 @@ def main():
     vf = VideoSendFrame()
     vf.set_resolution(W, H)
     vf.set_frame_rate(Fraction(FPS, 1))
-    vf.set_fourcc(FourCC.RGBA)
+    vf.set_fourcc(FourCC.UYVY)          # 4:2:2 — readback W*H*2 (moitié du RGBA)
     sender.set_video_frame(vf)
     sender.open()
-    print(f"[NDI] source '{args.name}' — {W}x{H} @ {FPS}")
+    print(f"[NDI] source '{args.name}' — {W}x{H} @ {FPS} (UYVY)")
 
     NB = 3
-    nbytes = W * H * 4
+    nbytes = W * H * 2                  # UYVY : 2 octets/pixel
     pbos = [eng.ctx.buffer(reserve=nbytes) for _ in range(NB)]
     bufs = [bytearray(nbytes) for _ in range(NB)]
     views = [np.frombuffer(b, dtype=np.uint8) for b in bufs]
@@ -263,17 +263,22 @@ def main():
 
                 window.swap_buffers()
 
+            # snapshot PNG (debug) : lit le FBO RGBA avant le packing UYVY
+            if args.snapshot_dir and now - last_snap >= args.snapshot_interval:
+                from PIL import Image
+                rgba = eng.fbo.read(components=4, dtype="f1")
+                path = os.path.join(args.snapshot_dir, f"snap_{snap_idx:03d}.png")
+                Image.frombytes("RGBA", (W, H), bytes(rgba)).save(path)
+                snap_idx += 1
+                last_snap = now
+
+            # NDI : packe en UYVY (GPU) puis readback double-bufferisé (W*H*2)
+            eng.pack_uyvy()
             cur, prev = n % NB, (n - 1) % NB
-            eng.fbo.read_into(pbos[cur], components=4, dtype="f1")
+            eng._uyvy_fbo.read_into(pbos[cur], components=4, dtype="f1")
             if n > 0:
                 pbos[prev].read_into(bufs[prev])
                 send_q.put(views[prev])
-                if args.snapshot_dir and now - last_snap >= args.snapshot_interval:
-                    from PIL import Image
-                    path = os.path.join(args.snapshot_dir, f"snap_{snap_idx:03d}.png")
-                    Image.frombytes("RGBA", (W, H), bytes(bufs[prev])).save(path)
-                    snap_idx += 1
-                    last_snap = now
             n += 1
 
             next_tick += frame_dt
