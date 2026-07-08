@@ -174,6 +174,7 @@ class LuxCoreEngine:
         self._text_vao = self.ctx.vertex_array(
             self._text_prog, [(self._text_vbo, "2f4 2f4", "in_pos", "in_uv")])
         self._glyph_tex: dict[tuple[int, str], moderngl.Texture] = {}
+        self._stroke_cache: dict[tuple, tuple[bytes, int]] = {}   # ruban par (forme,taille,largeur)
 
         self.enable_effects = True             # bypassable depuis le GUI
         self._build_effects()
@@ -428,15 +429,26 @@ class LuxCoreEngine:
 
     def _draw_stroke(self, sp: SpotState, shape: Shape):
         width = sp.stroke_weight if shape in _FULL_STROKE else sp.stroke_weight / 5.0
-        poly = geo.scaled_polygon_np(shape, sp.size_pan, sp.size_tilt)
-        ribbon = stroke_mod.outline_ribbon(poly, width)
-        if ribbon.size == 0:
+        # Le ruban ne dépend que de (forme, taille, largeur) — pas de la position ni
+        # de la rotation (appliquées par uniformes). Les layouts symétriques ont donc
+        # beaucoup de spots identiques : on mémoïse le ruban pour ne le calculer qu'une fois.
+        key = (int(shape), round(sp.size_pan, 1), round(sp.size_tilt, 1), round(width, 2))
+        cached = self._stroke_cache.get(key)
+        if cached is None:
+            poly = geo.scaled_polygon_np(shape, sp.size_pan, sp.size_tilt)
+            ribbon = stroke_mod.outline_ribbon(poly, width)
+            cached = (ribbon.tobytes(), ribbon.size // 2) if ribbon.size else (b"", 0)
+            if len(self._stroke_cache) > 256:
+                self._stroke_cache.clear()
+            self._stroke_cache[key] = cached
+        rb, nverts = cached
+        if not nverts:
             return
-        self._dyn_vbo.write(ribbon.tobytes())
+        self._dyn_vbo.write(rb)
         self.prog["u_scale"] = (1.0, 1.0)      # ruban déjà en pixels locaux
         self.prog["u_color"] = (*[c / 255.0 for c in sp.stroke],
                                 sp.stroke_alpha / 255.0)
-        self._dyn_vao.render(moderngl.TRIANGLE_STRIP, vertices=ribbon.size // 2)
+        self._dyn_vao.render(moderngl.TRIANGLE_STRIP, vertices=nverts)
 
     def _draw_segment(self, sp: SpotState):
         # SEGMENT : trait épais en couleur de contour (size_tilt -> épaisseur)
