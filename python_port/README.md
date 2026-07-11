@@ -57,7 +57,11 @@ do_blades → do_blade_blur`.
 ## Pipeline DMX (rappel + extension)
 
 Identique au mapping Processing (`z_fixture_definition.pde`), **plus** (extensions
-propres au portage — le bloc de base reste à 28 canaux, aucun décalage) :
+propres au portage) :
+- **PostFX ajoutés** : le bloc de base passe de 28 à **32 canaux** (les spots
+  démarrent donc à l'offset 32). Canaux **29** feedback/trails, **30** bloom seuil,
+  **31** bloom intensité, **32** kaléidoscope. Ordre pipeline :
+  `feedback → kaléido → pixelate → sobel → rgb split → saturation → bloom → chromatic`.
 - **Fixture unifiée** : un seul type de fixture (le spot, 23 canaux). Il n'y a
   PAS de famille vidéo dédiée — la vidéo est simplement un spot en **mode +19 =
   14 (VIDEO)** : quad texturé, positionné/dimensionné/tourné comme un rectangle,

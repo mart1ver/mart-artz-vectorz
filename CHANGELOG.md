@@ -2,6 +2,22 @@
 
 ---
 
+## v2.1 — Nouveaux PostFX : feedback, bloom, kaléidoscope (2026-07)
+
+- **3 post-effets plein écran** ajoutés (ping-pong FBO) :
+  - **Feedback / trails** : traînées lumineuses persistantes (FBO d'historique).
+  - **Bloom** : bright-pass + flou + additif, seuil et intensité séparés.
+  - **Kaléidoscope** : symétrie radiale à N branches (2-24).
+- **Bloc de base 28 → 32 canaux** : canaux 29 (feedback), 30 (bloom seuil),
+  31 (bloom intensité), 32 (kaléido). Les spots démarrent à l'offset 32.
+  Capacité : 20 fixtures/univers. Ordre pipeline :
+  `feedback → kaléido → pixelate → sobel → rgb split → saturation → bloom → chromatic`.
+- **Démos** intègrent les effets : KINETIC (un effet dosé par scène) et le DÉFILÉ
+  (bloom par forme, feedback+halo sur le Segment, un effet marquant par acte du finale).
+- Tests : +2 (décodage des nouveaux canaux, bloc de base à 32) — 54 au total.
+
+---
+
 ## v2.0 — Portage Python / moderngl + NDI (2026-07)
 
 - Nouveau moteur principal : **portage Python / moderngl** (OpenGL) avec **sortie NDI**,

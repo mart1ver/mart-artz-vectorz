@@ -53,7 +53,7 @@ Aperçu : `g` = plein écran (curseur masqué + veille inhibée), `h` = menu.
 
 ## Structure DMX
 
-### Paramètres de base (28 canaux, offset 0)
+### Paramètres de base (32 canaux, offset 0)
 
 | Canaux | Paramètre |
 |---|---|
@@ -66,8 +66,12 @@ Aperçu : `g` = plein écran (curseur masqué + veille inhibée), `h` = menu.
 | 25 | RGB Split |
 | 26-27 | Saturation A / B |
 | 28 | Chromatic aberration (bistable >128) |
+| 29 | Feedback / trails (persistance) |
+| 30 | Bloom seuil |
+| 31 | Bloom intensité |
+| 32 | Kaléidoscope (2-24 branches) |
 
-### Paramètres par fixture (23 canaux, offset = 28 + spot_id × 23)
+### Paramètres par fixture (23 canaux, offset = 32 + spot_id × 23)
 
 | Offset | Paramètre | Résolution |
 |---|---|---|

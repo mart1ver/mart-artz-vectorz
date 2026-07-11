@@ -40,7 +40,7 @@ Détails moteur, architecture et tests : [`python_port/README.md`](python_port/R
 
 ## Structure DMX
 
-- **28 canaux de base** : fond RGB, 8 blades 16-bit, blend mode global, 6 effets PostFX.
+- **32 canaux de base** : fond RGB, 8 blades 16-bit, blend mode global, 9 effets PostFX (blur, pixelate, sobel, rgb split, saturation, chromatic, feedback, bloom, kaléidoscope).
 - **23 canaux par fixture** : RGB, alpha, stroke, taille/rotation/position 16-bit,
   mode (forme), enable, blend individuel, sélecteur police/vidéo.
 - **Fixture unifiée** : une seule sorte de fixture. Le **mode +19 = 14 (VIDEO)**
