@@ -2,6 +2,18 @@
 
 ---
 
+## v2.3 — Démo « Video Show » : 100 % des fonctions vidéo (2026-07)
+
+- Nouveau script `demo_scripts/video_show.py` : 8 scènes couvrant **toutes** les
+  capacités vidéo — plein écran + sélection de source (canal +22), fixture de FOND,
+  panneaux flottants (compositing/alpha), mur/mosaïque multi-sources, **désync**
+  (écho de frames retardées entre panneaux d'une même source), mouvement /
+  rotation / échelle, blend par panneau (ADD/SCREEN/DIFFERENCE), PostFX sur vidéo
+  (bloom/feedback/kaléido/pixelate/rgb split/chromatic) et un finale kaléido mur.
+- Flicker-safe (fondus doux, mouvements continus). `python3 video_show.py [ip] [n_vidéos]`.
+
+---
+
 ## v2.2 — Confort visuel : suppression des clignotements (2026-07)
 
 - **Anti-flicker généralisé** sur les deux démos (confort + sécurité photosensible) :
