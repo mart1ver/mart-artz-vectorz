@@ -106,7 +106,7 @@ class Kinetic:
              blend=0, sw=0, sa=0, stroke=(255, 255, 255)):
         if i >= MAX_SPOTS:
             return
-        b = 28 + i * 23
+        b = 32 + i * 23
         d = self.dmx
         d[b], d[b + 1], d[b + 2] = int(rgb[0]), int(rgb[1]), int(rgb[2])
         d[b + 3] = int(max(0, min(255, alpha)))
@@ -302,7 +302,7 @@ class Kinetic:
                             self.dmx[1] = int(self.dmx[1] * g)
                             self.dmx[2] = int(self.dmx[2] * g)
                             for i in range(MAX_SPOTS):
-                                a = 28 + i * 23 + 3
+                                a = 32 + i * 23 + 3
                                 self.dmx[a] = int(self.dmx[a] * g)
                         self.send()
                         time.sleep(0.02)

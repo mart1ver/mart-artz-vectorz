@@ -76,6 +76,10 @@ class BaseState:
     saturation_a: int
     saturation_b: int
     chromatic: bool            # bistable > 128
+    feedback: int              # traînées : 0=off, sinon persistance (0-255)
+    bloom_threshold: int       # seuil de luminance du glow (0-255)
+    bloom_amount: int          # intensité du bloom : 0=off, sinon force
+    kaleido: int               # kaléidoscope : 0/1=off, 2-255 = nb de branches
 
 
 # ---------------------------------------------------------------------------
@@ -95,6 +99,10 @@ def decode_base(buf) -> BaseState:
         saturation_a=buf[C.CH_SATURATION_A] & 0xFF,
         saturation_b=buf[C.CH_SATURATION_B] & 0xFF,
         chromatic=(buf[C.CH_CHROMATIC] & 0xFF) > 128,
+        feedback=buf[C.CH_FEEDBACK] & 0xFF,
+        bloom_threshold=buf[C.CH_BLOOM_THRESHOLD] & 0xFF,
+        bloom_amount=buf[C.CH_BLOOM_AMOUNT] & 0xFF,
+        kaleido=buf[C.CH_KALEIDO] & 0xFF,
     )
 
 

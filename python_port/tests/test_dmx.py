@@ -111,6 +111,28 @@ def test_sel_raw_is_raw_plus22():
     assert s.sel_raw == 200
 
 
+def test_decode_base_postfx_channels():
+    # PostFX ajoutés (feedback / bloom / kaléido) décodés depuis le bloc de base
+    buf = _blank_buf()
+    buf[C.CH_FEEDBACK] = 120
+    buf[C.CH_BLOOM_THRESHOLD] = 90
+    buf[C.CH_BLOOM_AMOUNT] = 200
+    buf[C.CH_KALEIDO] = 8
+    b = dmx.decode_base(buf)
+    assert b.feedback == 120
+    assert b.bloom_threshold == 90
+    assert b.bloom_amount == 200
+    assert b.kaleido == 8
+
+
+def test_base_block_is_32_and_spots_follow():
+    # l'extension PostFX porte le bloc de base à 32 ; les spots démarrent après
+    assert C.NUM_BASE_PARAMETERS == 32
+    assert C.CH_KALEIDO == 31
+    assert C.spot_base_addr(0) == 32
+    assert C.spot_base_addr(1) == 32 + 23
+
+
 def test_bg_fixture_address_is_reserved_slot():
     # la fixture de fond vit à un slot réservé, hors de la plage des spots
     assert C.bg_fixture_base_addr() == C.spot_base_addr(C.BG_FIXTURE_SLOT)
@@ -180,7 +202,7 @@ def test_receiver_matches_send_multi():
     dmx_out[b0 + C.SP_ALPHA] = 255
     la.set16(dmx_out, b0 + C.SP_SIZE_PAN, 65535)
     # un spot qui déborde sur l'univers 1 (offset > 512)
-    b_hi = C.spot_base_addr(21)               # 28 + 21*23 = 511 -> chevauche 512
+    b_hi = C.spot_base_addr(21)               # 32 + 21*23 = 515 -> chevauche 512
     if b_hi + C.SP_ENABLE < total:
         dmx_out[b_hi + C.SP_ENABLE] = 1
 

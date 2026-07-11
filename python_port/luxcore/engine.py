@@ -222,12 +222,42 @@ class LuxCoreEngine:
         self._fx_vao = {}
         for name, frag in [("pixelate", fx.PIXELATE_FRAG), ("sobel", fx.SOBEL_FRAG),
                            ("rgbsplit", fx.RGBSPLIT_FRAG), ("saturation", fx.SATURATION_FRAG),
-                           ("chromatic", fx.CHROMATIC_FRAG), ("blur", fx.BLUR_FRAG)]:
+                           ("chromatic", fx.CHROMATIC_FRAG), ("blur", fx.BLUR_FRAG),
+                           ("kaleido", fx.KALEIDO_FRAG)]:
             prog = self.ctx.program(vertex_shader=fx.FULLSCREEN_VERT, fragment_shader=frag)
             if "resolution" in prog:
                 prog["resolution"] = res
             self._fx[name] = prog
             self._fx_vao[name] = self.ctx.vertex_array(prog, [(fs, "2f4", "in_pos")])
+        self._fx["kaleido"]["aspect"] = self.width / self.height
+
+        # feedback : programme à 2 samplers (courant + historique) + FBO persistant
+        self._fb_tex = self.ctx.texture((self.width, self.height), 4)
+        self._fb_fbo = self.ctx.framebuffer(color_attachments=[self._fb_tex])
+        self._fb_fbo.use()
+        self.ctx.clear(0.0, 0.0, 0.0, 1.0)         # historique noir au démarrage
+        fbp = self.ctx.program(vertex_shader=fx.FULLSCREEN_VERT,
+                               fragment_shader=fx.FEEDBACK_FRAG)
+        fbp["tex"] = 0
+        fbp["hist"] = 1
+        self._fx_feedback = fbp
+        self._fx_feedback_vao = self.ctx.vertex_array(fbp, [(fs, "2f4", "in_pos")])
+
+        # bloom : bright-pass + combine (2 samplers) + 2 FBO scratch pour le flou
+        self._bloom_tex = [self.ctx.texture((self.width, self.height), 4) for _ in range(2)]
+        self._bloom_fbo = [self.ctx.framebuffer(color_attachments=[t])
+                           for t in self._bloom_tex]
+        bbp = self.ctx.program(vertex_shader=fx.FULLSCREEN_VERT,
+                               fragment_shader=fx.BLOOM_BRIGHT_FRAG)
+        bbp["tex"] = 0
+        self._fx_bloom_bright = bbp
+        self._fx_bloom_bright_vao = self.ctx.vertex_array(bbp, [(fs, "2f4", "in_pos")])
+        bcp = self.ctx.program(vertex_shader=fx.FULLSCREEN_VERT,
+                               fragment_shader=fx.BLOOM_COMBINE_FRAG)
+        bcp["tex"] = 0
+        bcp["bloomTex"] = 1
+        self._fx_bloom_combine = bcp
+        self._fx_bloom_combine_vao = self.ctx.vertex_array(bcp, [(fs, "2f4", "in_pos")])
 
     # -- sortie NDI UYVY : FBO demi-largeur + programme de packing --
     def _build_uyvy(self):
@@ -379,6 +409,11 @@ class LuxCoreEngine:
         if not self.enable_effects:
             return cf, ct, af, at
         self.ctx.disable(moderngl.BLEND)      # les effets écrasent, pas de blend
+        cf, ct, af, at = self._apply_feedback(base, cf, ct, af, at)
+        if base.kaleido > 1:
+            seg = float(max(2, min(24, base.kaleido)))
+            cf, ct, af, at = self._fx_pass("kaleido", cf, ct, af, at,
+                                           lambda p: p.__setitem__("segments", seg))
         if base.pixelate > 1:
             amt = pmap(base.pixelate, 0, 255, 255, 20)
             cf, ct, af, at = self._fx_pass("pixelate", cf, ct, af, at,
@@ -393,10 +428,56 @@ class LuxCoreEngine:
                 p["saturation"] = float(base.saturation_a)
                 p["vibrance"] = float(base.saturation_b)
             cf, ct, af, at = self._fx_pass("saturation", cf, ct, af, at, _su)
+        cf, ct, af, at = self._apply_bloom(base, cf, ct, af, at)
         if base.chromatic:
             cf, ct, af, at = self._fx_pass("chromatic", cf, ct, af, at)
         self.ctx.enable(moderngl.BLEND)
         return cf, ct, af, at
+
+    def _apply_feedback(self, base, cf, ct, af, at):
+        """Traînées : out = max(courant, historique × décroissance), mémorisé
+        comme historique pour la frame suivante."""
+        if base.feedback <= 1:
+            return cf, ct, af, at
+        decay = pmap(base.feedback, 2, 255, 0.80, 0.985)
+        af.use()
+        ct.use(0)
+        self._fb_tex.use(1)
+        self._fx_feedback["decay"] = float(decay)
+        self._fx_feedback_vao.render(moderngl.TRIANGLE_STRIP)
+        self.ctx.copy_framebuffer(self._fb_fbo, af)   # historique <- résultat
+        return af, at, cf, ct
+
+    def _apply_bloom(self, base, cf, ct, af, at):
+        """Halo lumineux : bright-pass (seuil) -> flou (blur existant) -> additif."""
+        if base.bloom_amount <= 1:
+            return cf, ct, af, at
+        thr = base.bloom_threshold / 255.0
+        inten = pmap(base.bloom_amount, 2, 255, 0.2, 2.5)
+        fa, fb = self._bloom_fbo
+        ta, tb = self._bloom_tex
+        # 1) extraction des zones lumineuses : ct -> fa
+        fa.use()
+        ct.use(0)
+        self._fx_bloom_bright["threshold"] = float(thr)
+        self._fx_bloom_bright_vao.render(moderngl.TRIANGLE_STRIP)
+        # 2) flou séparable du halo : fa -> fb (H) -> fa (V), via le prog blur
+        blur = self._fx["blur"]
+        blur["texOffset"] = (1.0 / self.width, 1.0 / self.height)
+        blur["blurSize"] = 30
+        blur["sigma"] = 8.0
+        blur["tex"] = 0
+        blur["horizontalPass"] = 1
+        fb.use(); ta.use(0); self._fx_vao["blur"].render(moderngl.TRIANGLE_STRIP)
+        blur["horizontalPass"] = 0
+        fa.use(); tb.use(0); self._fx_vao["blur"].render(moderngl.TRIANGLE_STRIP)
+        # 3) combine : scène (ct) + halo (ta) -> af
+        af.use()
+        ct.use(0)
+        ta.use(1)
+        self._fx_bloom_combine["intensity"] = float(inten)
+        self._fx_bloom_combine_vao.render(moderngl.TRIANGLE_STRIP)
+        return af, at, cf, ct
 
     def _apply_blur(self, base, cf, ct, af, at):
         if not self.enable_effects or (base.blur_size <= 0.1 and base.blur_sigma <= 0.1):

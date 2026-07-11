@@ -9,13 +9,13 @@ from enum import IntEnum
 # ---------------------------------------------------------------------------
 # Tailles (definitions.pde)
 # ---------------------------------------------------------------------------
-NUM_BASE_PARAMETERS = 28          # number_of_base_parameters
+NUM_BASE_PARAMETERS = 32          # number_of_base_parameters (28 d'origine + 4 PostFX)
 NUM_PARAMS_PER_SPOT = 23          # number_of_parameters_by_spots
 UNIVERSE_SIZE = 512
 MAX_UNIVERSES = 9                 # do_artnet : univers 0..8 (dmx_buffer = 512*9)
 
 # ---------------------------------------------------------------------------
-# Canaux de base (index 0..27)
+# Canaux de base (index 0..31)
 # ---------------------------------------------------------------------------
 CH_BG_R, CH_BG_G, CH_BG_B = 0, 1, 2
 BLADE_BASE_OFFSET = 3             # premier canal blade (A1 MSB) — 8 blades 16-bit -> 3..18
@@ -28,9 +28,14 @@ CH_RGB_SPLIT = 24
 CH_SATURATION_A = 25
 CH_SATURATION_B = 26
 CH_CHROMATIC = 27                # bistable > 128
+# PostFX ajoutés (extension du portage) — index 28..31
+CH_FEEDBACK = 28                 # traînées : 0=off, sinon persistance (décroissance)
+CH_BLOOM_THRESHOLD = 29          # seuil de luminance du glow
+CH_BLOOM_AMOUNT = 30             # intensité du halo : 0=off, sinon force
+CH_KALEIDO = 31                  # kaléidoscope : 0/1=off, 2-255 = nb de branches
 
 # ---------------------------------------------------------------------------
-# Offsets par spot (relatifs à base = 28 + spot_id * 23)
+# Offsets par spot (relatifs à base = 32 + spot_id * 23)
 # ---------------------------------------------------------------------------
 SP_FILL_R, SP_FILL_G, SP_FILL_B = 0, 1, 2
 SP_ALPHA = 3
@@ -66,7 +71,7 @@ def spot_base_addr(spot_id: int) -> int:
 # écran (choisie par +22) en fond ; sinon le fond reste la couleur RGB (0-2).
 # Slot réservé, hors de la plage des spots rendus (garder num_spots <= ce slot).
 # ---------------------------------------------------------------------------
-BG_FIXTURE_SLOT = 60              # adresse = 28 + 60*23 = 1408 (univers 2, offset 384)
+BG_FIXTURE_SLOT = 60              # adresse = 32 + 60*23 = 1412 (univers 2, offset 388)
 
 
 def bg_fixture_base_addr() -> int:

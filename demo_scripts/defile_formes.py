@@ -11,8 +11,8 @@ Convention d'indexation DMX (base 0) :
   self.dmx[0..2]   = canaux DMX 1-3   (RGB fond)
   self.dmx[3..18]  = canaux DMX 4-19  (8 blades 16-bit)
   self.dmx[19]     = canal DMX 20     (blend mode global)
-  self.dmx[20..27] = canaux DMX 21-28 (effets PostFX)
-  self.dmx[28 + spot_id * 23 + offset] = parametre spot (canaux 29+)
+  self.dmx[20..31] = canaux DMX 21-32 (effets PostFX : + feedback/bloom/kaléido)
+  self.dmx[32 + spot_id * 23 + offset] = parametre spot (canaux 33+)
 """
 
 import time
@@ -170,7 +170,7 @@ class DefileFormes:
     def set_spot(self, spot_id, r, g, b, alpha, sw, sa, sr, sg, sb,
                  size_pan, size_tilt, rot16, pan, tilt, mode,
                  enable=255, spot_blend=0, font=0):
-        base = 28 + spot_id * 23
+        base = 32 + spot_id * 23
         self.dmx[base]     = r
         self.dmx[base + 1] = g
         self.dmx[base + 2] = b
@@ -719,7 +719,7 @@ class DefileFormes:
         if n is None:
             n = len(POSITIONS)
         for i in range(n):
-            base = 28 + i * 23
+            base = 32 + i * 23
             self.dmx[base + 3] = 0  # alpha = 0
 
     # ── Utilitaires finale ────────────────────────────────────────────────────
@@ -739,7 +739,7 @@ class DefileFormes:
     # ── FINALE ────────────────────────────────────────────────────────────────
     def demo_finale(self, duree=90.0):
         """5 actes, 48 spots sur 3 univers ArtNet, tous les paramètres, texte dynamique."""
-        N = 48   # 28 + 48 × 23 = 1132 octets → 3 univers nécessaires (dmx = 1536)
+        N = 48   # 32 + 48 × 23 = 1136 octets → 3 univers nécessaires (dmx = 1536)
         WORDS = ["LUXCORE", "MARTIN", "ART DMX"]
 
         print("\n  🌟  FINALE — L'APOTHÉOSE (5 actes)")
@@ -874,7 +874,7 @@ class DefileFormes:
                     for idx, c in enumerate(word):
                         if c == ' ':
                             # Spot invisible pour l'espace
-                            base = 28 + idx * 23
+                            base = 32 + idx * 23
                             self.dmx[base + 3] = 0
                             continue
                         alpha_l = min(255, max(0, (n_vis - idx) * 255))
@@ -994,9 +994,9 @@ class DefileFormes:
         # Extinction finale
         for _ in range(40):
             for i in range(N):
-                base = 28 + i * 23
+                base = 32 + i * 23
                 self.dmx[base + 3] = max(0, self.dmx[base + 3] - 7)
-            for ch in range(28):
+            for ch in range(32):
                 self.dmx[ch] = max(0, self.dmx[ch] - 7)
             self.send()
             time.sleep(0.025)

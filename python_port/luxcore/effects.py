@@ -11,6 +11,9 @@ Paramètres (depuis les canaux DMX, cf. draw_functions.pde) :
   rgbSplit : delta = ch24                       si ch24 > 1
   saturVib : saturation=ch25, vibrance=ch26     si l'un > 0.001
   chroma   : bistable                          si ch27 > 128
+  feedback : decay = map(ch28,..)               si ch28 > 1   (traînées)
+  bloom    : threshold=ch29, intensity=ch30     si ch30 > 1   (halo)
+  kaleido  : segments=ch31                       si ch31 > 1   (symétrie radiale)
   blur     : blurSize=ch20, sigma=ch21 (2 passes) si l'un > 0.1  (après blades)
 """
 
@@ -138,6 +141,73 @@ void main() {
         sumcol += w * texture(tex, barrelDistortion(uv, 0.6 * max_distort * t));
     }
     frag = sumcol / sumw;
+}
+"""
+
+# Feedback / trails — mélange l'image courante avec l'historique décroissant.
+# out = max(courant, historique * decay) : traînées lumineuses qui s'estompent
+# (idéal sur fond noir). `tex` = image courante, `hist` = frame précédente.
+FEEDBACK_FRAG = """
+#version 330
+in vec2 uv; out vec4 frag;
+uniform sampler2D tex;
+uniform sampler2D hist;
+uniform float decay;
+void main() {
+    vec4 cur = texture(tex, uv);
+    vec4 old = texture(hist, uv) * decay;
+    frag = max(cur, old);
+    frag.a = cur.a;
+}
+"""
+
+# Kaléidoscope — symétrie radiale à N branches autour du centre.
+KALEIDO_FRAG = """
+#version 330
+in vec2 uv; out vec4 frag;
+uniform sampler2D tex;
+uniform float segments;
+uniform float aspect;          // width / height (correction du ratio)
+const float TAU = 6.28318530718;
+void main() {
+    vec2 p = uv - 0.5;
+    p.x *= aspect;
+    float r = length(p);
+    float a = atan(p.y, p.x);
+    float seg = TAU / segments;
+    a = mod(a, seg);
+    a = abs(a - seg * 0.5);    // miroir dans le coin -> symétrie propre
+    vec2 q = vec2(cos(a), sin(a)) * r;
+    q.x /= aspect;
+    frag = texture(tex, q + 0.5);
+}
+"""
+
+# Bloom — passe 1 : extraction des zones lumineuses (seuil de luminance).
+BLOOM_BRIGHT_FRAG = """
+#version 330
+in vec2 uv; out vec4 frag;
+uniform sampler2D tex;
+uniform float threshold;
+void main() {
+    vec3 c = texture(tex, uv).rgb;
+    float l = dot(c, vec3(0.299, 0.587, 0.114));
+    float k = smoothstep(threshold, threshold + 0.15, l);
+    frag = vec4(c * k, 1.0);
+}
+"""
+
+# Bloom — passe finale : scène + halo flouté (additif).
+BLOOM_COMBINE_FRAG = """
+#version 330
+in vec2 uv; out vec4 frag;
+uniform sampler2D tex;         // scène d'origine
+uniform sampler2D bloomTex;    // halo flouté
+uniform float intensity;
+void main() {
+    vec4 scene = texture(tex, uv);
+    vec3 glow = texture(bloomTex, uv).rgb * intensity;
+    frag = vec4(scene.rgb + glow, scene.a);
 }
 """
 
