@@ -134,6 +134,13 @@ class Kinetic:
         """Porte on/off (strobe) : 1 pendant `duty` de la subdivision, sinon 0."""
         return 1.0 if (t / (self.spb * div)) % 1.0 < duty else 0.0
 
+    def swell(self, t, div=1.0, floor=0.4):
+        """Respiration douce (cosinus) sur la subdivision, plancher `floor` -> ne
+        retombe JAMAIS à zéro. À préférer à `env` pour éviter tout clignotement :
+        la lumière pompe en continu au lieu de claquer du noir au plein feu."""
+        ph = (t / (self.spb * div)) % 1.0
+        return floor + (1.0 - floor) * (0.5 + 0.5 * math.cos(2.0 * math.pi * ph))
+
     def beat_i(self, t):
         return int(t / self.spb)
 
@@ -157,27 +164,26 @@ class Kinetic:
     def sc_pulse_grid(self, t):
         """Grille de formes qui gonflent sur le kick, couleur par mesure, ADD."""
         self.bg(0, 0, 0)
-        beat = self.env(t, 1.0, 5.5)
-        blur = int(28 * beat)
+        beat = self.swell(t, 1.0, 0.5)
+        blur = int(18 * beat)
         self.fx(blur=blur, sigma=blur // 2, blend_global=ADD,
-                sobel=200 if self.bar_i(t) % 4 == 3 else 0,
-                bloom_thr=90, bloom=int(60 + 150 * beat))     # halo qui claque sur le kick
+                bloom_thr=90, bloom=int(70 + 110 * beat))     # halo qui respire (pas de flash)
         hue0 = (self.bar_i(t) * 0.13) % 1.0
         pts = lay_grid(8, 5, 1500, 720)
         mode = RECT if (self.bar_i(t) // 2) % 2 else ELLIPSE
         for i, (dx, dy) in enumerate(pts):
-            local = self.env(t + i * 0.004, 1.0, 5.5)     # léger retard -> vague
-            s = 55 + 120 * local
-            col = lxa.hsv(hue0 + i * 0.012, 1.0, 0.5 + 0.5 * local)
-            self.spot(i, col, int(120 + 135 * local), dx, dy, s, s, 0, mode, blend=ADD)
+            local = self.swell(t + i * 0.02, 1.0, 0.5)    # léger retard -> vague douce
+            s = 70 + 100 * local
+            col = lxa.hsv(hue0 + i * 0.012, 1.0, 0.6 + 0.4 * local)
+            self.spot(i, col, int(150 + 105 * local), dx, dy, s, s, 0, mode, blend=ADD)
 
     def sc_chase_ring(self, t):
         """Deux anneaux ; un point lumineux chasse sur les 16e, SCREEN."""
         self.bg(0, 0, 0)
         # feedback = comètes : le point qui chasse laisse une traînée lumineuse
-        self.fx(blend_global=SCREEN, rgbsplit=int(6 * self.env(t, 1.0, 4)),
-                feedback=150)
-        step = int(t / (self.spb * 0.25))                 # position en 16e
+        # (chase = lumière qui court le long de l'anneau -> mouvement, pas clignotement)
+        self.fx(blend_global=SCREEN, rgbsplit=4, feedback=150)
+        step = int(t / (self.spb * 0.5))                  # position en 8e (plus lent, moins nerveux)
         # base = taille au repos (bien > espacement -> forte superposition)
         rings = [(16, 470, 0.0, ETOILE, 400), (10, 250, math.pi / 10, TRIANGLE, 340)]
         i = 0
@@ -185,36 +191,37 @@ class Kinetic:
             spin = t * 0.5 * (1 if count == 16 else -1)
             for k, (dx, dy) in enumerate(lay_ring(count, rad, ph + spin)):
                 on = 1.0 if (step % count) == k else 0.0
-                tail = max(on, 0.5 if (step - 1) % count == k else 0.0,
-                           0.25 if (step - 2) % count == k else 0.0)
-                col = lxa.hsv((k / count + t * 0.05) % 1.0, 1.0, 0.3 + 0.7 * tail)
+                tail = max(on, 0.6 if (step - 1) % count == k else 0.0,
+                           0.35 if (step - 2) % count == k else 0.0,
+                           0.18 if (step - 3) % count == k else 0.0)
+                col = lxa.hsv((k / count + t * 0.05) % 1.0, 1.0, 0.45 + 0.55 * tail)
                 deg = math.degrees(math.atan2(dy, dx)) + t * 40
-                s = base + 190 * on
-                self.spot(i, col, int(70 + 185 * tail), dx, dy,
+                s = base + 90 * on                        # sursaut adouci
+                self.spot(i, col, int(110 + 145 * tail), dx, dy,
                           s, s, deg, mode, blend=SCREEN)
                 i += 1
 
-    def sc_strobe(self, t):
-        """Grille pleine qui strobe sur les temps, chroma sur le flash, ADD."""
-        g = self.gate(t, 0.5, 0.18)                       # strobe sur les 8e
+    def sc_symmetry(self, t):
+        """Champ symétrique kaléidoscopique qui respire doucement (remplace l'ancien
+        strobe : aucun blackout ni flash, la lumière pompe en continu)."""
         self.bg(0, 0, 0)
-        # kaléidoscope : nb de branches qui change à chaque mesure -> flashs symétriques
-        kal = (4, 6, 8, 12)[self.bar_i(t) % 4]
-        self.fx(blend_global=ADD, chroma=200 if g else 0,
-                sobel=200 if self.bar_i(t) % 2 else 0, kaleido=kal)
-        if g < 0.5:
-            return                                        # noir entre les flashs
-        hue = (self.beat_i(t) * 0.2) % 1.0
+        # kaléido fixe sur la scène (changer le nb de branches ferait « sauter » le
+        # motif) ; bloom léger constant pour la matière
+        self.fx(blend_global=ADD, kaleido=6, bloom_thr=80, bloom=90)
+        breath = self.swell(t, 2.0, 0.55)                 # respiration lente (2 temps)
+        hue = t * 0.06
         for i, (dx, dy) in enumerate(lay_grid(9, 5, 1650, 760)):
-            col = lxa.hsv(hue + (i % 9) * 0.01, 0.7, 1.0)
-            self.spot(i, col, 255, dx, dy, 150, 150, 0, RECT, blend=ADD)
+            col = lxa.hsv(hue + (i % 9) * 0.02, 0.7, 0.6 + 0.4 * breath)
+            s = 120 + 55 * breath
+            self.spot(i, col, int(160 + 80 * breath), dx, dy,
+                      s, s, t * 20, RECT, blend=ADD)
 
     def sc_rotation(self, t):
         """Anneaux concentriques verrouillés en rotation, blur pulsé, DIFFERENCE."""
         self.bg(10, 0, 14)
-        beat = self.env(t, 1.0, 4.0)
+        beat = self.swell(t, 1.0, 0.45)
         # feedback : les anneaux qui tournent laissent des spirales rémanentes
-        self.fx(blur=int(40 * beat), sigma=int(20 * beat), blend_global=DIFFERENCE,
+        self.fx(blur=int(30 * beat), sigma=int(15 * beat), blend_global=DIFFERENCE,
                 feedback=175)
         i = 0
         for ring, (count, rad, mode) in enumerate(
@@ -231,9 +238,9 @@ class Kinetic:
     def sc_blade_sweep(self, t):
         """Champ de formes derrière des couteaux qui s'ouvrent/ferment à la mesure."""
         self.bg(0, 0, 0)
-        pulse = self.env(t, 0.5, 4.0)
-        # bloom : le champ de formes derrière les couteaux irradie sur la pulsation
-        self.fx(blend_global=ADD, bloom_thr=70, bloom=int(80 + 120 * pulse))
+        pulse = self.swell(t, 1.0, 0.45)
+        # bloom : le champ de formes derrière les couteaux irradie sur la respiration
+        self.fx(blend_global=ADD, bloom_thr=70, bloom=int(90 + 90 * pulse))
         # couteaux haut/bas qui respirent sur 2 mesures
         ph = (t / (self.spb * 8)) % 1.0
         cover = int(26000 * (0.5 - 0.5 * math.cos(2 * math.pi * ph)))
@@ -249,14 +256,12 @@ class Kinetic:
         et se chevauchent fortement (ADD). Flash + chroma sur le kick, montée en
         intensité sur la durée. Grosses formes -> superposition et glow."""
         self.bg(0, 0, 0)
-        kick = self.env(t, 1.0, 4.5)                       # pulse sur le temps
+        kick = self.swell(t, 1.0, 0.5)                     # pompe douce sur le temps
         build = min(1.0, t / (self.spb * 16))              # montée progressive
         # BLOOM au sommet : halo qui monte avec la scène + feedback rémanent ;
-        # éclat kaléidoscope sur les 4 dernières mesures pour la sortie
+        # kaléido qui se referme sur les 4 dernières mesures pour la sortie
         bars = self.bar_i(t)
-        self.fx(blur=int(38 * kick), sigma=int(19 * kick),
-                chroma=200 if kick > 0.7 else 0,
-                pixelate=70 if self.gate(t, 4.0, 0.06) else 0,   # coup sur la mesure
+        self.fx(blur=int(22 * kick), sigma=int(11 * kick),
                 blend_global=ADD,
                 bloom_thr=45, bloom=int(90 + 140 * build),
                 feedback=int(120 * build),
@@ -280,7 +285,7 @@ class Kinetic:
     SCENES = [
         ("Pulse Grid",  "sc_pulse_grid", 8),
         ("Chase Ring",  "sc_chase_ring", 8),
-        ("Strobe",      "sc_strobe",     8),
+        ("Symétrie",    "sc_symmetry",   8),
         ("Rotation",    "sc_rotation",   8),
         ("Blade Sweep", "sc_blade_sweep", 8),
         ("Bloom",       "sc_bloom",     12),
@@ -305,11 +310,11 @@ class Kinetic:
                             break
                         self.frame_reset()
                         fx(t)
-                        # Phase GLITCH commune : sobel + pixelate sur le 3e quart de
-                        # chaque scène (pixelate pulsé sur les 8e pour le rythme).
+                        # Phase GLITCH commune : sobel + pixelate CONSTANTS sur le 3e
+                        # quart de chaque scène (valeurs figées -> aucun scintillement).
                         if dur * 0.5 <= t < dur * 0.75:
                             self.dmx[23] = 200                       # sobel (>128 = on)
-                            self.dmx[22] = 150 + int(80 * self.env(t, 0.5, 4.0))
+                            self.dmx[22] = 190                       # pixelate constant
                         # Transition douce : fondu entrant + sortant (1 mesure de
                         # chaque côté), sur l'alpha des spots ET le fond -> passage
                         # progressif par le noir entre les scènes.

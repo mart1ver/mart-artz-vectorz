@@ -2,6 +2,24 @@
 
 ---
 
+## v2.2 — Confort visuel : suppression des clignotements (2026-07)
+
+- **Anti-flicker généralisé** sur les deux démos (confort + sécurité photosensible) :
+  fini les strobes plein écran et les bascules bistables au rythme.
+- Nouvel utilitaire KINETIC `swell()` : respiration cosinus **avec plancher**
+  (la lumière pompe en continu, ne retombe jamais au noir) — remplace `env` là où
+  ça claquait.
+- KINETIC : la scène « Strobe » devient « **Symétrie** » (champ kaléidoscopique qui
+  respire) ; suppression des bascules sobel/chroma par temps, des throbs à la
+  double-croche, et de la chase trop nerveuse (passée en 8e). Phase glitch
+  sobel/pixelate à valeurs **constantes**.
+- DÉFILÉ : les stratégies par forme ne strobent plus (Texte ~5 Hz, Étoile ~7 Hz,
+  Croix ~2,8 Hz, heartbeats Triangle/Cœur) — remplacées par des vagues lentes ou
+  des motifs spatiaux fixes ; flips de blend plein champ passés en répartition
+  spatiale.
+
+---
+
 ## v2.1 — Nouveaux PostFX : feedback, bloom, kaléidoscope (2026-07)
 
 - **3 post-effets plein écran** ajoutés (ping-pong FBO) :

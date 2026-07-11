@@ -121,7 +121,7 @@ Nouvelles realisations depuis l'AG :
 | **Defile en boucle infinie** | `run()` tourne jusqu'au Ctrl+C, redemarrage auto apres la finale |
 | **Intro typographique integree** | `artnet_text.run()` appele en debut de chaque cycle (30s) |
 | **19 spots par tableau** | Layout 1 centre + 6 inner (r=8000) + 12 outer (r=16000) |
-| **Enable/blend creatifs par forme** | 14 formes avec strobe, scanner, heartbeat, chase, inner/outer bascule, spirale... |
+| **Enable/blend creatifs par forme** | 14 formes : scanner, vagues lentes, inner/outer, spirale, motifs de blend spatiaux (sans clignotement — anti-flicker v2.2) |
 | **Forme Segment spectaculaire** | 19 lignes arc-en-ciel centrees, epaisseur 0.6-80px, 3 groupes de rotation, effets dedies |
 | **20 polices variees** | Orbitron, BebasNeue, Pacifico, PressStart2P, Cinzel, Raleway, Comfortaa... |
 | **Font cycling temporel** | Forme Texte : cycle 20 polices en 6s. Finale Acte 3 : police differente par lettre et par mot |

@@ -68,7 +68,7 @@ propres au portage) :
   opacité = alpha. En mode 14, le canal **+22** sélectionne la vidéo du dossier
   (`data/videos`, trié par nom) et la taille est ré-échelonnée (plein écran
   possible malgré le plafond 1000 px du décodage).
-- **Désynchronisation** : chaque vidéo garde un anneau de ses 32 dernières
+- **Désynchronisation** : chaque vidéo garde un anneau de ses 16 dernières
   frames ; quand plusieurs panneaux affichent la même source, chacun échantillonne
   une frame retardée différente.
 - **Fixture de FOND** (slot réservé `BG_FIXTURE_SLOT = 60`) : une fixture 23

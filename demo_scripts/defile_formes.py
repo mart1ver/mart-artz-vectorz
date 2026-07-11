@@ -469,15 +469,15 @@ class DefileFormes:
 
         elif fid == 1:  # Rectangle — BLEND bleu : scanner (1 spot off tournant) + DIFFERENCE
             en = 0 if int(t * 2.2) % N == i else 255
-            sb = 142 if int(t * 0.6) % 2 == 0 else 0  # flash DIFFERENCE toutes les 1.7s
+            sb = 142 if i % 4 == 0 else 0           # DIFFERENCE réparti dans l'espace (fixe)
 
-        elif fid == 2:  # Texte — SCREEN violet : strobe décalé + boost ADD
-            en = 255 if int(t * 5.0 + i * 1.7) % 4 != 0 else 0
-            sb = 29 if math.sin(t * 1.2 + phase * 2) > 0.6 else 0
+        elif fid == 2:  # Texte — SCREEN violet : vague douce décalée + boost ADD spatial
+            en = 255 if math.sin(t * 1.0 + i * 0.5) > -0.7 else 0   # vague lente, jamais tout noir
+            sb = 29 if i % 3 == 0 else 0
 
-        elif fid == 3:  # Triangle — DIFFERENCE doré : heartbeat + EXCLUSION alternée
-            en = 0 if (t % 0.83) < 0.08 else 255    # ~72 BPM
-            sb = 170 if i % 2 == 0 else 0            # alternance EXCLUSION / DIFFERENCE
+        elif fid == 3:  # Triangle — DIFFERENCE doré : EXCLUSION alternée (spatiale)
+            en = 255                                # plus de heartbeat -> aucun clignotement
+            sb = 170 if i % 2 == 0 else 0           # alternance EXCLUSION / DIFFERENCE
 
         elif fid == 4:  # Pentagone — BLEND vert : vague sinusoïdale + ADD centre blazing
             en = 255 if math.sin(t * 1.1 - i * math.pi / N) > -0.3 else 0
@@ -488,31 +488,30 @@ class DefileFormes:
             en = 255 if math.sin(t * 1.3 + grp) > 0 else 0
             sb = 227 if i > 6 else 0                 # outer en SCREEN, inner en ADD
 
-        elif fid == 6:  # Losange — EXCLUSION rose : spirale + glitch DIFFERENCE
+        elif fid == 6:  # Losange — EXCLUSION rose : spirale (vague lente) + DIFFERENCE spatial
             frac = (i / N - t * 0.28) % 1.0
-            en = 255 if frac > 0.2 else 0
-            sb = 142 if int(t * 0.55 + i * 0.15) % 2 == 0 else 0
+            en = 255 if frac > 0.2 else 0           # spirale : chaque spot s'éteint 1× / ~3,5 s
+            sb = 142 if i % 3 == 0 else 0           # DIFFERENCE réparti dans l'espace (fixe)
 
         elif fid == 7:  # Octogone — LIGHTEST bleu : breathe + burst ADD au sommet
             breathe = 0.5 + 0.5 * math.sin(t * 0.75 + phase * 0.25)
             en = 255 if breathe > 0.15 else 0
             sb = 29 if breathe > 0.88 else 0
 
-        elif fid == 8:  # Étoile — ADD doré : strobe outer rapide + SCREEN centre
-            en = 255 if (i <= 6 or int(t * 7 + i) % 3 != 0) else 0
+        elif fid == 8:  # Étoile — ADD doré : anneau plein + SCREEN centre (plus de strobe)
+            en = 255                                # outer ne strobe plus
             sb = 227 if i == 0 else 0                # halo SCREEN centre
 
-        elif fid == 9:  # Croix — BLEND rouge : groupes contra-rhythm + MULTIPLY inner
-            en = 255 if int(t * 2.8 + i % 2) % 2 == 0 else 0
-            sb = 199 if (i <= 6 and int(t * 0.5) % 3 == 0) else 0
+        elif fid == 9:  # Croix — BLEND rouge : MULTIPLY inner (spatial, sans clignotement)
+            en = 255                                # plus de bascule 2,8 Hz
+            sb = 199 if i <= 6 else 0                # MULTIPLY sur le groupe interne (fixe)
 
-        elif fid == 10: # Flèche — grille PEUPLÉE : quasi toutes ON + vagues ADD
-            en = 0 if int(t * 5 + i * 0.7) % 11 == 0 else 255   # rares extinctions
-            sb = 29 if int(t * 3 + i) % 5 == 0 else 0           # éclairs ADD qui circulent
+        elif fid == 10: # Flèche — grille PEUPLÉE : toutes ON + éclairs ADD qui circulent lentement
+            en = 255                                            # plus d'extinctions nerveuses
+            sb = 29 if (i + int(t * 1.2)) % 5 == 0 else 0       # éclair ADD qui avance doucement
 
-        elif fid == 11: # Cœur — ADD rouge passion : double battement + SCREEN glow
-            beat = t % 0.75  # ~80 BPM
-            en = 0 if (beat < 0.06 or 0.16 < beat < 0.23) else 255
+        elif fid == 11: # Cœur — ADD rouge passion : SCREEN glow (battement retiré)
+            en = 255                                # plus de double battement -> pas de flash
             sb = 227 if i % 3 == 0 else 0
 
         elif fid == 13: # Fleur — SCREEN turquoise : révélation pétale + LIGHTEST
