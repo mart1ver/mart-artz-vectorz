@@ -212,8 +212,8 @@ class DefileFormes:
         # Blend mode fixe (BLEND normal)
         self.dmx[19] = 0
 
-        # Effets off
-        for i in range(20, 28):
+        # Effets off (y compris les PostFX ajoutés : feedback/bloom/kaléido)
+        for i in range(20, 32):
             self.dmx[i] = 0
 
         # Nombre de spots actifs = 7
@@ -558,6 +558,12 @@ class DefileFormes:
         chroma = gate(t, duree * 0.47, duree * 0.53) or gate(t, duree * 0.80, duree * 0.84)
         self.dmx[27] = 255 if chroma else 0
 
+        # PostFX ajoutés : le segment qui balaie laisse une traînée + un halo
+        self.dmx[28] = bell(t, duree * 0.50, duree * 0.60, 160)  # feedback
+        self.dmx[29] = 70                                        # bloom : seuil
+        self.dmx[30] = bell(t, duree * 0.40, duree * 0.50, 180)  # bloom : intensité
+        self.dmx[31] = 0                                         # kaléido OFF
+
     # ── Timeline effets PostFX ────────────────────────────────────────────────
     def set_effects(self, t, duree=6.0):
         """Anime tous les paramètres d'effets en séquence sur la durée d'une forme.
@@ -581,6 +587,12 @@ class DefileFormes:
         self.dmx[25] = bell(t, duree * 0.76, duree * 0.24, 230)  # saturation A
         self.dmx[26] = bell(t, duree * 0.80, duree * 0.20, 160)  # saturation B
         self.dmx[27] = gate(t, duree * 0.88, duree * 0.97)       # chromatic aberration ON
+        # PostFX ajoutés : bloom sur chaque forme (halo), formes lisibles -> pas de
+        # feedback ni kaléido dans le défilé (mis à 0 explicitement, aucune fuite)
+        self.dmx[28] = 0                                         # feedback OFF
+        self.dmx[29] = 70                                        # bloom : seuil
+        self.dmx[30] = bell(t, duree * 0.50, duree * 0.42, 190)  # bloom : intensité
+        self.dmx[31] = 0                                         # kaléido OFF
 
         # Blades : ouvertes (0) pendant la phase pixelate — unfade progressif
         pix_norm = bell(t, duree * 0.38, duree * 0.22, 255) / 255.0
@@ -677,9 +689,9 @@ class DefileFormes:
                 self.dmx[20] = blur          # blur size
                 self.dmx[21] = blur // 2     # blur sigma
 
-                # Blend mode et autres effets off
+                # Blend mode et autres effets off (PostFX ajoutés compris)
                 self.dmx[19] = 0
-                for i in range(22, 28):
+                for i in range(22, 32):
                     self.dmx[i] = 0
 
                 # Spots (formes) invisibles — le fond est fait par la vidéo
@@ -754,6 +766,9 @@ class DefileFormes:
 
                 # Fond noir par défaut
                 self.dmx[0] = self.dmx[1] = self.dmx[2] = 0
+                # PostFX ajoutés : réinit chaque frame -> chaque acte réactive au besoin
+                self.dmx[28] = self.dmx[30] = self.dmx[31] = 0  # feedback/bloom/kaléido OFF
+                self.dmx[29] = 60                               # bloom : seuil par défaut
 
                 # ─────────────────────────────────────
                 # ACTE 1 — EXPLOSION  (p: 0→0.17)
@@ -765,6 +780,7 @@ class DefileFormes:
                     self.dmx[20] = int(80 * (1 - tp))
                     self.dmx[21] = int(40 * (1 - tp))
                     for ch in range(22, 28): self.dmx[ch] = 0
+                    self.dmx[29] = 55; self.dmx[30] = int(70 + 170 * tp)  # bloom du burst
                     for ch in [3,5,7,9,11,13,15,17]: self.set16(ch, 0)
 
                     for i in range(N):
@@ -797,6 +813,7 @@ class DefileFormes:
                     self.dmx[25] = int(160 * tp)
                     self.dmx[26] = int(110 * tp)
                     self.dmx[27] = 0
+                    self.dmx[28] = 170        # feedback : traînées le long des courbes
                     for ch in [3,5,7,9,11,13,15,17]: self.set16(ch, 0)
 
                     # Groupe 1 : 8 étoiles sur courbe de Lissajous (∞ déphasé)
@@ -859,6 +876,7 @@ class DefileFormes:
                     self.dmx[25] = int(210 + 45*math.sin(t*0.5))
                     self.dmx[26] = int(160 + 60*math.sin(t*0.7))
                     self.dmx[27] = 255   # chromatic ON
+                    self.dmx[29] = 95; self.dmx[30] = 110   # bloom léger (texte lisible)
                     bv = int(9000 + 4500*math.sin(t*0.35))
                     bh = int(7000 + 3500*math.sin(t*0.42 + 1.0))
                     for ch in [3,5,11,13]: self.set16(ch, bv)
@@ -922,6 +940,9 @@ class DefileFormes:
                     self.dmx[25] = 255
                     self.dmx[26] = 210
                     self.dmx[27] = 255
+                    # VORTEX = tous les PostFX : feedback (spirale rémanente) + kaléido
+                    self.dmx[28] = 190
+                    self.dmx[31] = 6 + int(6 * tp)          # branches qui augmentent
                     close = int(tp * 22000)
                     sw_b = int(3000 * math.sin(t * 2.1))
                     self.set16(3,  max(0, close + sw_b))
@@ -964,6 +985,9 @@ class DefileFormes:
                     self.dmx[25] = int(255 * fade)
                     self.dmx[26] = int(200 * fade)
                     self.dmx[27] = 255 if tp < 0.7 else 0
+                    # apothéose : bloom fort + feedback, qui s'éteignent avec la scène
+                    self.dmx[29] = 50; self.dmx[30] = int(230 * fade)
+                    self.dmx[28] = int(150 * fade)
                     # Blades se claquent à 0
                     for ch in [3,5,7,9,11,13,15,17]:
                         self.set16(ch, max(0, int(18000 * (1 - tp/0.55))))
