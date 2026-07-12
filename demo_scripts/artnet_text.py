@@ -91,10 +91,10 @@ def run(duree=None, ip="127.0.0.1", sock=None):
 
         # ── Lettres — blackout des spots non utilisés d'abord
         for i in range(12):
-            dmx[28 + i * 23 + 3] = 0
+            dmx[32 + i * 23 + 3] = 0
 
         for i, c in enumerate(mot):
-            base  = 28 + i * 23
+            base  = 32 + i * 23
             phase = i * math.pi / 3.0
             breath = 1.0 + 0.18 * math.sin(t * 1.1)
             wave   = 0.22 * math.sin(t * 2.5 - phase)
@@ -121,7 +121,7 @@ def run(duree=None, ip="127.0.0.1", sock=None):
         # ── Forme arrière-plan (spot 11)
         bg_forme = 11 if mot_idx == 4 else 3   # 11 = Cœur (fond du dernier mot)
         bg_r     = (0, 0, 0) if mot_idx == 4 else (220, 0, 0)
-        base_tri = 28 + 11 * 23
+        base_tri = 32 + 11 * 23
         rot_tri  = int((t * 60) % 360 * 65535 / 360)
         dmx[base_tri + 0] = bg_r[0]; dmx[base_tri + 1] = bg_r[1]; dmx[base_tri + 2] = bg_r[2]
         dmx[base_tri + 3] = 130

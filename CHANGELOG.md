@@ -2,6 +2,23 @@
 
 ---
 
+## v2.5 — Forme+vidéo, forme « rafale », démo texte (2026-07)
+
+- **Forme remplie par la vidéo** : nouveau mode `+19 = 100 + forme` (0..13) — le spot
+  prend la silhouette d'une forme (étoile, cœur, hexagone…) mais est texturé par la
+  vidéo (+22 = source) au lieu d'une couleur. Masque = triangulation de la forme.
+  Rétrocompatible (modes 0..14 inchangés). Shader `SHAPEVID_VERT`, `_draw_shape_video`.
+- **`video_show.py`** : scène « Formes vidéo » ; `defile_formes.py` : décor vidéo
+  en forme (anneau d'hexagones-vidéo, spirale d'étoiles-vidéo).
+- **Forme 13 : « fleur » → « rafale »** (étoile à 14 pointes fines, 28 sommets ;
+  `Shape.FLEUR` → `Shape.RAFALE`, mode DMX 13 inchangé).
+- **`lorem_fou.py`** (nouvelle démo texte) : lorem ipsum déchaîné, 6 scènes avec
+  PostFX empilés (flux, kaléido, glitch, spirale, rafale, géant).
+- **Correctif** : `artnet_text.py` utilisait encore l'offset spot 28 (bloc de base
+  d'avant l'extension) — corrigé en 32.
+
+---
+
 ## v2.4 — Vidéos découpées en clips de 10 s + garde-fou VRAM (2026-07)
 
 - **Sources découpées en clips de 10 s** (ffmpeg, copie de flux, sans ré-encodage).
