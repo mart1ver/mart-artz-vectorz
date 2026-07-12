@@ -9,10 +9,24 @@ Fonctions communes à tous les scripts Python :
 Author: Martin Vert
 """
 
+import glob
 import math
+import os
 import socket
 
 PORT = 6454
+
+
+def count_videos(videos_dir=None):
+    """Nombre de vidéos dans data/videos/ — sert à caler N_VID sur ce que le moteur
+    charge réellement (il énumère ce dossier, trié par nom). Min 1."""
+    if videos_dir is None:
+        videos_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                  "..", "data", "videos")
+    n = 0
+    for ext in ("*.mp4", "*.mov", "*.mkv", "*.webm", "*.avi"):
+        n += len(glob.glob(os.path.join(videos_dir, ext)))
+    return max(1, n)
 
 
 def make_socket():

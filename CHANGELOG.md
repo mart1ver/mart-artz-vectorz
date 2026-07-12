@@ -2,6 +2,22 @@
 
 ---
 
+## v2.4 — Vidéos découpées en clips de 10 s + garde-fou VRAM (2026-07)
+
+- **Sources découpées en clips de 10 s** (ffmpeg, copie de flux, sans ré-encodage).
+  Organisation :
+  - `data/videos/`     — jeu de travail chargé par le moteur (**8 clips** par défaut,
+    répartis sur les 3 sources → ~52 fps en aperçu).
+  - `data/clips_all/`  — réserve des ~129 clips de 10 s (non chargée).
+  - `data/videos_src/` — originaux conservés (backup, non chargés).
+- **`run_engine.py --max-videos N`** : garde-fou VRAM (~133 Mo/vidéo). Échantillonne
+  uniformément le dossier si trop de vidéos. Mesuré : 8 clips ≈ 52 fps, 16 ≈ 28 fps.
+- **Démos auto-adaptées** : `luxcore_artnet.count_videos()` ; `video_show.py` cale
+  `N_VID` sur le nombre de clips présents. `defile_formes.py` s'adapte déjà (vspread
+  normalise sur 0-255, remappé par le moteur).
+
+---
+
 ## v2.3 — Démo « Video Show » : 100 % des fonctions vidéo (2026-07)
 
 - Nouveau script `demo_scripts/video_show.py` : 8 scènes couvrant **toutes** les

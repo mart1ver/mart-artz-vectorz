@@ -36,7 +36,9 @@ import luxcore_artnet as lxa
 
 # ── Réglages ─────────────────────────────────────────────────────────────────
 IP = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
-N_VID = int(sys.argv[2]) if len(sys.argv) > 2 else 3   # nb de vidéos dans data/videos/
+# nb de vidéos : auto-détecté depuis data/videos/ (= ce que charge le moteur),
+# surchargeable en 2e argument. Adapté aux clips de 10 s découpés.
+N_VID = int(sys.argv[2]) if len(sys.argv) > 2 else lxa.count_videos()
 
 W, H = 1920, 1080
 HALF_W, HALF_H = W / 2.0, H / 2.0

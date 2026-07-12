@@ -76,6 +76,24 @@ propres au portage) :
   (choisie par +22, alpha pour fondre avec la couleur RGB) ; sinon le fond reste
   la couleur RGB (canaux 1-3). Garder `num_spots <= 60`.
 
+## Vidéos : clips + garde-fou VRAM
+
+Le moteur charge **toutes** les vidéos de `data/videos/` au démarrage (un décodeur +
+un anneau de 16 textures ≈ **~133 Mo VRAM/vidéo**, décodées en continu → coût CPU).
+
+- `data/videos/`     — jeu de travail chargé (par défaut **8 clips** de 10 s ≈ 52 fps).
+- `data/clips_all/`  — réserve des clips de 10 s (non chargée) ; copier ceux voulus
+  dans `data/videos/`.
+- `data/videos_src/` — originaux (backup, non chargés).
+- `--max-videos N`   — garde-fou : ne charge qu'au plus N vidéos (échantillonnées
+  uniformément). Repère mesuré : 8 ≈ 52 fps, 16 ≈ 28 fps (aperçu).
+
+Découper une source en clips de 10 s (copie de flux, rapide) :
+```bash
+ffmpeg -i src.mp4 -c copy -an -map 0:v:0 -f segment -segment_time 10 \
+       -reset_timestamps 1 data/clips_all/src_%03d.mp4
+```
+
 ## Tests
 
 ```bash

@@ -51,6 +51,9 @@ def main():
                                          "..", "data", "videos"),
                     help="dossier de vidéos ; le canal +22 d'un spot en mode 14 choisit "
                          "laquelle est projetée (trié par nom)")
+    ap.add_argument("--max-videos", type=int, default=None,
+                    help="charge au plus N vidéos du dossier (échantillonnées "
+                         "uniformément pour la variété) — garde-fou VRAM (~133 Mo/vidéo)")
     args = ap.parse_args()
 
     fonts_dir = None if args.no_fonts else args.fonts_dir
@@ -65,6 +68,12 @@ def main():
             video_paths.extend(sorted(glob.glob(os.path.join(args.videos_dir, ext))))
     # dédoublonne en gardant l'ordre
     video_paths = list(dict.fromkeys(video_paths))
+    # garde-fou VRAM : échantillonne uniformément si trop de vidéos (~133 Mo/vidéo)
+    if args.max_videos and len(video_paths) > args.max_videos:
+        n, m = len(video_paths), args.max_videos
+        keep = sorted({round(i * (n - 1) / (m - 1)) for i in range(m)}) if m > 1 else [0]
+        print(f"[video] {n} vidéos trouvées -> {len(keep)} chargées (--max-videos {m})")
+        video_paths = [video_paths[i] for i in keep]
     if video_paths:
         print(f"[video] {len(video_paths)} vidéo(s) : "
               + ", ".join(os.path.basename(p) for p in video_paths))
