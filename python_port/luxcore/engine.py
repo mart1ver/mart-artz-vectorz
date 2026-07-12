@@ -116,6 +116,29 @@ uniform float alpha;
 void main() { vec4 c = texture(vid, uv); frag = vec4(c.rgb, c.a * alpha); }
 """
 
+# Forme remplie par la vidéo : même transform que VERT, UV calculé depuis la
+# position unité (formes en [-0.5,0.5] -> uv [0,1], comme le quad vidéo). Le
+# fragment échantillonne la vidéo (VIDEO_FRAG) ; la triangulation de la forme
+# sert de masque -> la vidéo prend la silhouette du spot.
+SHAPEVID_VERT = """
+#version 330
+in vec2 in_pos;
+out vec2 uv;
+uniform vec2 u_scale;
+uniform float u_rot;
+uniform vec2 u_translate;
+uniform vec2 u_res;
+void main() {
+    vec2 p = in_pos * u_scale;
+    float c = cos(u_rot), s = sin(u_rot);
+    vec2 r = vec2(p.x * c - p.y * s, p.x * s + p.y * c);
+    vec2 world = r + u_translate;
+    gl_Position = vec4(world.x / u_res.x * 2.0 - 1.0,
+                       world.y / u_res.y * 2.0 - 1.0, 0.0, 1.0);
+    uv = in_pos + 0.5;
+}
+"""
+
 # Packing RGBA -> UYVY 4:2:2 (BT.709, plage vidéo 16-235) pour la sortie NDI.
 # Chaque texel de sortie code 2 pixels source : octets (U, Y0, V, Y1). La cible
 # fait donc W/2 × H en RGBA8, soit un readback de W*H*2 octets (moitié du RGBA).
@@ -152,12 +175,19 @@ class LuxCoreEngine:
         self.ctx = ctx or moderngl.create_context(standalone=True, backend="egl")
         self.prog = self.ctx.program(vertex_shader=VERT, fragment_shader=FRAG)
         self.prog["u_res"] = (float(width), float(height))
+        # programme « forme remplie par la vidéo » (UV depuis la position unité)
+        self._shapevid_prog = self.ctx.program(vertex_shader=SHAPEVID_VERT,
+                                               fragment_shader=VIDEO_FRAG)
+        self._shapevid_prog["u_res"] = (float(width), float(height))
 
         # FBO cible (RGBA8) -> lu pour NDI / PNG
         self.tex = self.ctx.texture((width, height), 4)
         self.fbo = self.ctx.framebuffer(color_attachments=[self.tex])
 
         self._build_shape_vbo()
+        # VAO forme+vidéo : mêmes triangles que les formes, texturés par la vidéo
+        self._shapevid_vao = self.ctx.vertex_array(
+            self._shapevid_prog, [(self.vbo, "2f4", "in_pos")])
 
         # VBO dynamique pour contours/segments (ruban recalculé par spot)
         self._dyn_vbo = self.ctx.buffer(reserve=8192, dynamic=True)
@@ -334,8 +364,9 @@ class LuxCoreEngine:
                 s["filled"] = min(s["filled"] + 1, self._VID_RING)
                 s["ver"] = ver
 
-        # nb de fixtures vidéo visibles -> répartition des délais de désync
-        n_vid = sum(1 for sp in spots if sp.is_drawable() and sp.shape == Shape.VIDEO)
+        # nb de fixtures vidéo visibles (rectangle OU forme+vidéo) -> délais de désync
+        n_vid = sum(1 for sp in spots if sp.is_drawable()
+                    and (sp.shape == Shape.VIDEO or sp.video_fill))
 
         self.fbo.use()
         r, g, b = base.bg
@@ -354,6 +385,18 @@ class LuxCoreEngine:
 
             cx = self.width * 0.5 + sp.position_pan
             cy = self.height * 0.5 + sp.position_tilt
+
+            # forme remplie par la vidéo (mode 100+forme) : la silhouette de la forme
+            # masque la vidéo. Uniquement pour les formes remplissables (dans _ranges).
+            if sp.video_fill and shape in self._ranges and self.n_videos > 0:
+                sx, sy = geo.scale_factors(shape, sp.size_pan, sp.size_tilt)
+                self._draw_shape_video(sp, shape, sx, sy, cx, cy, vid_ord, n_vid)
+                vid_ord += 1
+                if sp.stroke_alpha > 0 and sp.stroke_weight > 0:
+                    self.prog["u_rot"] = math.radians(sp.rotation)
+                    self.prog["u_translate"] = (cx, cy)
+                    self._draw_stroke(sp, shape)
+                continue
 
             if shape == Shape.TEXTE:
                 if self.fonts:
@@ -611,6 +654,27 @@ class LuxCoreEngine:
         tex.use(0)
         self._video_prog["vid"] = 0
         self._video_vao.render(moderngl.TRIANGLE_STRIP, vertices=4)
+
+    def _draw_shape_video(self, sp: SpotState, shape: Shape, sx: float, sy: float,
+                          cx: float, cy: float, ord: int = 0, n_vid: int = 1):
+        # La forme (triangulée) masque la vidéo : le spot prend la silhouette voulue.
+        # Même sélection de source (+22) et désync que _draw_video ; échelle = celle
+        # d'une forme (pas de VIDEO_SIZE_SCALE : c'est une forme, pas un plein écran).
+        vidx = min((sp.sel_raw * self.n_videos) // 256, self.n_videos - 1)
+        s = self._vid[vidx]
+        if s["filled"] == 0:
+            return
+        delay = int(round(ord / n_vid * (s["filled"] - 1))) if n_vid > 1 else 0
+        tex = s["ring"][(s["head"] - 1 - delay) % self._VID_RING]
+        prog = self._shapevid_prog
+        prog["u_scale"] = (sx, sy)
+        prog["u_rot"] = math.radians(sp.rotation)
+        prog["u_translate"] = (cx, cy)
+        prog["alpha"] = sp.alpha / 255.0
+        tex.use(0)
+        prog["vid"] = 0
+        first, count = self._ranges[shape]
+        self._shapevid_vao.render(moderngl.TRIANGLES, vertices=count, first=first)
 
     def render_dmx(self, dmx_buf, num_spots: int, n_fonts: int | None = None):
         # Fixture unifiée : plus de famille vidéo dédiée. Tout spot en mode 14

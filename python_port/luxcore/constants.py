@@ -102,6 +102,11 @@ class Shape(IntEnum):
 
 MAX_SHAPE_MODE = 14                # dernière forme reconnue (au-delà -> rectangle)
 
+# Mode « forme remplie par la vidéo » : +19 = VIDEO_FILL_MODE_BASE + forme (0..13).
+# Le spot prend la forme choisie mais est texturé par la vidéo (+22 = source) au
+# lieu d'une couleur unie. N'altère pas les modes 0..14 (rétrocompatible).
+VIDEO_FILL_MODE_BASE = 100         # 100=ellipse vidéo, 103=triangle vidéo, ... 113=fleur
+
 
 # ---------------------------------------------------------------------------
 # Blend modes

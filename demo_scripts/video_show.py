@@ -14,8 +14,10 @@ Montre TOUTES les capacités vidéo du moteur, une scène par capacité :
                      retardées, anneau de désync)
   5. MOUVEMENT     — panneaux qui orbitent, tournent et respirent (pan/tilt/rotation/échelle)
   6. BLEND         — même vidéo superposée en ADD / SCREEN / DIFFERENCE (blend par panneau)
-  7. POSTFX        — une vidéo plein écran, tous les post-effets en douceur
-                     (bloom, feedback, kaléido, pixelate, rgb split, chromatic)
+  6b.FORMES VIDÉO  — spots en forme (étoile, cœur, hexagone…) remplis par la vidéo
+                     (mode +19 = 100+forme : la silhouette masque la vidéo)
+  7. POSTFX        — une vidéo plein écran, COMBOS de post-effets superposés
+                     (pixelate+sobel, bloom+feedback, kaléido+bloom+chroma, ...)
   8. KALÉIDO MUR   — mur de vidéos + kaléidoscope + bloom (finale hypnotique)
 
 Confort visuel : aucune scène ne clignote (fondus doux, mouvements continus).
@@ -49,6 +51,11 @@ BG_SLOT = 60                          # fixture de FOND (aligné sur C.BG_FIXTUR
 VIDEO_SIZE_SCALE = 2.5                # ré-échelonnage moteur des fixtures vidéo
 
 VIDEO = 14                            # mode forme = VIDEO
+VFILL = 100                           # base du mode « forme remplie par la vidéo » (100+forme)
+
+# Formes (pour le mode forme+vidéo)
+ELLIPSE, RECT, TRIANGLE, PENTA, HEXA = 0, 1, 3, 4, 5
+LOSANGE, OCTO, ETOILE, CROIX, COEUR, FLEUR = 6, 7, 8, 9, 11, 13
 
 # Blend modes — valeurs DMX exactes
 BLEND, ADD, SUBTRACT, DARKEST, LIGHTEST = 0, 29, 57, 85, 114
@@ -71,6 +78,11 @@ def to_tilt(dy):
 def sz_px(px):
     """Largeur/hauteur vidéo en px -> valeur 16-bit (compte tenu de VIDEO_SIZE_SCALE)."""
     return max(0, min(65535, int(px / (1000 * VIDEO_SIZE_SCALE) * 65535)))
+
+
+def sz_shape(px):
+    """Taille de FORME en px -> valeur 16-bit (échelle forme, plafond 1000 px)."""
+    return max(0, min(65535, int(max(0, min(1000, px)) / 1000 * 65535)))
 
 
 def vsel(v):
@@ -141,6 +153,27 @@ class VideoShow:
         d[b + 21] = clamp8(blend)
         d[b + 22] = clamp8(vsel(v))                       # sélecteur de vidéo
 
+    def vshape(self, i, dx, dy, w, shape, rot=0.0, alpha=255, v=0, blend=0, h=None):
+        """Spot en FORME `shape` rempli par la vidéo `v` (mode 100+forme) : la
+        vidéo prend la silhouette de la forme (étoile, cœur, hexagone…)."""
+        if i >= MAX_PANELS or alpha <= 0:
+            return
+        if h is None:
+            h = w
+        b = 32 + i * 23
+        d = self.dmx
+        d[b] = d[b + 1] = d[b + 2] = 255
+        d[b + 3] = clamp8(alpha)
+        lxa.set16(d, b + 9, sz_shape(w))
+        lxa.set16(d, b + 11, sz_shape(h))
+        lxa.set16(d, b + 13, int(rot % 360 * 65535 / 360))
+        lxa.set16(d, b + 15, to_pan(dx))
+        lxa.set16(d, b + 17, to_tilt(dy))
+        d[b + 19] = VFILL + int(shape)                    # forme remplie par la vidéo
+        d[b + 20] = 255
+        d[b + 21] = clamp8(blend)
+        d[b + 22] = clamp8(vsel(v))
+
     def bgvid(self, v=0, alpha=255, blend=0):
         """Fixture de FOND : vidéo plein écran DERRIÈRE tous les panneaux."""
         b = 32 + BG_SLOT * 23
@@ -193,9 +226,10 @@ class VideoShow:
     def sc_bg_panels(self, t):
         """Fond vidéo plein écran + 3 panneaux flottants (vidéos variées)."""
         self.bg(0, 0, 0)
-        self.fx(blend_global=BLEND)
-        self.bgvid(v=0, alpha=255)                         # décor plein écran
         breath = self.swell(t, 6.0, 0.6)
+        # superposition : bloom + feedback (halo + légère rémanence sur les panneaux)
+        self.fx(blend_global=BLEND, bloom_thr=75, bloom=int(50 + 70 * breath), feedback=90)
+        self.bgvid(v=0, alpha=255)                         # décor plein écran
         for k in range(3):
             a = t * 0.25 + k * 2.094
             dx = math.cos(a) * 430
@@ -206,9 +240,10 @@ class VideoShow:
     def sc_wall(self, t):
         """Mur / mosaïque : 4×3 panneaux, vidéos réparties sur le dossier."""
         self.bg(4, 4, 8)
-        self.fx(blend_global=BLEND)
         pts = lay_grid(4, 3, 1360, 720)
         breath = self.swell(t, 5.0, 0.85)
+        # superposition : pixelate + bloom (mosaïque de blocs qui irradient)
+        self.fx(blend_global=BLEND, pixelate=int(70 + 60 * breath), bloom_thr=80, bloom=80)
         for i, (dx, dy) in enumerate(pts):
             self.vspot(i, dx, dy, 470 * breath, 0, 255, v=i % N_VID, blend=BLEND)
 
@@ -216,7 +251,8 @@ class VideoShow:
         """Beaucoup de panneaux de la MÊME vidéo, alignés en diagonale : chaque
         panneau lit une frame plus ou moins retardée -> écho temporel visible."""
         self.bg(0, 0, 0)
-        self.fx(blend_global=SCREEN)
+        # superposition : feedback + rgb split (l'écho de frames + dispersion chromatique)
+        self.fx(blend_global=SCREEN, feedback=120, rgbsplit=int(20 + 30 * self.swell(t, 3.0, 0.3)))
         n = 10
         for i in range(n):
             f = i / (n - 1)                               # 0..1 le long de la diagonale
@@ -227,7 +263,9 @@ class VideoShow:
     def sc_motion(self, t):
         """5 panneaux qui orbitent, tournent et respirent (pan/tilt/rotation/échelle)."""
         self.bg(6, 2, 10)
-        self.fx(blend_global=SCREEN, feedback=140)         # légère rémanence
+        # superposition : feedback + bloom + rgb split (rémanence + halo + dispersion)
+        self.fx(blend_global=SCREEN, feedback=140, bloom_thr=70,
+                bloom=int(50 + 60 * self.swell(t, 4.0, 0.4)), rgbsplit=18)
         for k in range(5):
             a = t * 0.6 + k * (2 * math.pi / 5)
             r = 360 + 90 * math.sin(t * 0.5 + k)
@@ -240,7 +278,9 @@ class VideoShow:
     def sc_blend(self, t):
         """Fond vidéo + 3 copies de la même vidéo superposées en ADD/SCREEN/DIFFERENCE."""
         self.bg(0, 0, 0)
-        self.fx(blend_global=BLEND)
+        # superposition : bloom + chroma par-dessus les blends
+        self.fx(blend_global=BLEND, bloom_thr=60, bloom=int(60 + 80 * self.swell(t, 5.0, 0.5)),
+                chroma=200)
         self.bgvid(v=2, alpha=170)
         modes = [ADD, SCREEN, DIFFERENCE]
         for k, bl in enumerate(modes):
@@ -249,26 +289,43 @@ class VideoShow:
             dy = math.sin(a) * 170
             self.vspot(k, dx, dy, 720, math.sin(a) * 6, 200, v=0, blend=bl)
 
-    def sc_postfx(self, t):
-        """Une vidéo plein écran ; les post-effets défilent en douceur dessus."""
+    def sc_video_shapes(self, t):
+        """FORMES remplies par la vidéo : chaque spot prend une silhouette (étoile,
+        cœur, hexagone…) découpée dans la vidéo. Anneau tournant + grande forme centrale."""
         self.bg(0, 0, 0)
-        # 6 phases de post-effet, montée/descente douce de chacune
-        phases = t / 3.0
+        self.fx(blend_global=BLEND, bloom_thr=70, bloom=70)
+        breath = self.swell(t, 5.0, 0.7)
+        shapes = [ETOILE, COEUR, HEXA, TRIANGLE, FLEUR, PENTA]
+        for k, sh in enumerate(shapes):
+            a = t * 0.4 + k * (2 * math.pi / len(shapes))
+            dx = math.cos(a) * 500
+            dy = math.sin(a) * 300
+            self.vshape(k, dx, dy, 360 + 70 * breath, sh,
+                        t * 22 * (1 if k % 2 else -1), 240, v=k % N_VID, blend=BLEND)
+        # grande étoile centrale, vidéo, rotation lente
+        self.vshape(6, 0, 0, 560 + 60 * breath, ETOILE, t * 8, 255, v=0, blend=SCREEN)
+
+    def sc_postfx(self, t):
+        """Une vidéo plein écran ; COMBOS de post-effets SUPERPOSÉS (2-3 à la fois),
+        chacun monte/descend en douceur. Montre les empilements possibles."""
+        self.bg(0, 0, 0)
+        phases = t / 4.0
         idx = int(phases) % 6
-        amt = self.bump(t, 3.0)                            # 0 -> 1 -> 0 dans chaque phase
+        amt = self.bump(t, 4.0)                            # 0 -> 1 -> 0 dans chaque phase
         kw = dict(blend_global=BLEND)
-        if idx == 0:
-            kw.update(bloom_thr=45, bloom=int(60 + 180 * amt))
-        elif idx == 1:
-            kw.update(feedback=int(60 + 150 * amt))
-        elif idx == 2:
-            kw.update(kaleido=6)
-        elif idx == 3:
-            kw.update(pixelate=int(30 + 170 * amt))
-        elif idx == 4:
-            kw.update(rgbsplit=int(4 + 60 * amt))
-        else:
-            kw.update(chroma=200, sat_a=int(120 * amt))
+        if idx == 0:                                       # pixelate + sobel : blocs à contours
+            kw.update(pixelate=int(40 + 160 * amt), sobel=200)
+        elif idx == 1:                                     # bloom + feedback : traînées incandescentes
+            kw.update(bloom_thr=45, bloom=int(70 + 150 * amt), feedback=int(90 + 90 * amt))
+        elif idx == 2:                                     # kaléido + bloom + chroma
+            kw.update(kaleido=6, bloom_thr=55, bloom=int(60 + 120 * amt), chroma=200)
+        elif idx == 3:                                     # rgb split + chroma + saturation
+            kw.update(rgbsplit=int(6 + 70 * amt), chroma=200, sat_a=int(140 * amt))
+        elif idx == 4:                                     # feedback + kaléido + pixelate
+            kw.update(feedback=int(80 + 100 * amt), kaleido=8, pixelate=int(30 + 120 * amt))
+        else:                                              # sobel + bloom + rgb split : néon
+            kw.update(sobel=200, bloom_thr=40, bloom=int(80 + 120 * amt),
+                      rgbsplit=int(10 + 50 * amt))
         self.fx(**kw)
         self.vspot(0, 0, 0, W, 0, 255, v=0, blend=BLEND)
 
@@ -291,7 +348,8 @@ class VideoShow:
         ("Désync (écho)", "sc_desync",       14),
         ("Mouvement",     "sc_motion",       16),
         ("Blend",         "sc_blend",        14),
-        ("PostFX",        "sc_postfx",       18),
+        ("Formes vidéo",  "sc_video_shapes", 16),
+        ("PostFX (combos)", "sc_postfx",     24),
         ("Kaléido mur",   "sc_kaleido_wall", 16),
     ]
 

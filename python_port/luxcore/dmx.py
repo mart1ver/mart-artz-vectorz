@@ -49,9 +49,17 @@ class SpotState:
     sel_raw: int = 0           # canal +22 brut ; en mode VIDEO : sélecteur de vidéo
 
     @property
+    def video_fill(self) -> bool:
+        """Mode « forme remplie par la vidéo » : +19 dans [BASE, BASE+13]."""
+        base = C.VIDEO_FILL_MODE_BASE
+        return base <= self.mode <= base + 13
+
+    @property
     def shape(self) -> Shape:
-        """Forme effective : hors 0..15 -> RECTANGLE (case default du switch)."""
-        return Shape(self.mode) if 0 <= self.mode <= C.MAX_SHAPE_MODE else Shape.RECTANGLE
+        """Forme effective : hors 0..14 -> RECTANGLE (case default du switch).
+        En mode « forme+vidéo » (100+forme), on retire l'offset pour retrouver la forme."""
+        m = self.mode - C.VIDEO_FILL_MODE_BASE if self.video_fill else self.mode
+        return Shape(m) if 0 <= m <= C.MAX_SHAPE_MODE else Shape.RECTANGLE
 
     @property
     def text_char(self) -> str:

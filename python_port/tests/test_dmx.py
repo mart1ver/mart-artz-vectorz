@@ -88,10 +88,11 @@ def test_mode_out_of_range_is_rectangle():
     base = C.spot_base_addr(0)
     buf[base + C.SP_ENABLE] = 1
     buf[base + C.SP_ALPHA] = 255
-    for raw in (16, 100, 200, 255):         # hors 0..14 -> default rect (14 = VIDEO)
+    for raw in (16, 50, 99, 200, 255):      # hors 0..14 et hors bande vidéo -> rect
         buf[base + C.SP_MODE] = raw
         s = dmx.decode_spot(buf, base, 960, 540, BlendMode.BLEND, 20)
         assert s.shape == Shape.RECTANGLE
+        assert s.video_fill is False
 
 
 def test_mode_14_is_video():
@@ -100,6 +101,17 @@ def test_mode_14_is_video():
     buf[base + C.SP_MODE] = 14
     s = dmx.decode_spot(buf, base, 960, 540, BlendMode.BLEND, 20)
     assert s.shape == Shape.VIDEO
+
+
+def test_video_fill_mode_band():
+    # +19 = 100 + forme -> forme remplie par la vidéo (video_fill True, forme = raw-100)
+    buf = _blank_buf()
+    base = C.spot_base_addr(0)
+    for shape in (Shape.ELLIPSE, Shape.TRIANGLE, Shape.ETOILE, Shape.COEUR, Shape.FLEUR):
+        buf[base + C.SP_MODE] = C.VIDEO_FILL_MODE_BASE + int(shape)
+        s = dmx.decode_spot(buf, base, 960, 540, BlendMode.BLEND, 20)
+        assert s.video_fill is True
+        assert s.shape == shape
 
 
 def test_sel_raw_is_raw_plus22():
