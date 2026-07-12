@@ -53,4 +53,4 @@ Détails moteur, architecture et tests : [`python_port/README.md`](python_port/R
 
 `0` Ellipse · `1` Rectangle · `2` Texte · `3` Triangle · `4` Pentagone ·
 `5` Hexagone · `6` Losange · `7` Octogone · `8` Étoile · `9` Croix ·
-`10` Flèche · `11` Cœur · `12` Segment · `13` Fleur · `14` **Vidéo**
+`10` Flèche · `11` Cœur · `12` Segment · `13` Rafale · `14` **Vidéo**

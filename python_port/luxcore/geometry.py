@@ -42,7 +42,7 @@ SCALE_MODE: dict[Shape, str] = {
     Shape.OCTOGONE: "pan_only",
     Shape.ETOILE: "pan_only",
     Shape.CROIX: "pan_only",
-    Shape.FLEUR: "pan_only",
+    Shape.RAFALE: "pan_only",
     # TEXTE : cas spécial (pas de polygone)
 }
 
@@ -137,14 +137,16 @@ def _heart() -> list[Vec2]:
     return pts
 
 
-def _flower() -> list[Vec2]:
-    outer = 0.45                                 # size_pan * 0.45
-    steps = 180
+def _sunburst() -> list[Vec2]:
+    # Rafale : étoile à 14 pointes fines (remplace l'ancienne rosace « fleur »).
+    # Rayon externe 0.5, interne 0.17 -> pointes acérées. 28 sommets, une pointe en haut.
+    n = 14
+    outer, inner = 0.5, 0.17
     pts: list[Vec2] = []
-    for i in range(steps):
-        t = TWO_PI * i / steps
-        r = outer * (0.28 + 0.72 * abs(math.cos(3 * t)))
-        pts.append((r * math.cos(t), r * math.sin(t)))
+    for k in range(2 * n):
+        r = outer if k % 2 == 0 else inner
+        a = math.pi * k / n - HALF_PI
+        pts.append((r * math.cos(a), r * math.sin(a)))
     return pts
 
 
@@ -166,7 +168,7 @@ _GENERATORS = {
     Shape.FLECHE: _arrow,
     Shape.COEUR: _heart,
     Shape.SEGMENT: _segment,
-    Shape.FLEUR: _flower,
+    Shape.RAFALE: _sunburst,
 }
 
 # Cache des polygones-unité (construits une fois)

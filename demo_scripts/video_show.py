@@ -55,7 +55,7 @@ VFILL = 100                           # base du mode « forme remplie par la vid
 
 # Formes (pour le mode forme+vidéo)
 ELLIPSE, RECT, TRIANGLE, PENTA, HEXA = 0, 1, 3, 4, 5
-LOSANGE, OCTO, ETOILE, CROIX, COEUR, FLEUR = 6, 7, 8, 9, 11, 13
+LOSANGE, OCTO, ETOILE, CROIX, COEUR, RAFALE = 6, 7, 8, 9, 11, 13
 
 # Blend modes — valeurs DMX exactes
 BLEND, ADD, SUBTRACT, DARKEST, LIGHTEST = 0, 29, 57, 85, 114
@@ -295,7 +295,7 @@ class VideoShow:
         self.bg(0, 0, 0)
         self.fx(blend_global=BLEND, bloom_thr=70, bloom=70)
         breath = self.swell(t, 5.0, 0.7)
-        shapes = [ETOILE, COEUR, HEXA, TRIANGLE, FLEUR, PENTA]
+        shapes = [ETOILE, COEUR, HEXA, TRIANGLE, RAFALE, PENTA]
         for k, sh in enumerate(shapes):
             a = t * 0.4 + k * (2 * math.pi / len(shapes))
             dx = math.cos(a) * 500

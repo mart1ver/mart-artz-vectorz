@@ -95,7 +95,7 @@ class Shape(IntEnum):
     FLECHE = 10
     COEUR = 11
     SEGMENT = 12
-    FLEUR = 13
+    RAFALE = 13
     VIDEO = 14                     # extension du portage : quad texturé par la vidéo
     # Toute valeur hors 0..14 -> rectangle (case default du switch Processing)
 
@@ -105,7 +105,7 @@ MAX_SHAPE_MODE = 14                # dernière forme reconnue (au-delà -> recta
 # Mode « forme remplie par la vidéo » : +19 = VIDEO_FILL_MODE_BASE + forme (0..13).
 # Le spot prend la forme choisie mais est texturé par la vidéo (+22 = source) au
 # lieu d'une couleur unie. N'altère pas les modes 0..14 (rétrocompatible).
-VIDEO_FILL_MODE_BASE = 100         # 100=ellipse vidéo, 103=triangle vidéo, ... 113=fleur
+VIDEO_FILL_MODE_BASE = 100         # 100=ellipse vidéo, 103=triangle vidéo, ... 113=rafale
 
 
 # ---------------------------------------------------------------------------

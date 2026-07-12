@@ -199,7 +199,7 @@ def spot_xml():
                 <ChannelSet Name="11 Plus"     DMXFrom="200/1"/>
                 <ChannelSet Name="12 Coeur"    DMXFrom="218/1"/>
                 <ChannelSet Name="13 Segment"  DMXFrom="236/1"/>
-                <ChannelSet Name="14 Fleur"    DMXFrom="254/1"/>
+                <ChannelSet Name="14 Rafale"    DMXFrom="254/1"/>
               </ChannelFunction>
             </LogicalChannel>
           </DMXChannel>

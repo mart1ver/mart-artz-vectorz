@@ -34,7 +34,7 @@ DIFFERENCE, EXCLUSION, MULTIPLY, SCREEN, REPLACE = 142, 170, 199, 227, 255
 
 # Formes (canal +19)
 ELLIPSE, RECT, TEXTE, TRIANGLE, PENTA, HEXA, LOSANGE = 0, 1, 2, 3, 4, 5, 6
-OCTO, ETOILE, CROIX, FLECHE, COEUR, SEGMENT, FLEUR = 7, 8, 9, 10, 11, 12, 13
+OCTO, ETOILE, CROIX, FLECHE, COEUR, SEGMENT, RAFALE = 7, 8, 9, 10, 11, 12, 13
 
 
 # ── Mapping pixels → DMX (identique au décodage du moteur) ───────────────────

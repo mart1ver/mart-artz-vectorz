@@ -29,7 +29,7 @@ def test_vertex_counts():
         Shape.RECTANGLE: 4, Shape.TRIANGLE: 3, Shape.PENTAGONE: 5,
         Shape.HEXAGONE: 6, Shape.LOSANGE: 4, Shape.OCTOGONE: 8,
         Shape.ETOILE: 10, Shape.CROIX: 12, Shape.FLECHE: 7,
-        Shape.COEUR: 72, Shape.FLEUR: 180,
+        Shape.COEUR: 72, Shape.RAFALE: 28,
         Shape.SEGMENT: 2, Shape.ELLIPSE: geo.ELLIPSE_SEGMENTS,
     }
     for shape, n in expected.items():
@@ -94,16 +94,15 @@ def test_heart_matches_pde():
     assert all(_close(g, e) for g, e in zip(got, exp))
 
 
-def test_flower_matches_pde():
-    sp = 400.0
-    outer = sp * 0.45
-    exp = []
-    for i in range(180):
-        t = TWO_PI * i / 180
-        r = outer * (0.28 + 0.72 * abs(math.cos(3 * t)))
-        exp.append((r * math.cos(t), r * math.sin(t)))
-    got = geo.scaled_polygon(Shape.FLEUR, sp, 12.0)
-    assert all(_close(g, e) for g, e in zip(got, exp))
+def test_sunburst_structure():
+    # Rafale : 14 pointes -> 28 sommets, rayons alternés externe(0.5)/interne(0.17),
+    # une pointe pile en haut (angle -90°).
+    pts = geo.unit_polygon(Shape.RAFALE)
+    assert len(pts) == 28
+    radii = [math.hypot(x, y) for x, y in pts]
+    assert all(abs(radii[k] - 0.5) < 1e-6 for k in range(0, 28, 2))      # pointes
+    assert all(abs(radii[k] - 0.17) < 1e-6 for k in range(1, 28, 2))     # creux
+    assert _close(pts[0], (0.0, -0.5))                                    # pointe en haut
 
 
 # ---------------------------------------------------------------------------

@@ -44,7 +44,7 @@ Aperçu : `g` = plein écran (curseur masqué + veille inhibée), `h` = menu.
 | 10 | Flèche | remplissage ear-clip (concave correct) |
 | 11 | Cœur | formule paramétrique, 72 vertices |
 | 12 | Segment | ligne ouverte — size_pan=longueur, size_tilt/500=épaisseur px |
-| 13 | Fleur | 6 pétales, formule polaire, 180 vertices |
+| 13 | Rafale | étoile à 14 pointes fines, 28 vertices |
 | 14 | **Vidéo** | quad texturé par une vidéo du dossier (sélection via +22) |
 
 > L'ancienne forme « Plus » a été retirée lors du portage (doublon de la Croix).

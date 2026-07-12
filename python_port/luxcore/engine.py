@@ -7,7 +7,7 @@ fois, mis à l'échelle/tourné/positionné par spot via des uniforms.
 Couverture actuelle :
   - 13 formes remplies via GL_TRIANGLES (triangulation ear-clip pré-calculée,
     cf. geometry.unit_triangles_np) : ellipse, rect, polygones réguliers,
-    losange, triangle, étoile, croix, flèche, cœur, fleur — correct y compris
+    losange, triangle, étoile, croix, flèche, cœur, rafale — correct y compris
     pour les formes concaves (flèche/cœur) que l'éventail-origine recouvrait.
   - blend mode par spot (BLEND/ADD/SCREEN/MULTIPLY/LIGHTEST/DARKEST ; les autres
     retombent sur BLEND pour l'instant).

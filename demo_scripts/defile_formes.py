@@ -39,7 +39,7 @@ FORMES = [
     {"id": 10, "nom": "Flèche",     "r":  60, "g": 220, "b":  80, "blend": 227},  # SCREEN   → vert lumineux
     {"id": 11, "nom": "Cœur",       "r": 240, "g":  40, "b":  80, "blend":  29},  # ADD      → lueur rouge passion
     {"id": 12, "nom": "Segment",    "r": 180, "g": 255, "b": 255, "blend":  29, "duree": 15.0},  # ADD → lignes cyan lumineuses
-    {"id": 13, "nom": "Fleur",      "r":  80, "g": 200, "b": 200, "blend": 227},  # SCREEN   → fleur délicate
+    {"id": 13, "nom": "Rafale",     "r":  80, "g": 200, "b": 200, "blend": 227},  # SCREEN   → étoile 14 pointes
 ]
 
 # ── 19 positions : 1 centre + 6 anneau intérieur + 12 anneau extérieur ───────
@@ -366,7 +366,7 @@ class DefileFormes:
             return grid + rose                    # 48 spots (plafond du moteur)
         if fid == 11:     # Cœur — anneaux concentriques (symétrie miroir)
             return lay_rings([(1, 0, 0), (7, 200, 0), (14, 400, 0)], ph)
-        if fid == 13:     # Fleur — rosace k=6 (fleur de fleurs)
+        if fid == 13:     # Rafale — spots disposés en rosace k=6 (constellation)
             return lay_rose(48, 6, 470, ph)
         # Texte (2) et défaut — anneau de lettres
         return lay_ring(26, 430, ph * 0.6)
@@ -383,6 +383,23 @@ class DefileFormes:
                       sz_px(w), sz_px(w * 9.0 / 16.0),
                       int(rot_deg % 360 * 65535 / 360),
                       to_pan(dx), to_tilt(dy), 14, spot_blend=blend,
+                      font=int(max(0, min(255, vsel))))
+
+    def _set_shape_video(self, idx, shape, dx, dy, w, rot_deg, alpha, blend=0, vsel=0, h=None):
+        """Panneau vidéo `idx` en FORME `shape` (mode 100+forme) : la vidéo prend la
+        silhouette (étoile, hexagone…). Taille en px, échelle forme (plafond 1000 px)."""
+        if idx >= NUM_VIDEO_FIXTURES:
+            return
+        if h is None:
+            h = w
+
+        def s16(px):
+            return max(0, min(65535, int(max(0, min(1000, px)) / 1000 * 65535)))
+
+        self.set_spot(VIDEO_FIXTURE_SLOT0 + idx, 255, 255, 255,
+                      int(max(0, min(255, alpha))), 0, 0, 0, 0, 0,
+                      s16(w), s16(h), int(rot_deg % 360 * 65535 / 360),
+                      to_pan(dx), to_tilt(dy), 100 + int(shape), spot_blend=blend,
                       font=int(max(0, min(255, vsel))))
 
     def _set_bg_video(self, vsel=0, alpha=255, blend=0):
@@ -402,8 +419,9 @@ class DefileFormes:
     # ── Décor vidéo présent en permanence — un preset symétrique par forme ────
     def _video_backdrop(self, fid, t, af):
         """6 arrangements vidéo symétriques (cyclés par forme) démontrant les
-        possibilités du player : panneau héros, miroir, anneau, coins, grille,
-        spirale. Rotation / pulsation / échelle animées."""
+        possibilités du player : panneau héros, miroir, anneau (hexagones-vidéo),
+        coins, grille, spirale (étoiles-vidéo). Rotation / pulsation / échelle animées.
+        Les presets 2 et 5 utilisent la vidéo EN FORME (mode 100+forme)."""
         a0 = int(210 * af)
         preset = fid % 6
 
@@ -418,12 +436,12 @@ class DefileFormes:
                 self._set_video(idx, s * 520, 30 * math.sin(t * 0.6), 470,
                                 s * 10 * math.sin(t * 0.4), a0, vsel=vspread(idx, 2))
 
-        elif preset == 2:      # anneau de 6 panneaux tournants (ADD, lumineux)
+        elif preset == 2:      # anneau de 6 panneaux HEXAGONE-vidéo tournants (ADD)
             for k in range(6):
                 a = 2 * math.pi * k / 6 + t * 0.35
-                self._set_video(k, 470 * math.cos(a), 300 * math.sin(a), 300,
-                                math.degrees(a) + t * 20, int(a0 * 0.9), blend=29,
-                                vsel=vspread(k, 6))
+                self._set_shape_video(k, 5, 470 * math.cos(a), 300 * math.sin(a), 340,
+                                      math.degrees(a) + t * 20, int(a0 * 0.9), blend=29,
+                                      vsel=vspread(k, 6))    # 5 = hexagone
 
         elif preset == 3:      # 4 coins miroir, pulsation synchronisée
             for k, (sx, sy) in enumerate(((-1, -1), (1, -1), (-1, 1), (1, 1))):
@@ -441,14 +459,14 @@ class DefileFormes:
                                     vsel=vspread(idx, 6))
                     idx += 1
 
-        else:                  # preset 5 : spirale phyllotaxique de 8 panneaux (ADD)
+        else:                  # preset 5 : spirale phyllotaxique de 8 ÉTOILES-vidéo (ADD)
             ga = math.pi * (3 - math.sqrt(5))
             for k in range(8):
                 a = k * ga + t * 0.3
                 rr = 70 * math.sqrt(k + 0.5)
-                self._set_video(k, rr * math.cos(a), rr * math.sin(a) * 0.7,
-                                150 + 26 * k, math.degrees(a),
-                                int(a0 * 0.85), blend=29, vsel=vspread(k, 8))
+                self._set_shape_video(k, 8, rr * math.cos(a), rr * math.sin(a) * 0.7,
+                                      150 + 26 * k, math.degrees(a),
+                                      int(a0 * 0.85), blend=29, vsel=vspread(k, 8))  # 8 = étoile
 
     def _video_fill(self, alpha=255, vsel=0):
         """Vidéo plein écran, sans couture : une seule fixture (ré-échelonnée par
@@ -514,7 +532,7 @@ class DefileFormes:
             en = 255                                # plus de double battement -> pas de flash
             sb = 227 if i % 3 == 0 else 0
 
-        elif fid == 13: # Fleur — SCREEN turquoise : révélation pétale + LIGHTEST
+        elif fid == 13: # Rafale — SCREEN turquoise : révélation en balayage + LIGHTEST
             en = 255 if i <= (t * 0.7) % N else 0
             sb = 114 if i % 2 == 0 else 0            # alternance SCREEN / LIGHTEST
 

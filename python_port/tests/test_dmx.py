@@ -107,7 +107,7 @@ def test_video_fill_mode_band():
     # +19 = 100 + forme -> forme remplie par la vidéo (video_fill True, forme = raw-100)
     buf = _blank_buf()
     base = C.spot_base_addr(0)
-    for shape in (Shape.ELLIPSE, Shape.TRIANGLE, Shape.ETOILE, Shape.COEUR, Shape.FLEUR):
+    for shape in (Shape.ELLIPSE, Shape.TRIANGLE, Shape.ETOILE, Shape.COEUR, Shape.RAFALE):
         buf[base + C.SP_MODE] = C.VIDEO_FILL_MODE_BASE + int(shape)
         s = dmx.decode_spot(buf, base, 960, 540, BlendMode.BLEND, 20)
         assert s.video_fill is True
