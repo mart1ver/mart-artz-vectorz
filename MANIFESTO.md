@@ -36,7 +36,7 @@ Le fond voyage du noir au rouge, du bleu a l'or, du vert au blanc.
 Pas de spots — juste la geometrie pure des blades qui dansent.
 Ouverture. Fermeture. Rythme.
 
-### Acte 2 — LE DEFILE DES 15 FORMES (15 a 6 secondes par forme)
+### Acte 2 — LE DEFILE DES 14 FORMES (15 a 6 secondes par forme)
 
 Dix-neuf spots. Trois anneaux concentriques.
 Chaque forme a son identite propre :
@@ -52,14 +52,13 @@ Chaque forme a son identite propre :
 - **Etoile** — or, ADD, strobe outer rapide + halo SCREEN au centre
 - **Croix** — rouge, groupes contra-rhythm + MULTIPLY inner
 - **Fleche** — vert, SCREEN, sweep sequentiel + eclairs ADD
-- **Plus** — gris, DIFFERENCE, checker flash + cycle BLEND/EXCLUSION/SCREEN
 - **Coeur** — rouge passion, ADD, double battement ~80 BPM + SCREEN glow
 - **Segment** — ***15 secondes*** — 19 lignes arc-en-ciel centrees, traversant l'ecran.
   Epaisseur de 0.6px (fil de lumiere) a 80px (faisceau). Trois groupes de rotation
   a vitesses et sens differents. Orbites. Sobel. Pixelate. Chromatic. Sans noircissement.
-- **Fleur** — turquoise, SCREEN, revelation petale par petale + LIGHTEST alterne
+- **Rafale** — turquoise, SCREEN, etoile a 14 pointes + LIGHTEST alterne
 
-### Acte 3 — L'APOTHÉOSE — 5 actes en 180 secondes (48 spots, 2 univers)
+### Acte 3 — L'APOTHÉOSE — 5 actes en 180 secondes (48 spots, 3 univers)
 
 **1. EXPLOSION** — 48 spots jaillissent du centre en burst radial. Toutes les formes.
 Arc-en-ciel total. Blur en fondu.
@@ -88,7 +87,7 @@ Puis tout recommence.
 **3 univers ArtNet** — 65 spots maximum
 **20 polices** — de BebasNeue au pixel de PressStart2P, de l'art deco de PoiretOne a l'Orbitron futuriste
 **10 blend modes** — BLEND, ADD, SCREEN, DIFFERENCE, EXCLUSION, LIGHTEST, DARKEST, MULTIPLY, SUBTRACT, REPLACE
-**6 effets PostFX** — blur, pixelate, sobel, RGB split, saturation, chromatic aberration
+**9 effets PostFX** — blur, pixelate, sobel, RGB split, saturation, chromatic, feedback, bloom, kaleidoscope
 **8 blades** — couteaux 16-bit, animation choreographiee
 
 ---

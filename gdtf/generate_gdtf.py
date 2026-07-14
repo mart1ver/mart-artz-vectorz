@@ -6,13 +6,17 @@ Un fichier .gdtf est un ZIP contenant description.xml
 
 Fixtures produites :
   LuxCore_Spot_23ch.gdtf  — à patcher N fois (un par spot)
-  LuxCore_Base_28ch.gdtf  — à patcher une fois (fond + blades + effets)
+  LuxCore_Base_32ch.gdtf  — à patcher une fois (fond + blades + effets + PostFX)
 
 Patch (adresses 1-based) :
   Base  : adresse 1
-  Spot0 : adresse 29  (= 28 + 0×23 + 1)
-  Spot1 : adresse 52  (= 28 + 1×23 + 1)
-  SpotN : adresse 28 + N×23 + 1
+  Spot0 : adresse 33  (= 32 + 0×23 + 1)
+  Spot1 : adresse 56  (= 32 + 1×23 + 1)
+  SpotN : adresse 32 + N×23 + 1
+
+Le bloc de base fait 32 canaux (28 d'origine + 4 PostFX : feedback, bloom seuil,
+bloom intensité, kaléidoscope). Le canal Mode du spot code des VALEURS LITTÉRALES
+(le moteur lit l'octet brut) : 0..14 = formes, 100..113 = forme remplie par la vidéo.
 """
 
 import zipfile
@@ -30,7 +34,7 @@ def spot_xml():
     ShortName="LCSpot"
     LongName="LuxCore DMX Engine - Spot"
     Manufacturer="Martin Vert"
-    Description="Spot vectoriel 23ch : RGB fill, alpha, stroke, taille Pan/Tilt 16-bit, rotation 16-bit, position Pan/Tilt 16-bit, mode (15 formes), enable, blend mode individuel, font index. Multi-univers : 43 spots sur 2 univers, 65 spots sur 3 univers."
+    Description="Spot vectoriel 23ch : RGB fill, alpha, stroke, taille Pan/Tilt 16-bit, rotation 16-bit, position Pan/Tilt 16-bit, mode (14 formes 0..14 dont 13=Rafale, 14=Video ; bande 100..113 = forme remplie par la video), enable, blend mode individuel, police/selecteur video. Adresse spot N = 32 + N*23 + 1. Multi-univers : 20 spots/univers, 43 sur 2, 65 sur 3."
     FixtureTypeID="{fid}"
     RefFT=""
     Thumbnail="">
@@ -47,14 +51,14 @@ def spot_xml():
         <Attribute Name="StrokeG"      Pretty="Stroke G" Activation="None"     Feature="Color.Color"       PhysicalUnit="None"  Color="0.3 0.6 0.15"/>
         <Attribute Name="StrokeB"      Pretty="Stroke B" Activation="None"     Feature="Color.Color"       PhysicalUnit="None"  Color="0.15 0.06 0.79"/>
         <Attribute Name="Zoom"         Pretty="Size Pan" Activation="Zoom"     Feature="Beam.Beam"         PhysicalUnit="Angle" Color="0.32 0.32 0.32"/>
-        <Attribute Name="SizeTilt"     Pretty="Size Tilt"Activation="None"     Feature="Beam.Beam"         PhysicalUnit="None"  Color="0.32 0.32 0.32"/>
+        <Attribute Name="SizeTilt"     Pretty="Size Tilt" Activation="None"    Feature="Beam.Beam"         PhysicalUnit="None"  Color="0.32 0.32 0.32"/>
         <Attribute Name="Rotation"     Pretty="Rot"      Activation="Rotation" Feature="Position.PanTilt"  PhysicalUnit="Angle" Color="0.32 0.32 0.32"/>
         <Attribute Name="Pan"          Pretty="Pan"      Activation="Pan"      Feature="Position.PanTilt"  PhysicalUnit="Angle" Color="0.32 0.32 0.32"/>
         <Attribute Name="Tilt"         Pretty="Tilt"     Activation="Tilt"     Feature="Position.PanTilt"  PhysicalUnit="Angle" Color="0.32 0.32 0.32"/>
         <Attribute Name="Gobo1"        Pretty="Mode"     Activation="None"     Feature="Beam.Beam"         PhysicalUnit="None"  Color="0.32 0.32 0.32"/>
         <Attribute Name="Enable"       Pretty="Enable"   Activation="None"     Feature="Beam.Beam"         PhysicalUnit="None"  Color="0.32 0.32 0.32"/>
         <Attribute Name="BlendSpot"    Pretty="Blend/Sp" Activation="None"     Feature="Beam.Beam"         PhysicalUnit="None"  Color="0.32 0.32 0.32"/>
-        <Attribute Name="FontIndex"    Pretty="Font"     Activation="None"     Feature="Beam.Beam"         PhysicalUnit="None"  Color="0.32 0.32 0.32"/>
+        <Attribute Name="FontIndex"    Pretty="Font/Vid" Activation="None"     Feature="Beam.Beam"         PhysicalUnit="None"  Color="0.32 0.32 0.32"/>
       </Attributes>
       <ActivationGroups>
         <ActivationGroup Name="ColorMix"/>
@@ -181,25 +185,41 @@ def spot_xml():
             </LogicalChannel>
           </DMXChannel>
 
-          <!-- +19  Canal 20 : Mode / Forme (0-14) -->
+          <!-- +19  Canal 20 : Mode / Forme — VALEURS LITTÉRALES (octet brut) -->
+          <!-- 0..14 = formes ; 100..113 = même forme remplie par la vidéo (+22 = source) -->
           <DMXChannel DMXBreak="1" Offset="20" Highlight="0" Geometry="Body">
             <LogicalChannel Attribute="Gobo1" Snap="Yes" Master="None" MibFade="0" DMXChangeTimeLimit="0">
-              <ChannelFunction Attribute="Gobo1" Name="Mode" OriginalAttribute="" DMXFrom="0/1" Default="0/1" PhysicalFrom="0" PhysicalTo="14" RealFade="0" RealAcceleration="0">
-                <ChannelSet Name="0 Ellipse"   DMXFrom="0/1"  />
-                <ChannelSet Name="1 Rectangle" DMXFrom="18/1" />
-                <ChannelSet Name="2 Texte"     DMXFrom="36/1" />
-                <ChannelSet Name="3 Triangle"  DMXFrom="54/1" />
-                <ChannelSet Name="4 Pentagone" DMXFrom="72/1" />
-                <ChannelSet Name="5 Hexagone"  DMXFrom="91/1" />
-                <ChannelSet Name="6 Losange"   DMXFrom="109/1"/>
-                <ChannelSet Name="7 Octogone"  DMXFrom="127/1"/>
-                <ChannelSet Name="8 Etoile"    DMXFrom="145/1"/>
-                <ChannelSet Name="9 Croix"     DMXFrom="163/1"/>
-                <ChannelSet Name="10 Fleche"   DMXFrom="182/1"/>
-                <ChannelSet Name="11 Plus"     DMXFrom="200/1"/>
-                <ChannelSet Name="12 Coeur"    DMXFrom="218/1"/>
-                <ChannelSet Name="13 Segment"  DMXFrom="236/1"/>
-                <ChannelSet Name="14 Rafale"    DMXFrom="254/1"/>
+              <ChannelFunction Attribute="Gobo1" Name="Mode" OriginalAttribute="" DMXFrom="0/1" Default="0/1" PhysicalFrom="0" PhysicalTo="113" RealFade="0" RealAcceleration="0">
+                <ChannelSet Name="0 Ellipse"        DMXFrom="0/1"  />
+                <ChannelSet Name="1 Rectangle"      DMXFrom="1/1"  />
+                <ChannelSet Name="2 Texte"          DMXFrom="2/1"  />
+                <ChannelSet Name="3 Triangle"       DMXFrom="3/1"  />
+                <ChannelSet Name="4 Pentagone"      DMXFrom="4/1"  />
+                <ChannelSet Name="5 Hexagone"       DMXFrom="5/1"  />
+                <ChannelSet Name="6 Losange"        DMXFrom="6/1"  />
+                <ChannelSet Name="7 Octogone"       DMXFrom="7/1"  />
+                <ChannelSet Name="8 Etoile"         DMXFrom="8/1"  />
+                <ChannelSet Name="9 Croix"          DMXFrom="9/1"  />
+                <ChannelSet Name="10 Fleche"        DMXFrom="10/1" />
+                <ChannelSet Name="11 Coeur"         DMXFrom="11/1" />
+                <ChannelSet Name="12 Segment"       DMXFrom="12/1" />
+                <ChannelSet Name="13 Rafale"        DMXFrom="13/1" />
+                <ChannelSet Name="14 VIDEO"         DMXFrom="14/1" />
+                <ChannelSet Name="(15-99 = Rect.)"  DMXFrom="15/1" />
+                <ChannelSet Name="100 Ellipse+vid"  DMXFrom="100/1"/>
+                <ChannelSet Name="101 Rect+vid"     DMXFrom="101/1"/>
+                <ChannelSet Name="102 Texte+vid"    DMXFrom="102/1"/>
+                <ChannelSet Name="103 Triangle+vid" DMXFrom="103/1"/>
+                <ChannelSet Name="104 Penta+vid"    DMXFrom="104/1"/>
+                <ChannelSet Name="105 Hexa+vid"     DMXFrom="105/1"/>
+                <ChannelSet Name="106 Losange+vid"  DMXFrom="106/1"/>
+                <ChannelSet Name="107 Octo+vid"     DMXFrom="107/1"/>
+                <ChannelSet Name="108 Etoile+vid"   DMXFrom="108/1"/>
+                <ChannelSet Name="109 Croix+vid"    DMXFrom="109/1"/>
+                <ChannelSet Name="110 Fleche+vid"   DMXFrom="110/1"/>
+                <ChannelSet Name="111 Coeur+vid"    DMXFrom="111/1"/>
+                <ChannelSet Name="112 Segment+vid"  DMXFrom="112/1"/>
+                <ChannelSet Name="113 Rafale+vid"   DMXFrom="113/1"/>
               </ChannelFunction>
             </LogicalChannel>
           </DMXChannel>
@@ -233,10 +253,10 @@ def spot_xml():
             </LogicalChannel>
           </DMXChannel>
 
-          <!-- +22  Canal 23 : Font index (0-255, clampé sur nb polices dans data/fonts/) -->
+          <!-- +22  Canal 23 : Police (mode Texte) OU sélecteur de vidéo (mode VIDEO / forme+vidéo) -->
           <DMXChannel DMXBreak="1" Offset="23" Highlight="0" Geometry="Body">
             <LogicalChannel Attribute="FontIndex" Snap="Yes" Master="None" MibFade="0" DMXChangeTimeLimit="0">
-              <ChannelFunction Attribute="FontIndex" Name="Font Index" OriginalAttribute="" DMXFrom="0/1" Default="0/1" PhysicalFrom="0" PhysicalTo="255" RealFade="0" RealAcceleration="0"/>
+              <ChannelFunction Attribute="FontIndex" Name="Font / Video select" OriginalAttribute="" DMXFrom="0/1" Default="0/1" PhysicalFrom="0" PhysicalTo="255" RealFade="0" RealAcceleration="0"/>
             </LogicalChannel>
           </DMXChannel>
 
@@ -253,7 +273,7 @@ def spot_xml():
 
 
 def base_xml():
-    """LuxCore Base — 28 canaux DMX (fond + blades + effets)"""
+    """LuxCore Base — 32 canaux DMX (fond + blades + effets + PostFX)"""
     fid = str(uuid.uuid4())
     return f'''<?xml version="1.0" encoding="UTF-8"?>
 <GDTF DataVersion="1.2">
@@ -262,7 +282,7 @@ def base_xml():
     ShortName="LCBase"
     LongName="LuxCore DMX Engine - Base"
     Manufacturer="Martin Vert"
-    Description="Canaux de base LuxCore : fond RGB (1-3), 8 blades 16-bit (4-19), blend mode (20), blur (21-22), pixelate (23), sobel (24), rgb split (25), saturation (26-27), chromatic aberration (28)."
+    Description="Canaux de base LuxCore (32) : fond RGB (1-3), 8 blades 16-bit (4-19), blend mode (20), blur (21-22), pixelate (23), sobel (24), rgb split (25), saturation (26-27), chromatic aberration (28), feedback (29), bloom seuil (30), bloom intensite (31), kaleidoscope (32)."
     FixtureTypeID="{fid}"
     RefFT=""
     Thumbnail="">
@@ -274,21 +294,25 @@ def base_xml():
         <Attribute Name="ColorAdd_B" Pretty="BG B"      Activation="ColorMix" Feature="Color.Color" PhysicalUnit="None" Color="0.15 0.06 0.79"/>
         <Attribute Name="BladeA1"    Pretty="A1 top-L"  Activation="None"     Feature="Beam.Beam"   PhysicalUnit="None" Color="0.32 0.32 0.32"/>
         <Attribute Name="BladeA2"    Pretty="A2 top-R"  Activation="None"     Feature="Beam.Beam"   PhysicalUnit="None" Color="0.32 0.32 0.32"/>
-        <Attribute Name="BladeB1"    Pretty="B1 right-T"Activation="None"     Feature="Beam.Beam"   PhysicalUnit="None" Color="0.32 0.32 0.32"/>
-        <Attribute Name="BladeB2"    Pretty="B2 right-B"Activation="None"     Feature="Beam.Beam"   PhysicalUnit="None" Color="0.32 0.32 0.32"/>
+        <Attribute Name="BladeB1"    Pretty="B1 right-T" Activation="None"    Feature="Beam.Beam"   PhysicalUnit="None" Color="0.32 0.32 0.32"/>
+        <Attribute Name="BladeB2"    Pretty="B2 right-B" Activation="None"    Feature="Beam.Beam"   PhysicalUnit="None" Color="0.32 0.32 0.32"/>
         <Attribute Name="BladeC1"    Pretty="C1 bot-L"  Activation="None"     Feature="Beam.Beam"   PhysicalUnit="None" Color="0.32 0.32 0.32"/>
         <Attribute Name="BladeC2"    Pretty="C2 bot-R"  Activation="None"     Feature="Beam.Beam"   PhysicalUnit="None" Color="0.32 0.32 0.32"/>
         <Attribute Name="BladeD1"    Pretty="D1 left-T" Activation="None"     Feature="Beam.Beam"   PhysicalUnit="None" Color="0.32 0.32 0.32"/>
         <Attribute Name="BladeD2"    Pretty="D2 left-B" Activation="None"     Feature="Beam.Beam"   PhysicalUnit="None" Color="0.32 0.32 0.32"/>
         <Attribute Name="BlendMode"  Pretty="Blend"     Activation="None"     Feature="Beam.Beam"   PhysicalUnit="None" Color="0.32 0.32 0.32"/>
         <Attribute Name="BlurSize"   Pretty="Blur Size" Activation="None"     Feature="Beam.Beam"   PhysicalUnit="None" Color="0.32 0.32 0.32"/>
-        <Attribute Name="BlurSigma"  Pretty="Blur Sigma"Activation="None"     Feature="Beam.Beam"   PhysicalUnit="None" Color="0.32 0.32 0.32"/>
+        <Attribute Name="BlurSigma"  Pretty="Blur Sigma" Activation="None"    Feature="Beam.Beam"   PhysicalUnit="None" Color="0.32 0.32 0.32"/>
         <Attribute Name="Pixelate"   Pretty="Pixelate"  Activation="None"     Feature="Beam.Beam"   PhysicalUnit="None" Color="0.32 0.32 0.32"/>
         <Attribute Name="Sobel"      Pretty="Sobel"     Activation="None"     Feature="Beam.Beam"   PhysicalUnit="None" Color="0.32 0.32 0.32"/>
         <Attribute Name="RGBSplit"   Pretty="RGB Split" Activation="None"     Feature="Beam.Beam"   PhysicalUnit="None" Color="0.32 0.32 0.32"/>
         <Attribute Name="SatA"       Pretty="Sat A"     Activation="None"     Feature="Color.Color" PhysicalUnit="None" Color="0.32 0.32 0.32"/>
         <Attribute Name="SatB"       Pretty="Vib B"     Activation="None"     Feature="Color.Color" PhysicalUnit="None" Color="0.32 0.32 0.32"/>
         <Attribute Name="Chromatic"  Pretty="Chromatic" Activation="None"     Feature="Beam.Beam"   PhysicalUnit="None" Color="0.32 0.32 0.32"/>
+        <Attribute Name="Feedback"   Pretty="Feedback"  Activation="None"     Feature="Beam.Beam"   PhysicalUnit="None" Color="0.32 0.32 0.32"/>
+        <Attribute Name="BloomThr"   Pretty="Bloom Thr" Activation="None"     Feature="Beam.Beam"   PhysicalUnit="None" Color="0.32 0.32 0.32"/>
+        <Attribute Name="BloomAmt"   Pretty="Bloom Amt" Activation="None"     Feature="Beam.Beam"   PhysicalUnit="None" Color="0.32 0.32 0.32"/>
+        <Attribute Name="Kaleido"    Pretty="Kaleido"   Activation="None"     Feature="Beam.Beam"   PhysicalUnit="None" Color="0.32 0.32 0.32"/>
       </Attributes>
       <ActivationGroups>
         <ActivationGroup Name="ColorMix"/>
@@ -307,7 +331,7 @@ def base_xml():
     </Geometries>
 
     <DMXModes>
-      <DMXMode Name="28ch" Geometry="Body">
+      <DMXMode Name="32ch" Geometry="Body">
         <DMXChannels>
 
           <!-- Canaux 1-3 : RGB fond -->
@@ -463,6 +487,37 @@ def base_xml():
             </LogicalChannel>
           </DMXChannel>
 
+          <!-- Canal 29 : Feedback / trails (0=off, sinon persistance) -->
+          <DMXChannel DMXBreak="1" Offset="29" Highlight="0" Geometry="Body">
+            <LogicalChannel Attribute="Feedback" Snap="No" Master="None" MibFade="0" DMXChangeTimeLimit="0">
+              <ChannelFunction Attribute="Feedback" Name="Feedback" OriginalAttribute="" DMXFrom="0/1" Default="0/1" PhysicalFrom="0" PhysicalTo="255" RealFade="0" RealAcceleration="0"/>
+            </LogicalChannel>
+          </DMXChannel>
+
+          <!-- Canal 30 : Bloom seuil (luminance du glow) -->
+          <DMXChannel DMXBreak="1" Offset="30" Highlight="0" Geometry="Body">
+            <LogicalChannel Attribute="BloomThr" Snap="No" Master="None" MibFade="0" DMXChangeTimeLimit="0">
+              <ChannelFunction Attribute="BloomThr" Name="Bloom Threshold" OriginalAttribute="" DMXFrom="0/1" Default="0/1" PhysicalFrom="0" PhysicalTo="255" RealFade="0" RealAcceleration="0"/>
+            </LogicalChannel>
+          </DMXChannel>
+
+          <!-- Canal 31 : Bloom intensité (0=off, sinon force du halo) -->
+          <DMXChannel DMXBreak="1" Offset="31" Highlight="0" Geometry="Body">
+            <LogicalChannel Attribute="BloomAmt" Snap="No" Master="None" MibFade="0" DMXChangeTimeLimit="0">
+              <ChannelFunction Attribute="BloomAmt" Name="Bloom Amount" OriginalAttribute="" DMXFrom="0/1" Default="0/1" PhysicalFrom="0" PhysicalTo="255" RealFade="0" RealAcceleration="0"/>
+            </LogicalChannel>
+          </DMXChannel>
+
+          <!-- Canal 32 : Kaléidoscope (0/1=off, 2-255 = nb de branches) -->
+          <DMXChannel DMXBreak="1" Offset="32" Highlight="0" Geometry="Body">
+            <LogicalChannel Attribute="Kaleido" Snap="No" Master="None" MibFade="0" DMXChangeTimeLimit="0">
+              <ChannelFunction Attribute="Kaleido" Name="Kaleidoscope" OriginalAttribute="" DMXFrom="0/1" Default="0/1" PhysicalFrom="0" PhysicalTo="255" RealFade="0" RealAcceleration="0">
+                <ChannelSet Name="Off"       DMXFrom="0/1"/>
+                <ChannelSet Name="Branches"  DMXFrom="2/1"/>
+              </ChannelFunction>
+            </LogicalChannel>
+          </DMXChannel>
+
         </DMXChannels>
         <Relations/>
         <FTMacros/>
@@ -485,14 +540,14 @@ if __name__ == '__main__':
     out = os.path.dirname(os.path.abspath(__file__))
 
     write_gdtf(spot_xml(), os.path.join(out, 'LuxCore_Spot_23ch.gdtf'))
-    write_gdtf(base_xml(), os.path.join(out, 'LuxCore_Base_28ch.gdtf'))
+    write_gdtf(base_xml(), os.path.join(out, 'LuxCore_Base_32ch.gdtf'))
 
     print()
     print("Patch (adresses 1-based) :")
     print("  LuxCore Base  → adresse 1")
-    print("  LuxCore Spot0 → adresse 29  (= 28 + 0×23 + 1)")
-    print("  LuxCore Spot1 → adresse 52  (= 28 + 1×23 + 1)")
-    print("  LuxCore SpotN → adresse 28 + N×23 + 1")
+    print("  LuxCore Spot0 → adresse 33  (= 32 + 0×23 + 1)")
+    print("  LuxCore Spot1 → adresse 56  (= 32 + 1×23 + 1)")
+    print("  LuxCore SpotN → adresse 32 + N×23 + 1")
     print()
     print("Blend mode — valeurs DMX exactes :")
     print("  BLEND=0  ADD=29  SUBTRACT=57  DARKEST=85  LIGHTEST=114")

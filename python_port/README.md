@@ -45,9 +45,9 @@ Options : `--width/--height/--fps`, `--no-gui`, `--no-fonts`, `--preview-scale`,
 | `geometry.py` | les 14 formes en polygones-unité + triangulation ear-clip (VBO) |
 | `stroke.py` | ruban de contour (miter) + segment |
 | `text.py` | cache de glyphes 20 polices (mode TEXTE) |
-| `blades.py` | 4 couteaux de cadrage 16-bit |
-| `effects.py` | 6 post-effets bildspur portés en GLSL 330 |
-| `video.py` | décodage vidéo PyAV (mode forme VIDEO = 14) |
+| `blades.py` | 8 valeurs 16-bit (4 couteaux de cadrage A/B/C/D) |
+| `effects.py` | 9 post-effets portés en GLSL 330 |
+| `video.py` | décodage vidéo PyAV (mode VIDEO = 14, forme+vidéo = 100+forme) |
 | `gui.py` + `imgui_backend.py` | panneau imgui (config + status) |
 | `engine.py` | pipeline : `fond → spots → effets → blades → blur → NDI` |
 
@@ -55,6 +55,8 @@ Pipeline fidèle à Processing : `do_background → do_spots → do_effects →
 do_blades → do_blade_blur`.
 
 ## Pipeline DMX (rappel + extension)
+
+> Mapping complet et à jour : [`docs/PROTOCOLE_DMX.md`](../docs/PROTOCOLE_DMX.md).
 
 Identique au mapping Processing (`z_fixture_definition.pde`), **plus** (extensions
 propres au portage) :
@@ -97,17 +99,18 @@ ffmpeg -i src.mp4 -c copy -an -map 0:v:0 -f segment -segment_time 10 \
 ## Tests
 
 ```bash
-for t in dmx geometry stroke blades engine text effects; do
+for t in dmx geometry stroke blades engine text effects uyvy; do
   .venv/bin/python tests/test_$t.py; done
 ```
-43 tests (décodage, géométrie recalculée depuis le `.pde`, triangulation,
-contour, blades, intégration GL, polices, post-effets).
+49 tests, 8 fichiers (décodage, géométrie recalculée depuis le `.pde`,
+triangulation, contour, blades, intégration GL, polices, post-effets, UYVY).
 
 ## État
 
-Pipeline de rendu **complet** : 14 formes (fill/contour/texte/segment) + VIDEO,
-blades, 6 post-effets, GUI, sortie NDI. Perf ~45-56 fps à 1080p/48 spots sur
-iGPU Intel UHD 630 (2018) — plafond = readback NDI, pas le rendu.
+Pipeline de rendu **complet** : 14 formes (fill/contour/texte/segment) + VIDEO
++ forme+vidéo (mode 100+forme), blades, 9 post-effets, GUI, sortie NDI. Perf
+~45-56 fps à 1080p/48 spots sur iGPU Intel UHD 630 (2018) — plafond = readback
+NDI, pas le rendu.
 
 Optimisations connues pour 60 fps garanti sur scènes très denses : instancing
 des formes (une passe par type) + sortie NDI UYVY. Calibration fine possible des
