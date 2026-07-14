@@ -2,6 +2,24 @@
 
 ---
 
+## v2.6 — Documentation carrée + fixtures GDTF à jour (2026-07)
+
+- **Documentation réorganisée** pour un dépôt clair : `docs/PROTOCOLE_DMX.md`
+  (référence unique des canaux), `docs/ARCHITECTURE.md` (pipeline/NDI/vidéo/modules),
+  `docs/DEMOS.md` (guide des scripts), `docs/GDTF.md`. Le README racine devient une
+  vitrine avec liens. Fin des tables de canaux dupliquées (source des dérives 28↔32).
+- **Manifeste** promu à la racine (`MANIFESTO.md`), corrigé (14 formes).
+- **Archives assainies** : `docs/archive/` reçoit un index non-normatif ; suppression
+  des documents 100 % périmés (`DEMO_INSTRUCTIONS.txt`, ancien guide artistique,
+  ancien README de démos) ; le PV 2026 est archivé.
+- **Fixtures GDTF régénérées** : base **32 canaux** (`LuxCore_Base_32ch.gdtf`, avec
+  feedback/bloom/kaléido), canal Mode du spot en **valeurs DMX littérales** 0..14 +
+  bande **100..113** (forme remplie par la vidéo). Correction d'un XML non conforme
+  (attributs collés) dans le générateur. Adresse spot = `32 + N×23 + 1`.
+- **python_port/README** aligné : 9 post-effets, 49 tests (8 fichiers), forme+vidéo.
+
+---
+
 ## v2.5 — Forme+vidéo, forme « rafale », démo texte (2026-07)
 
 - **Forme remplie par la vidéo** : nouveau mode `+19 = 100 + forme` (0..13) — le spot

@@ -1051,12 +1051,12 @@ class DefileFormes:
         # chaque forme) : la scène vidéo dédiée a été retirée de la séquence.
         total = (duree_text + duree_intro
                  + len(FORMES) * (duree_par_forme + transition) + 180)
-        print("🎭 LUXCORE - DÉFILÉ DES 14 FORMES + FINALE (48 spots / 2 univers)")
+        print("🎭 LUXCORE - DÉFILÉ DES 14 FORMES + FINALE (48 spots / 3 univers)")
         print("=" * 48)
         print(f"   Texte intro : {duree_text:.0f}s (artnet_text)")
         print(f"   Intro       : {duree_intro:.0f}s (blades / vidéo de fond / blur)")
         print(f"   {len(FORMES)} formes × {duree_par_forme}s + {transition}s transition")
-        print("   Finale      : 180s (5 actes, 48 spots / 2 univers)")
+        print("   Finale      : 180s (5 actes, 48 spots / 3 univers)")
         print(f"   Durée totale : {total:.0f}s")
         print(f"   Cible       : {self.ip}:6454")
         print()

@@ -1,141 +1,37 @@
-# 🏛️ COMPTE-RENDU OFFICIEL - ASSEMBLÉE GÉNÉRALE HISTORIQUE
+# Renommage du projet — septembre 2025
 
-**Date :** 5 septembre 2025  
-**Objet :** Vote démocratique pour le renommage du projet et définition de la vision future  
-**Participants :** 8 agents spécialisés + Martin Vert (Créateur)  
+> **Archive historique — non normative.** Ce document conserve la trace d'une décision
+> passée. Pour l'état à jour du projet, voir la [documentation active](../../README.md).
 
----
-
-## 📋 ORDRE DU JOUR
-
-1. **Propositions de noms** par chaque agent selon son expertise
-2. **Vote démocratique** (système de points : 1er=3pts, 2ème=2pts, 3ème=1pt)  
-3. **Discours individuels** des agents
-4. **Débat contradictoire** sur l'avenir du projet
+**Date :** 5 septembre 2025
+**Auteur / décideur :** Martin Vert
 
 ---
 
-## 🗳️ RÉSULTATS DU VOTE DÉMOCRATIQUE
+## Décision
 
-### Agents Participants :
-- 🎨 ui-artist-designer
-- ⚡ lighting-designer-expert  
-- 💼 business-opportunity-analyst
-- 💻 code-expert-pro
-- 🚀 project-visionary
-- 📚 git-specialist
-- 🔍 code-quality-auditor
-- 📖 documentation-specialist
+Le projet est officiellement renommé :
 
-### Votes Comptabilisés :
-**GAGNANT OFFICIEL :** **LuxCore DMX Engine** - **6 points**
-- Code-Expert-Pro (3 pts) + Code-Quality-Auditor (3 pts)
+**« Martz Artz Verctorz » → « LuxCore DMX Engine »** (commit `c4176fd`).
 
-**2ème place :** ArtNet Vector Engine - 5 points  
-**3ème place :** PixelFlow Studio - 5 points
+Plusieurs noms avaient été envisagés (dont *ArtNet Vector Engine* et *PixelFlow
+Studio*) ; **LuxCore DMX Engine** a été retenu pour sa lisibilité et sa clarté
+technique.
 
-### Décision Adoptée :
-**RENOMMAGE OFFICIEL : "Martz Artz Verctorz" → "LuxCore DMX Engine"**
+## Actions associées
 
----
+- Nouveau nom affiché dans l'interface (GUI).
+- Historique consigné dans la documentation du projet.
+- Branches Git et merges tenus propres.
 
-## 🎤 SYNTHÈSE DES DISCOURS
+## Vision retenue
 
-### 🎨 UI-Artist-Designer
-- **Vision :** "Symphonie de lumière et code qui transcende les frontières"
-- **Impact culturel :** Démocratisation de l'art technologique
-- **Engagement :** Développer interfaces esthétiques inspirées des grands maîtres
+> *« LuxCore DMX Engine : moteur de visualisation DMX/ArtNet temps réel privilégiant
+> l'excellence technique et la création artistique, sans compromis sur la qualité ni
+> promesses commerciales. »*
 
-### ⚡ Lighting-Designer-Expert  
-- **Excellence technique :** Protocoles DMX/ArtNet conformes aux standards ESTA
-- **Impact industrie :** Alternative accessible aux consoles professionnelles (MA3, Hog4)
-- **Engagement :** Validation selon protocoles industrie rigoureux
-
-### 💼 Business-Opportunity-Analyst
-- **Analyse marché :** 15 milliards € (industrie spectacle), potentiel disruptif identifié
-- **Positionnement :** "Blender de l'éclairage" - solution démocratisée
-- **INCIDENT :** Discours interrompu par huées de Martin (approche commerciale excessive)
-
-### 💻 Code-Expert-Pro
-- **Approche pragmatique :** Recentrage sur les défis techniques concrets  
-- **Engagement :** Analyse code, optimisations, documentation métriques
-- **Message :** "Pas de promesses grandioses, juste du travail d'ingénieur rigoureux"
-
-### Interventions Complémentaires :
-- **🚀 Project-Visionary :** Vision humble d'évolution organique
-- **📚 Git-Specialist :** Engagement versions propres et collaboration fluide
-- **🔍 Code-Quality-Auditor :** Audit rigoureux des améliorations
-- **📖 Documentation-Specialist :** Documentation accessible pour tous
+Le projet reste une **création artistique pure**, non commerciale.
 
 ---
 
-## ⚖️ INCIDENT PARLEMENTAIRE
-
-**Nature :** Huées de Martin lors du discours Business-Opportunity-Analyst  
-**Cause :** Survente commerciale excessive, projections ROI trop optimistes  
-**Résolution :** Recentrage sur l'excellence technique par Code-Expert-Pro  
-**Leçon :** Privilégier approche humble et technique vs marketing agressif
-
----
-
-## ✅ ACTIONS ADOPTÉES
-
-1. ✅ **Renommage officiel :** LuxCore DMX Engine (commit c4176fd)
-2. ✅ **Mise à jour GUI :** Nouveau nom affiché dans l'interface  
-3. ✅ **Documentation :** CLAUDE.md mis à jour avec historique
-4. ✅ **Git :** Branches et merge propres selon standards
-
----
-
-## 🎯 VISION CONSENSUELLE ADOPTÉE
-
-**"LuxCore DMX Engine : Moteur de visualisation DMX/ArtNet temps réel privilégiant l'excellence technique et l'innovation créative, sans compromis sur la qualité ni promesses commerciales excessives."**
-
----
-
-## 📅 SUITE DES TRAVAUX
-
-**PROCHAINE ÉTAPE :** Débat contradictoire entre agents pour définir priorités de développement
-
-**Secrétaire de séance :** Claude Code Assistant  
-**Président :** Martin Vert (Créateur et seul décideur final)
-
----
-
-## 🎬 DÉMONSTRATION FINALE
-
-**Démonstration live réussie !** ✅  
-- Scripts ArtNet corrigés et fonctionnels
-- LuxCore DMX Engine opérationnel en temps réel  
-- Séquences spectaculaires validées par l'assemblée
-- Collaboration Martin-Claude confirmée pour améliorations futures
-
-**Réaction unanime des agents : SUCCÈS TOTAL !** 🎊
-
-## 🤝 PERSPECTIVES D'ÉVOLUTION
-
-**Engagement Martin :** Améliorations collaboratives futures  
-**Engagement Claude :** Assistance technique continue  
-**Objectif :** Développement nouvelles prestations visuelles  
-
----
-
-## ✅ DÉCISIONS FINALES ADOPTÉES
-
-1. **Nom officiel :** LuxCore DMX Engine  
-2. **Approche :** Création artistique pure (non commerciale)
-3. **Développement :** Collaboration technique Martin-Claude
-4. **Vision :** Excellence art + technique pour nouvelles prestations
-
----
-
-**🏛️ ASSEMBLÉE GÉNÉRALE HISTORIQUE CLÔTURÉE ✅**  
-**Date fin de séance :** 5 septembre 2025 - 23h00  
-**Status :** SUCCÈS COMPLET - TOUS OBJECTIFS ATTEINTS  
-
-**Secrétaire de séance :** Claude Code Assistant  
-**Président :** Martin Vert - Créateur LuxCore DMX Engine  
-
----
-
-# 🎊 **YOUPI ! FIN DE SÉANCE !** 🎊
+*Seul auteur et créateur : Martin Vert.*
