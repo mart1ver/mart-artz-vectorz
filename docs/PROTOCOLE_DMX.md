@@ -1,89 +1,140 @@
 # Protocole DMX / ArtNet — LuxCore DMX Engine
 
-**Auteur : Martin Vert**
+**Auteur : Martin Vert** (mart1ver@gmail.com)
 
-Référence unique du protocole. Toutes les autres pages renvoient ici plutôt que de
-recopier les tableaux de canaux. La **source de vérité** reste le code
-([`python_port/luxcore/constants.py`](../python_port/luxcore/constants.py) et
-[`dmx.py`](../python_port/luxcore/dmx.py)) ; cette page en est le miroir lisible.
+Référence unique et exhaustive du protocole DMX / ArtNet du moteur **LuxCore**. Toutes
+les autres pages renvoient ici plutôt que de recopier les tableaux de canaux.
+
+> **Source de vérité :** le code fait foi — [`python_port/luxcore/constants.py`](../python_port/luxcore/constants.py)
+> (mapping, LUT, enums, `BG_FIXTURE_SLOT`) et [`python_port/luxcore/dmx.py`](../python_port/luxcore/dmx.py)
+> (décodage 1:1). Cette page en est le **miroir lisible** : en cas de divergence,
+> `constants.py` gagne.
 
 ---
 
 ## Vue d'ensemble
 
 | Élément | Valeur |
-|---|---|
-| Transport | ArtNet UDP, port **6454**, cible par défaut `127.0.0.1` |
-| Univers | 0 à 8 (`MAX_UNIVERSES = 9`), buffer 512 × 9 = 4608 octets |
-| Bloc de base | **32 canaux** (fond + blades + 9 PostFX), au tout début de l'univers 0 |
-| Par fixture | **23 canaux** ; adresse du 1ᵉʳ canal = `32 + spot_id × 23` |
-| Capacité | **20 fixtures/univers** — 43 sur 2, 65 sur 3 |
+|---------|--------|
+| Transport | ArtNet, **UDP port 6454** (OpDmx `0x5000`), cible par défaut `127.0.0.1` |
+| Univers | 0..8 (`MAX_UNIVERSES = 9`), Port-Address 15-bit standard |
+| Taille d'un univers | 512 octets (`UNIVERSE_SIZE`) |
+| Buffer DMX complet | `512 × 9 = 4608` octets |
+| Bloc de base | **32 canaux** (`NUM_BASE_PARAMETERS`), au tout début de l'univers 0 |
+| Bloc par fixture / spot | **23 canaux** (`NUM_PARAMS_PER_SPOT`) |
+| Capacité | `(512 − 32) / 23 =` **20 fixtures / univers** (43 sur 2, 65 sur 3) |
 | Fixture de fond | slot réservé **60** (`BG_FIXTURE_SLOT`, adresse 1412) |
-| Sortie | **NDI « LuxCore »** (UYVY 4:2:2) |
+| Sortie | **NDI « LuxCore »** en UYVY 4:2:2 (par défaut 1920×1080 @ 60) |
 
-> **0-based vs 1-based.** Le code indexe le tableau d'octets à partir de 0. Une
-> console DMX numérote les canaux à partir de 1. Les tableaux ci-dessous donnent le
-> **canal 1-based** (colonne « Canal ») et l'**offset 0-based** relatif au spot.
+Le buffer DMX est la **source de vérité** : l'ArtNet arrive dans `artnet.py` (thread
+UDP), `dmx.py` décode chaque canal, `engine.py` rend l'image, puis la frame part en NDI.
 
----
+Adresse du 1ᵉʳ canal d'un spot : `spot_base_addr(id) = 32 + id × 23`. Garder `num_spots ≤ 60`.
 
-## Bloc de base — 32 canaux
+### Convention d'indexation — 0-based vs 1-based
 
-| Canal | Paramètre | Détail |
-|---|---|---|
-| 1-3 | **RGB fond** | couleur d'arrière-plan |
-| 4-19 | **8 blades 16-bit** | A1, A2, B1, B2, C1, C2, D1, D2 (2 octets chacun) |
-| 20 | Blend mode global | via LUT (voir plus bas) |
-| 21-22 | Blur size / sigma | s'applique aussi sur les blades |
-| 23 | Pixelate | |
-| 24 | Sobel | **bistable** (> 128 = on) |
-| 25 | RGB Split | |
-| 26-27 | Saturation A / B | |
-| 28 | Chromatic aberration | **bistable** (> 128 = on) |
-| 29 | **Feedback / trails** | 0 = off, sinon persistance |
-| 30 | **Bloom seuil** | luminance du glow |
-| 31 | **Bloom intensité** | 0 = off, sinon force du halo |
-| 32 | **Kaléidoscope** | 0/1 = off, 2-24 = nombre de branches |
-
-Les canaux 29-32 sont les 4 PostFX ajoutés lors du portage (le bloc est passé de 28
-à 32 canaux). Les 4 « couteaux » physiques A/B/C/D sont pilotés par **8 valeurs
-16-bit** (2 par couteau), soit les canaux 4 à 19.
+> Le **CODE** est en **base 0** : c'est l'index du tableau `dmx_data[]` (le premier canal
+> est l'index `0`). Une console DMX (et `CLAUDE.md`, et le patch GDTF) numérote les canaux
+> à partir de **1**. Exemples :
+> - « RGB fond 1-3 » (1-based) = index **0-2** (0-based).
+> - « PostFX 29-32 » (1-based) = index **28-31** (0-based).
+>
+> Les deux conventions désignent exactement les mêmes octets. Le bloc de base ci-dessous
+> est donné en **canal 1-based** ; les spots en **offset 0-based** relatif à leur adresse.
+> Ne jamais confondre les deux comptages.
 
 ---
 
-## Par fixture — 23 canaux
+## Tailles globales (`constants.py`)
 
-Adresse absolue du 1ᵉʳ canal = `32 + spot_id × 23`.
-
-| Offset | Paramètre | Résolution |
-|---|---|---|
-| +0..+2 | RGB fill | 8-bit |
-| +3 | Alpha | 8-bit |
-| +4 | Stroke weight | 8-bit |
-| +5 | Stroke alpha | 8-bit |
-| +6..+8 | RGB stroke | 8-bit |
-| +9..+10 | Taille Pan (largeur) | 16-bit → 0..1000 |
-| +11..+12 | Taille Tilt (hauteur) ; **mode Texte : code ASCII** | 16-bit |
-| +13..+14 | Rotation | 16-bit → 0..360° |
-| +15..+16 | Position Pan (X), 32767 = centre | 16-bit |
-| +17..+18 | Position Tilt (Y), 32767 = centre | 16-bit |
-| +19 | **Mode / forme** | 8-bit (octet brut) |
-| +20 | Enable (0 = off, > 0 = on) | 8-bit |
-| +21 | Blend mode individuel (0 = global, sinon LUT) | 8-bit |
-| +22 | **mode Texte : police** · **mode VIDEO / forme+vidéo : sélecteur de vidéo** | 8-bit |
-
-Une fixture est *dessinée* si elle est activée **et** `alpha > 0`.
+| Constante | Valeur | Sens |
+|-----------|--------|------|
+| `NUM_BASE_PARAMETERS` | 32 | bloc de base (28 d'origine + 4 PostFX) |
+| `NUM_PARAMS_PER_SPOT` | 23 | canaux par fixture / spot |
+| `UNIVERSE_SIZE` | 512 | octets par univers |
+| `MAX_UNIVERSES` | 9 | univers 0..8 → buffer `512 × 9 = 4608` octets |
+| `BG_FIXTURE_SLOT` | 60 | fixture de fond, adresse `32 + 60×23 = 1412` (univers 2, offset 388) |
 
 ---
 
-## Canal Mode (+19)
+## Bloc de base — 32 canaux (index 0..31, 0-based)
 
-Le moteur lit l'**octet brut**. Deux plages :
+| Index | Canal | Constante | Paramètre | Décodage |
+|-------|-------|-----------|-----------|----------|
+| 0 | 1 | `CH_BG_R` | Fond R | `& 0xFF` |
+| 1 | 2 | `CH_BG_G` | Fond G | `& 0xFF` |
+| 2 | 3 | `CH_BG_B` | Fond B | `& 0xFF` |
+| 3..18 | 4-19 | `BLADE_BASE_OFFSET` = 3 | 8 blades 16-bit (A1,A2,B1,B2,C1,C2,D1,D2) | `u16(buf, 3 + 2·i)`, i = 0..7 |
+| 19 | 20 | `CH_BLEND_GLOBAL` | Blend mode global | `BLEND_LUT[raw]` |
+| 20 | 21 | `CH_BLUR_SIZE` | Blur size | `& 0xFF` |
+| 21 | 22 | `CH_BLUR_SIGMA` | Blur sigma | `& 0xFF` |
+| 22 | 23 | `CH_PIXELATE` | Pixelate | `& 0xFF` |
+| 23 | 24 | `CH_SOBEL` | Sobel | **bistable** `raw > 128` |
+| 24 | 25 | `CH_RGB_SPLIT` | RGB split | `& 0xFF` |
+| 25 | 26 | `CH_SATURATION_A` | Saturation A | `& 0xFF` |
+| 26 | 27 | `CH_SATURATION_B` | Saturation B (vibrance) | `& 0xFF` |
+| 27 | 28 | `CH_CHROMATIC` | Chromatic aberration | **bistable** `raw > 128` |
+| 28 | 29 | `CH_FEEDBACK` | Feedback / traînées (0 = off) | `& 0xFF` |
+| 29 | 30 | `CH_BLOOM_THRESHOLD` | Bloom seuil (luminance glow) | `& 0xFF` |
+| 30 | 31 | `CH_BLOOM_AMOUNT` | Bloom intensité (0 = off) | `& 0xFF` |
+| 31 | 32 | `CH_KALEIDO` | Kaléidoscope (0/1 = off, 2-255 = branches) | `& 0xFF` |
+
+Les 4 « couteaux » physiques A/B/C/D sont pilotés par **8 valeurs 16-bit** (2 par couteau),
+soit les canaux 4 à 19 (blur des canaux 21-22 s'applique aussi sur les blades).
+
+> **PostFX ajoutés.** Les 4 canaux PostFX occupent les index **28..31** (canaux 29..32),
+> dans l'ordre : Feedback (28) · Bloom seuil (29) · Bloom intensité (30) · Kaléidoscope (31).
+>
+> **Bistables (> 128) :** Sobel (index 23) et Chromatic (index 27) — un octet ≤ 128 les laisse OFF.
+>
+> **Kaléido :** 0 ET 1 = off ; seules les valeurs 2..255 activent (nombre de branches).
+
+---
+
+## Bloc par fixture / spot — 23 canaux
+
+Offset relatif à `base_addr = 32 + id × 23`.
+
+| Offset | Constante | Paramètre | Résolution / mapping |
+|--------|-----------|-----------|----------------------|
+| +0 | `SP_FILL_R` | Fill R | 8-bit |
+| +1 | `SP_FILL_G` | Fill G | 8-bit |
+| +2 | `SP_FILL_B` | Fill B | 8-bit |
+| +3 | `SP_ALPHA` | Alpha | 8-bit |
+| +4 | `SP_STROKE_WEIGHT` | Stroke weight | 8-bit |
+| +5 | `SP_STROKE_ALPHA` | Stroke alpha | 8-bit |
+| +6 | `SP_STROKE_R` | Stroke R | 8-bit |
+| +7 | `SP_STROKE_G` | Stroke G | 8-bit |
+| +8 | `SP_STROKE_B` | Stroke B | 8-bit |
+| +9..+10 | `SP_SIZE_PAN` = 9 | Taille Pan (largeur) | 16-bit → `map(0..65535 → 0..1000)` |
+| +11..+12 | `SP_SIZE_TILT` = 11 | Taille Tilt (hauteur ; **mode Texte : code ASCII**) | 16-bit → `map(0..65535 → 0..1000)` |
+| +13..+14 | `SP_ROTATION` = 13 | Rotation | 16-bit → `map(0..65535 → 0..360)` deg |
+| +15..+16 | `SP_POS_PAN` = 15 | Position Pan (X) | 16-bit → `map(0..65535 → −255−half_w, 255+half_w)`, **32767 = centre** |
+| +17..+18 | `SP_POS_TILT` = 17 | Position Tilt (Y) | 16-bit → `map(0..65535 → −255−half_h, 255+half_h)`, **32767 = centre** |
+| +19 | `SP_MODE` | Mode / forme (octet brut 0..255) | voir modes ci-dessous |
+| +20 | `SP_ENABLE` | Enable | `raw > 0` = on |
+| +21 | `SP_BLEND` | Blend individuel | `0` = blend global, sinon `BLEND_LUT[raw]` |
+| +22 | `SP_FONT` | mode Texte : **police** ; mode VIDEO / forme+vidéo : **sélecteur vidéo** (`sel_raw` brut) | voir font_index |
+
+`font_index` (mode Texte) : `font_index = (raw × max(1, n_fonts)) // 256`, puis
+`clamp(0, n_fonts − 1)`. `sel_raw` = même octet +22 brut, réinterprété en mode VIDEO par
+l'engine. Le canal +22 a donc un **double sens**.
+
+Le mapping position pan/tilt dépend de la taille de la fenêtre (`half_w`/`half_h`) et
+**n'est pas clampé** (`pmap` = map Processing sans borne).
+
+**Règle drawable :** `is_drawable()` = `enabled AND alpha > 0` — un spot est ignoré sinon.
+
+---
+
+## Canal Mode (+19, `SP_MODE`) — 15 modes + bande forme+vidéo
+
+Le moteur lit l'**octet brut**.
 
 ### Formes 0..14
 
-| Val | Forme | | Val | Forme |
-|---|---|---|---|---|
+| Val | Forme (enum `Shape`) | | Val | Forme |
+|-----|----------------------|---|-----|-------|
 | 0 | Ellipse | | 8 | Étoile (5 branches) |
 | 1 | Rectangle | | 9 | Croix (12 vertices) |
 | 2 | Texte | | 10 | Flèche |
@@ -93,73 +144,87 @@ Le moteur lit l'**octet brut**. Deux plages :
 | 6 | Losange | | 14 | **Vidéo** (quad texturé, source = +22) |
 | 7 | Octogone | | | |
 
-Toute valeur hors 0..14 (et hors plage vidéo ci-dessous) retombe sur **Rectangle**.
-La forme « Plus » de l'ère Processing a été retirée au portage.
+`MAX_SHAPE_MODE = 14`. Toute valeur hors 0..14 (et hors bande 100..113) tombe dans le
+`default` du switch → **RECTANGLE**. La forme « Plus » de l'ère Processing a été retirée
+au portage.
 
-### Forme remplie par la vidéo : 100 + forme (100..113)
+### Bande « forme remplie par la vidéo » — `VIDEO_FILL_MODE_BASE = 100`
 
-`+19 = 100 + forme` → le spot prend la **silhouette** de la forme mais est **texturé
-par la vidéo** (source via +22) au lieu d'une couleur unie.
+`+19 = 100 + forme` avec forme ∈ 0..13 → plage **100..113**. Le spot prend la
+**silhouette** de la forme (triangulation) mais est **texturé par la vidéo** (source via
++22) au lieu d'une couleur unie. Rétrocompatible : les modes 0..14 restent inchangés.
 
-```
-100 Ellipse+vid   103 Triangle+vid   106 Losange+vid   109 Croix+vid    112 Segment+vid
-101 Rect+vid      104 Penta+vid      107 Octo+vid      110 Fleche+vid   113 Rafale+vid
-102 Texte+vid     105 Hexa+vid       108 Etoile+vid    111 Coeur+vid
-```
-
-Rétrocompatible : les modes 0..14 sont inchangés. (114 n'est pas traité : le mode 14
-est déjà la vidéo plein quad.)
+- `video_fill` = vrai si `100 ≤ mode ≤ 113`.
+- Forme effective : si `video_fill`, soustraire 100 ; sinon mode brut. Hors 0..14 → RECTANGLE.
+- Exemples : `100` = ellipse vidéo, `103` = triangle vidéo, `113` = rafale vidéo.
 
 ---
 
-## Fixture unifiée + fond vidéo
+## Fixture unifiée & fond vidéo
 
-- **Une seule sorte de fixture.** Le mode `+19 = 14` (VIDEO) transforme n'importe
-  quelle fixture en panneau vidéo : la vidéo de `data/videos/` est choisie par `+22`,
-  la taille est ré-échelonnée (plein écran possible).
+- **Une seule sorte de fixture** (23 canaux). Le canal `+19` la transforme : `14` (VIDEO)
+  en fait un panneau vidéo (source via +22, échelle plein écran possible), et la bande
+  `100..113` la texture d'une vidéo dans la silhouette d'une forme.
 - **Désynchronisation** : chaque vidéo garde un anneau de ses 16 dernières frames ;
-  plusieurs panneaux d'une même source échantillonnent des frames décalées.
-- **Fixture de fond** (slot **60**) : en mode 14, vidéo plein écran **derrière** tous
-  les spots (source via +22, `alpha` pour la fondre avec la couleur RGB). Garder
-  `num_spots <= 60`.
+  plusieurs panneaux d'une même source échantillonnent des frames décalées (écho temporel).
+- **Fixture de fond** : slot réservé **60** (`BG_FIXTURE_SLOT`), même layout 23 canaux
+  qu'un spot, adresse `bg_fixture_base_addr() = spot_base_addr(60) = 1412`. Dessinée
+  **DERRIÈRE** tous les spots ; en mode 14 (VIDEO) = vidéo plein écran choisie par +22 ;
+  sinon le fond reste la couleur RGB des canaux de base 0-2.
 
 ---
 
-## Blend modes — valeurs DMX exactes
+## Blend modes — enum + LUT
 
-```
-BLEND=0  ADD=29  SUBTRACT=57  DARKEST=85  LIGHTEST=114
-DIFFERENCE=142  EXCLUSION=170  MULTIPLY=199  SCREEN=227  REPLACE=255
-```
+Ordre `BlendMode` (index 0..9) : BLEND=0, ADD=1, SUBTRACT=2, DARKEST=3, LIGHTEST=4,
+DIFFERENCE=5, EXCLUSION=6, MULTIPLY=7, SCREEN=8, REPLACE=9.
 
-La LUT choisit le mode le plus proche (plus proche voisin). Sur fond **noir** :
-ADD, BLEND, LIGHTEST, DIFFERENCE, EXCLUSION, SCREEN fonctionnent. Sur fond **blanc** :
-BLEND, DIFFERENCE, EXCLUSION seulement (ADD/LIGHTEST/SCREEN → invisibles).
+Valeurs DMX exactes `BLEND_DMX_VALUES` (à envoyer sur le canal de base 20 / offset +21) :
+
+| Mode | DMX | | Mode | DMX |
+|------|-----|---|------|-----|
+| BLEND | 0 | | DIFFERENCE | 142 |
+| ADD | 29 | | EXCLUSION | 170 |
+| SUBTRACT | 57 | | MULTIPLY | 199 |
+| DARKEST | 85 | | SCREEN | 227 |
+| LIGHTEST | 114 | | REPLACE | 255 |
+
+`BLEND_LUT[256]` : LUT plus-proche-voisin DMX 0-255 → BlendMode. Tie-break **strict**
+(`dist < best_dist`) : au point médian, l'index **inférieur** gagne (14 → BLEND, 15 → ADD).
+
+**Compatibilité fond :**
+- sur fond **noir** : ADD, BLEND, LIGHTEST, DIFFERENCE, EXCLUSION, SCREEN fonctionnent ;
+- sur fond **blanc** : seuls BLEND, DIFFERENCE, EXCLUSION (ADD/LIGHTEST/SCREEN → invisibles).
 
 ---
 
 ## Encodages
 
-### 16-bit
+### 16-bit big-endian
+
+Lecture `u16(buf, i) = (buf[i] << 8) | buf[i+1]` (MSB en premier). Écriture :
 
 ```python
 def set16(dmx, idx, val):
     val = max(0, min(65535, int(val)))
-    dmx[idx]     = (val >> 8) & 0xFF
-    dmx[idx + 1] = val & 0xFF
+    dmx[idx]     = (val >> 8) & 0xFF   # MSB
+    dmx[idx + 1] = val & 0xFF          # LSB
 # Centre écran = 32767 ; rotation 180° = int(180 * 65535 / 360)
 ```
 
 ### Texte (mode 2)
 
-`size_tilt` (+11..+12) encode le caractère ASCII. Utiliser **`math.ceil()`** — `int()`
-tronque et décale d'un caractère :
+Le caractère est encodé dans `size_tilt` (+11/+12). En envoi, `math.ceil` est
+**OBLIGATOIRE** (pas `int`, qui tronque et glisse au caractère précédent) :
 
 ```python
 tilt_16bit = math.ceil(ord(c) * 65535 / 1000)
 ```
 
-### Paquet ArtNet
+Décodage moteur : `text_char = chr(int(size_tilt) & 0xFF)`, où
+`size_tilt = map(tilt_16, 0..65535 → 0..1000)`.
+
+### Paquet ArtNet (OpDmx, port 6454)
 
 ```python
 header = b"Art-Net\x00"
@@ -168,27 +233,45 @@ pkt = header + (0x5000).to_bytes(2, 'little') + bytes([0, 14, 0, 0, 0, 0]) \
 sock.sendto(pkt, ("127.0.0.1", 6454))
 ```
 
-Toujours clamper : `bytes(max(0, min(255, int(v))) for v in dmx)`.
+Toujours clamper l'octet : `bytes(max(0, min(255, int(v))) for v in dmx)`. L'univers est
+lu en **Port-Address 15-bit standard** (octets 14/15) ; pour un multi-univers, découper le
+buffer en tranches de 512 octets (u0 → 0-511, u1 → 512-1023, …).
 
 ---
 
 ## Capacité DMX
 
+`(512 − 32) / 23 =` **20 fixtures / univers**.
+
 | Configuration | Fixtures max |
-|---|---|
-| 1 univers (512 oct.) | **20** — `(512 − 32) / 23 = 20,86` |
+|---------------|--------------|
+| 1 univers (512 oct.) | **20** |
 | 2 univers | 43 |
 | 3 univers | 65 |
 
+Adresse du 1ᵉʳ canal d'un spot : `spot_base_addr(id) = 32 + id × 23`. Garder `num_spots ≤ 60`.
+
 ---
 
-## Polices (mode Texte, canal +22)
+## Polices disponibles (mode Texte, canal +22)
 
-20 polices TTF dans `data/fonts/`, chargées par `luxcore/text.py` :
+20 fichiers TTF dans `data/fonts/`, chargés au démarrage par `luxcore/text.py`, triés
+alphabétiquement et indexés via `font_index = (raw × max(1, n_fonts)) // 256` :
+
 Audiowide · BebasNeue · Cinzel · Comfortaa-Bold · DejaVuSans-Bold · DejaVuSans ·
 DejaVuSansMono · DejaVuSerif · Exo2-Bold · Montserrat-Bold · Orbitron · Oswald-Bold ·
 Pacifico · PoiretOne · PressStart2P · Raleway-ExtraBold · Raleway-Light · Righteous ·
 RobotoBold · SpaceMono-Bold.
+
+---
+
+## Rappel 0-based vs 1-based
+
+- **Code / décodage** : 0-based (index de `dmx_data[]`, offsets relatifs pour les spots).
+- **Console DMX / `CLAUDE.md` / patch GDTF** : 1-based (numéro de canal).
+- Bloc de base : index 0-based `0..31` = canaux 1-based `1..32`.
+- Spot : offset `+n` = canal 1-based `n+1` dans la fixture ; adresse absolue de patch
+  `32 + id×23 + 1` (Spot0 = 33, Spot1 = 56…). Erreur classique : oublier le **+1**.
 
 ---
 
