@@ -157,7 +157,7 @@ class DefileFormes:
     def __init__(self, ip="127.0.0.1"):
         self.ip = ip
         self.sock = lxa.make_socket()
-        self.dmx = [0] * 1536  # 3 univers → 65 spots max (48 spots × 23ch = 1132 bytes)
+        self.dmx = [0] * 1536  # 3 univers → 65 spots max (32 base + 48×23 = 1136 octets)
 
     # ── Envoi ArtNet ─────────────────────────────────────────────────────────
     def send(self):
