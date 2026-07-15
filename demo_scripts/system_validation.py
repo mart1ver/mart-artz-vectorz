@@ -122,8 +122,8 @@ class LuxCoreValidator:
         ]
         
         for form_id, form_name in spot_forms:
-            # Premier spot (canal 28+)
-            base = 28
+            # Premier spot (canal 32+)
+            base = 32
             self.dmx_data[base] = 255      # Rouge
             self.dmx_data[base+1] = 200    # Vert
             self.dmx_data[base+2] = 100    # Bleu
@@ -171,7 +171,7 @@ class LuxCoreValidator:
         ]
         
         # Spots visibles pour voir les effets
-        base = 28
+        base = 32
         for i in range(3):
             spot_base = base + (i * 23)
             self.dmx_data[spot_base] = 255
