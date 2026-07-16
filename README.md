@@ -36,7 +36,7 @@ Installation détaillée du moteur : [`python_port/README.md`](python_port/READM
 | **14 formes** | Ellipse, Rectangle, Texte, Triangle, Pentagone, Hexagone, Losange, Octogone, Étoile, Croix, Flèche, Cœur, Segment, Rafale — remplissage par triangulation ear-clip (concaves correctes), plus VIDEO |
 | **Forme + vidéo** | Mode `100 + forme` : la silhouette d'une forme texturée par une vidéo |
 | **9 PostFX** | feedback, kaléidoscope, pixelate, sobel, rgb split, saturation, bloom, chromatic (chaîne GPU), plus un flou séparable appliqué après les blades |
-| **Vidéo** | Décodage PyAV en boucle, un décodeur par fichier, anneaux de désync temporelle, plein écran, sélection par canal, fixture de fond dédiée |
+| **Vidéo** | Décodage PyAV en boucle, un décodeur par fichier, une texture par source, plein écran, sélection par canal, fixture de fond dédiée |
 | **Blades** | 8 couteaux de cadrage 16-bit (A/B/C/D), avec flou par-dessus |
 | **Texte** | 20 polices TTF chargées au démarrage, un spot par caractère |
 | **Blend** | 10 modes (BLEND, ADD, SUBTRACT, DARKEST, LIGHTEST, DIFFERENCE, EXCLUSION, MULTIPLY, SCREEN, REPLACE), global ou par spot |

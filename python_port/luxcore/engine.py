@@ -213,14 +213,9 @@ class LuxCoreEngine:
         self._build_video(paths, video_size)
         self.ctx.enable(moderngl.BLEND)
 
-    # -- mode VIDEO : POOL de décodeurs (1 par fichier) + ring buffer par source --
-    # Chaque source garde ses N dernières frames dans un anneau de textures, ce qui
-    # permet de DÉSYNCHRONISER les panneaux (chacun échantillonne une frame retardée
-    # différente) même quand plusieurs affichent la même vidéo. Le canal +22 de la
-    # fixture vidéo sélectionne QUELLE vidéo du dossier est projetée.
-    _VID_RING = 16                    # frames d'historique par source (désync ;
-                                      # 16 suffit pour répartir les délais, ~2× moins de VRAM)
-
+    # -- mode VIDEO : POOL de décodeurs (1 par fichier) + 1 texture par source --
+    # Chaque source garde sa dernière frame décodée dans une texture. Le canal +22
+    # de la fixture vidéo sélectionne QUELLE vidéo du dossier est projetée.
     def _build_video(self, video_paths, video_size):
         self._video_prog = self.ctx.program(vertex_shader=TEXT_VERT,
                                              fragment_shader=VIDEO_FRAG)
@@ -234,10 +229,9 @@ class LuxCoreEngine:
         for path in video_paths:
             dec = VideoDecoder(path, vw, vh)
             dec.start()
-            ring = [self.ctx.texture((vw, vh), 4) for _ in range(self._VID_RING)]
-            for t in ring:
-                t.repeat_x = t.repeat_y = False
-            self._vid.append({"dec": dec, "ring": ring, "head": 0, "filled": 0, "ver": -1})
+            tex = self.ctx.texture((vw, vh), 4)
+            tex.repeat_x = tex.repeat_y = False
+            self._vid.append({"dec": dec, "tex": tex, "ver": -1, "ready": False})
         self.n_videos = len(self._vid)
 
     # -- post-effets : 2e FBO (ping-pong) + programmes plein écran --
@@ -355,18 +349,13 @@ class LuxCoreEngine:
     # -- rendu d'une frame --
     def render(self, base: BaseState, spots: list[SpotState],
                bg_fix: SpotState | None = None):
-        # téléverse la dernière frame de CHAQUE source dans son anneau (désync)
+        # téléverse la dernière frame de CHAQUE source dans sa texture
         for s in self._vid:
             frame, ver = s["dec"].latest()
             if frame is not None and ver != s["ver"]:
-                s["ring"][s["head"]].write(frame.tobytes())
-                s["head"] = (s["head"] + 1) % self._VID_RING
-                s["filled"] = min(s["filled"] + 1, self._VID_RING)
+                s["tex"].write(frame.tobytes())
+                s["ready"] = True
                 s["ver"] = ver
-
-        # nb de fixtures vidéo visibles (rectangle OU forme+vidéo) -> délais de désync
-        n_vid = sum(1 for sp in spots if sp.is_drawable()
-                    and (sp.shape == Shape.VIDEO or sp.video_fill))
 
         self.fbo.use()
         r, g, b = base.bg
@@ -376,7 +365,6 @@ class LuxCoreEngine:
         if bg_fix is not None and bg_fix.is_drawable() and bg_fix.shape == Shape.VIDEO:
             self._draw_bg_video(bg_fix)
 
-        vid_ord = 0
         for sp in spots:
             if not sp.is_drawable():
                 continue
@@ -390,8 +378,7 @@ class LuxCoreEngine:
             # masque la vidéo. Uniquement pour les formes remplissables (dans _ranges).
             if sp.video_fill and shape in self._ranges and self.n_videos > 0:
                 sx, sy = geo.scale_factors(shape, sp.size_pan, sp.size_tilt)
-                self._draw_shape_video(sp, shape, sx, sy, cx, cy, vid_ord, n_vid)
-                vid_ord += 1
+                self._draw_shape_video(sp, shape, sx, sy, cx, cy)
                 if sp.stroke_alpha > 0 and sp.stroke_weight > 0:
                     self.prog["u_rot"] = math.radians(sp.rotation)
                     self.prog["u_translate"] = (cx, cy)
@@ -404,8 +391,7 @@ class LuxCoreEngine:
                 continue
 
             if shape == Shape.VIDEO:
-                self._draw_video(sp, cx, cy, vid_ord, n_vid)
-                vid_ord += 1
+                self._draw_video(sp, cx, cy)
                 continue
 
             self.prog["u_rot"] = math.radians(sp.rotation)
@@ -619,9 +605,9 @@ class LuxCoreEngine:
             return
         vidx = min((sp.sel_raw * self.n_videos) // 256, self.n_videos - 1)
         s = self._vid[vidx]
-        if s["filled"] == 0:
+        if not s["ready"]:
             return
-        tex = s["ring"][(s["head"] - 1) % self._VID_RING]
+        tex = s["tex"]
         self._apply_blend(sp.blend_mode)
         self._video_prog["u_scale"] = (float(self.width), float(self.height))
         self._video_prog["u_rot"] = 0.0
@@ -631,20 +617,17 @@ class LuxCoreEngine:
         self._video_prog["vid"] = 0
         self._video_vao.render(moderngl.TRIANGLE_STRIP, vertices=4)
 
-    def _draw_video(self, sp: SpotState, cx: float, cy: float, ord: int = 0, n_vid: int = 1):
+    def _draw_video(self, sp: SpotState, cx: float, cy: float):
         # quad texturé par la vidéo, dimensionné/positionné comme un rectangle.
-        # Choix de la source (canal +22) + frame retardée (désync entre panneaux).
-        # N'IMPORTE QUEL spot en mode 14 passe ici : parité totale spot/vidéo.
+        # Choix de la source (canal +22). N'IMPORTE QUEL spot en mode 14 passe ici :
+        # parité totale spot/vidéo.
         if self.n_videos == 0:
             return
         vidx = min((sp.sel_raw * self.n_videos) // 256, self.n_videos - 1)
         s = self._vid[vidx]
-        if s["filled"] == 0:
+        if not s["ready"]:
             return                              # rien encore décodé
-        delay = 0
-        if n_vid > 1:                           # >1 panneau -> on les désynchronise
-            delay = int(round(ord / n_vid * (s["filled"] - 1)))
-        tex = s["ring"][(s["head"] - 1 - delay) % self._VID_RING]
+        tex = s["tex"]
         # échelle vidéo (permet le plein écran malgré le plafond 1000px du décodage)
         self._video_prog["u_scale"] = (sp.size_pan * VIDEO_SIZE_SCALE,
                                        sp.size_tilt * VIDEO_SIZE_SCALE)
@@ -656,16 +639,15 @@ class LuxCoreEngine:
         self._video_vao.render(moderngl.TRIANGLE_STRIP, vertices=4)
 
     def _draw_shape_video(self, sp: SpotState, shape: Shape, sx: float, sy: float,
-                          cx: float, cy: float, ord: int = 0, n_vid: int = 1):
+                          cx: float, cy: float):
         # La forme (triangulée) masque la vidéo : le spot prend la silhouette voulue.
-        # Même sélection de source (+22) et désync que _draw_video ; échelle = celle
-        # d'une forme (pas de VIDEO_SIZE_SCALE : c'est une forme, pas un plein écran).
+        # Même sélection de source (+22) que _draw_video ; échelle = celle d'une forme
+        # (pas de VIDEO_SIZE_SCALE : c'est une forme, pas un plein écran).
         vidx = min((sp.sel_raw * self.n_videos) // 256, self.n_videos - 1)
         s = self._vid[vidx]
-        if s["filled"] == 0:
+        if not s["ready"]:
             return
-        delay = int(round(ord / n_vid * (s["filled"] - 1))) if n_vid > 1 else 0
-        tex = s["ring"][(s["head"] - 1 - delay) % self._VID_RING]
+        tex = s["tex"]
         prog = self._shapevid_prog
         prog["u_scale"] = (sx, sy)
         prog["u_rot"] = math.radians(sp.rotation)

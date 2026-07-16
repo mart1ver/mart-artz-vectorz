@@ -165,8 +165,8 @@ au portage.
 - **Une seule sorte de fixture** (23 canaux). Le canal `+19` la transforme : `14` (VIDEO)
   en fait un panneau vidéo (source via +22, échelle plein écran possible), et la bande
   `100..113` la texture d'une vidéo dans la silhouette d'une forme.
-- **Désynchronisation** : chaque vidéo garde un anneau de ses 16 dernières frames ;
-  plusieurs panneaux d'une même source échantillonnent des frames décalées (écho temporel).
+- **Source partagée** : chaque vidéo garde sa dernière frame dans une texture ;
+  tous les panneaux d'une même source (via +22) l'échantillonnent.
 - **Fixture de fond** : slot réservé **60** (`BG_FIXTURE_SLOT`), même layout 23 canaux
   qu'un spot, adresse `bg_fixture_base_addr() = spot_base_addr(60) = 1412`. Dessinée
   **DERRIÈRE** tous les spots ; en mode 14 (VIDEO) = vidéo plein écran choisie par +22 ;

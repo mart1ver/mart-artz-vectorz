@@ -10,15 +10,13 @@ Montre TOUTES les capacités vidéo du moteur, une scène par capacité :
   2. FOND+PANNEAUX — fixture de FOND plein écran + panneaux flottants par-dessus
                      (compositing, alpha)
   3. MUR VIDÉO     — mosaïque de panneaux, vidéos réparties (multi-sources)
-  4. DÉSYNC        — beaucoup de panneaux de la MÊME vidéo -> écho temporel (frames
-                     retardées, anneau de désync)
-  5. MOUVEMENT     — panneaux qui orbitent, tournent et respirent (pan/tilt/rotation/échelle)
-  6. BLEND         — même vidéo superposée en ADD / SCREEN / DIFFERENCE (blend par panneau)
-  6b.FORMES VIDÉO  — spots en forme (étoile, cœur, hexagone…) remplis par la vidéo
+  4. MOUVEMENT     — panneaux qui orbitent, tournent et respirent (pan/tilt/rotation/échelle)
+  5. BLEND         — même vidéo superposée en ADD / SCREEN / DIFFERENCE (blend par panneau)
+  5b.FORMES VIDÉO  — spots en forme (étoile, cœur, hexagone…) remplis par la vidéo
                      (mode +19 = 100+forme : la silhouette masque la vidéo)
-  7. POSTFX        — une vidéo plein écran, COMBOS de post-effets superposés
+  6. POSTFX        — une vidéo plein écran, COMBOS de post-effets superposés
                      (pixelate+sobel, bloom+feedback, kaléido+bloom+chroma, ...)
-  8. KALÉIDO MUR   — mur de vidéos + kaléidoscope + bloom (finale hypnotique)
+  7. KALÉIDO MUR   — mur de vidéos + kaléidoscope + bloom (finale hypnotique)
 
 Confort visuel : aucune scène ne clignote (fondus doux, mouvements continus).
 La sélection de vidéo suppose N_VID sources dans data/videos/ (le moteur mappe
@@ -247,19 +245,6 @@ class VideoShow:
         for i, (dx, dy) in enumerate(pts):
             self.vspot(i, dx, dy, 470 * breath, 0, 255, v=i % N_VID, blend=BLEND)
 
-    def sc_desync(self, t):
-        """Beaucoup de panneaux de la MÊME vidéo, alignés en diagonale : chaque
-        panneau lit une frame plus ou moins retardée -> écho temporel visible."""
-        self.bg(0, 0, 0)
-        # superposition : feedback + rgb split (l'écho de frames + dispersion chromatique)
-        self.fx(blend_global=SCREEN, feedback=120, rgbsplit=int(20 + 30 * self.swell(t, 3.0, 0.3)))
-        n = 10
-        for i in range(n):
-            f = i / (n - 1)                               # 0..1 le long de la diagonale
-            dx = (f - 0.5) * 1400
-            dy = (f - 0.5) * 620
-            self.vspot(i, dx, dy, 560, 0, 200, v=1, blend=SCREEN)
-
     def sc_motion(self, t):
         """5 panneaux qui orbitent, tournent et respirent (pan/tilt/rotation/échelle)."""
         self.bg(6, 2, 10)
@@ -345,7 +330,6 @@ class VideoShow:
         ("Plein écran",   "sc_fullscreen",   16),
         ("Fond+Panneaux", "sc_bg_panels",    16),
         ("Mur vidéo",     "sc_wall",         14),
-        ("Désync (écho)", "sc_desync",       14),
         ("Mouvement",     "sc_motion",       16),
         ("Blend",         "sc_blend",        14),
         ("Formes vidéo",  "sc_video_shapes", 16),

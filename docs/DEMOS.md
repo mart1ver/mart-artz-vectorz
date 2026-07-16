@@ -32,7 +32,7 @@ python_port/.venv/bin/python python_port/run_engine.py --preview --spots 60 --du
 ```bash
 python3 demo_scripts/defile_formes.py            # show maître complet
 python3 demo_scripts/kinetic.py                  # géométrie rythmée BPM
-python3 demo_scripts/video_show.py               # 9 scènes vidéo
+python3 demo_scripts/video_show.py               # 8 scènes vidéo
 python3 demo_scripts/lorem_fou.py                # texte survitaminé
 python3 demo_scripts/artnet_text.py              # typographie multi-scènes
 ```
@@ -145,7 +145,7 @@ figées = pas de scintillement).
 
 ---
 
-## `video_show.py` — 9 scènes vidéo (100 % des fonctions vidéo)
+## `video_show.py` — 8 scènes vidéo (100 % des fonctions vidéo)
 
 **Lancer :**
 ```bash
@@ -161,7 +161,6 @@ Classe `VideoShow`. Méthodes : `vspot()` (panneau vidéo mode 14, 16:9), `vshap
 | Plein écran | `sc_fullscreen` | 16 | Cycle des vidéos en fondu, sélecteur +22 |
 | Fond+Panneaux | `sc_bg_panels` | 16 | Fixture de fond + 3 panneaux flottants |
 | Mur vidéo | `sc_wall` | 14 | Mosaïque 4×3, multi-sources |
-| Désync (écho) | `sc_desync` | 14 | 10 panneaux même vidéo → écho temporel |
 | Mouvement | `sc_motion` | 16 | 5 panneaux orbitent / tournent / respirent |
 | Blend | `sc_blend` | 14 | Même vidéo en ADD/SCREEN/DIFFERENCE |
 | Formes vidéo | `sc_video_shapes` | 16 | Silhouettes (étoile/cœur/hexa…) dans la vidéo |

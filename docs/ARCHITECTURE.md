@@ -49,7 +49,7 @@ Capacité : `(512 − 32) / 23 =` **20 fixtures / univers**. Adresse d'un spot :
 
 | # | Étape | Code |
 |---|-------|------|
-| 1 | Upload des frames vidéo dans les anneaux de désync | boucle `self._vid` |
+| 1 | Upload de la dernière frame de chaque vidéo dans sa texture | boucle `self._vid` |
 | 2 | `clear` fond RGB (base.bg, canaux 0-2) | `ctx.clear(r/255, g/255, b/255, 1)` |
 | 3 | Fond vidéo plein écran (bg_fix mode 14, derrière tout) | `_draw_bg_video` |
 | 4 | Spots (formes / texte / vidéo / forme+vidéo, blend par spot) | boucle `for sp in spots` |
@@ -105,8 +105,8 @@ Le **plafond de performance est le readback NDI**, pas le rendu OpenGL.
 ## Pipeline vidéo (`luxcore/video.py` + `engine._build_video` / `_draw_video`)
 
 - **PyAV** : `VideoDecoder(threading.Thread)` décode en boucle (`container.seek(0)` en fin de fichier), reformate chaque frame `frame.reformat(w, h, 'rgba')` → numpy contigu. `latest()` renvoie `(frame, version)` sous lock (thread-safe). Taille texture par défaut **640×360** (`video_size`).
-- **Pool** : 1 décodeur par fichier du dossier. Un anneau de textures par source `_VID_RING = 16` frames (réduit de 32 pour ~2× moins de VRAM).
-- **Désync des panneaux** : chaque panneau échantillonne une frame retardée `delay = round(ord / n_vid × (filled − 1))` — plusieurs panneaux sur la même source produisent un **écho temporel**.
+- **Pool** : 1 décodeur par fichier du dossier. Une texture par source, réécrite à chaque nouvelle frame décodée (`ready` passe à vrai au premier upload).
+- **Source partagée** : tous les panneaux qui pointent la même source (via +22) échantillonnent la même texture.
 - **VRAM ~133 Mo / vidéo** ; le dossier entier est chargé au démarrage (décodage continu → coût CPU), ce qui borne le nombre de clips utilisables.
 - **Échelle** : `VIDEO_SIZE_SCALE = 2.5` permet le plein écran malgré le plafond de décodage à 1000 px de la pmap taille. Appliquée UNIQUEMENT aux fixtures vidéo (`_draw_video`), **pas** aux formes.
 - **Sélection de source** (canal +22) : `vidx = min(sel_raw × n_videos // 256, n_videos − 1)`.
@@ -167,7 +167,7 @@ La **rafale** (mode 13, `_sunburst`, outer 0.5 / inner 0.17, une pointe en haut)
 | Module | Rôle |
 |--------|------|
 | `run_engine.py` | Boucle live : ArtNet → décodage → render → NDI ; fenêtre aperçu moderngl-window + GUI imgui (`g` plein écran, `h` menu) ; inhibition veille (systemd-inhibit + xset) ; snapshots PNG ; triple-PBO NDI |
-| `engine.py` | `LuxCoreEngine` : programmes GL (VERT/FRAG formes, TEXT, VIDEO, SHAPEVID, UYVY), pipeline `render()`, PostFX, blades, blur, `pack_uyvy` ; caches stroke/glyphes ; anneaux vidéo |
+| `engine.py` | `LuxCoreEngine` : programmes GL (VERT/FRAG formes, TEXT, VIDEO, SHAPEVID, UYVY), pipeline `render()`, PostFX, blades, blur, `pack_uyvy` ; caches stroke/glyphes ; textures vidéo |
 | `effects.py` | 9 shaders PostFX GLSL 330 (pixelate/sobel/rgbsplit/saturation/chromatic/feedback/kaléido/bloom bright+combine/blur) + `FULLSCREEN_VERT` |
 | `video.py` | `VideoDecoder` thread PyAV : décodage en boucle → frames RGBA numpy, `latest()` thread-safe |
 | `geometry.py` | 14 formes en polygones-unité + triangulation ear-clip, caches numpy, `scale_factors` |
@@ -185,7 +185,7 @@ La **rafale** (mode 13, `_sunburst`, outer 0.5 / inner 0.17, une pointe en haut)
 
 - **Cible matérielle** : iGPU Intel **UHD 630** (2018). Défaut : 1920×1080 @ 60. Cadence observée : ~45-56 fps à 1080p (48-60 fixtures).
 - **Plafond = readback NDI.** Le goulot n'est pas le rendu des formes mais la lecture GPU→CPU pour la sortie NDI. D'où les optimisations : packing UYVY 4:2:2 (readback réduit à `W·H·2` octets, moitié du RGBA), triple-buffering PBO (`NB = 3`) et décalage volontaire d'une frame pour recouvrir le DMA.
-- **Vidéo** : chaque clip coûte ~133 Mo VRAM et un décodage continu (coût CPU). Cadence sur le jeu de travail : **8 clips ≈ 52 fps**, **16 clips ≈ 28 fps**. L'anneau de textures a été réduit de 32 à 16 frames (`_VID_RING = 16`). `--max-videos` borne la charge.
+- **Vidéo** : chaque clip coûte ~133 Mo VRAM et un décodage continu (coût CPU). Cadence sur le jeu de travail : **8 clips ≈ 52 fps**, **16 clips ≈ 28 fps**. Une seule texture par source (réécrite à chaque frame). `--max-videos` borne la charge.
 - **Caches** : rubans de contour mémoïsés (par forme / taille / largeur), triangulations unité en cache (`_UNIT_TRI_CACHE`), glyphes bitmap en cache (`FontCache`) — pour éviter tout recalcul par frame.
 
 ### Points de vigilance (non-bugs à préserver)

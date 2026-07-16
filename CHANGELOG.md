@@ -2,6 +2,20 @@
 
 ---
 
+## v2.7 — Retrait de la désynchronisation vidéo (2026-07)
+
+- **Désync vidéo supprimée** : l'anneau de 16 frames par source (`_VID_RING`) est
+  remplacé par **une seule texture par source** (dernière frame décodée). Plus de
+  frames retardées ni d'« écho temporel » entre panneaux d'une même vidéo.
+  `_draw_video` / `_draw_shape_video` / `_draw_bg_video` échantillonnent la texture
+  courante ; `render()` n'a plus à calculer de délais (`ord`/`n_vid` retirés).
+- **`video_show.py`** : scène « Désync (écho) » retirée — 8 scènes au lieu de 9.
+- **Bonus VRAM** : une texture au lieu de 16 par source.
+- **Manifeste** : retrait de la description détaillée du spectacle (garde vision +
+  instrument technique).
+
+---
+
 ## v2.6 — Documentation carrée + fixtures GDTF à jour (2026-07)
 
 - **Documentation réorganisée** pour un dépôt clair : `docs/PROTOCOLE_DMX.md`
