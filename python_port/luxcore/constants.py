@@ -53,6 +53,34 @@ SP_BLEND = 21                     # 0 = blend global ; sinon même LUT que canal
 SP_FONT = 22                      # mode Texte : police ; mode VIDEO : sélecteur de
                                   # vidéo du dossier (raw 0-255 -> index, cf. engine)
 
+# --- Contrôle de lecture vidéo (mode VIDEO 14 et forme+vidéo 100..113) ---------
+# En mode vidéo, les canaux fill (+0..+2) et stroke (+4..+6) sont morts : on les
+# réinterprète en transport de lecture par spot (playhead virtuel côté engine).
+# Les modes NON-vidéo gardent leur sens d'origine (fill / stroke) inchangé.
+SP_VID_SPEED = SP_FILL_R          # +0 : 0=gelé, 128≈1×, courbe 0.25×→4×
+SP_VID_IN = SP_FILL_G             # +1 : point de départ / in (0-255 -> 0-100 %)
+SP_VID_FLAGS = SP_FILL_B          # +2 : transport(bits0-1) sens(bit2) loop(bits3-4)
+SP_VID_OUT = SP_STROKE_WEIGHT     # +4 : point de fin / out (0-255 -> 0-100 %)
+SP_VID_SYNC = SP_STROKE_ALPHA     # +5 : groupe de sync (0=indépendant, 1-255=groupe)
+SP_VID_STROBE = SP_STROKE_R       # +6 : strobe/hold (0=off, N=fige 1 frame sur N)
+
+# Décodage du canal flags (+2). Tous les défauts sont à 0 pour que des canaux
+# vierges (contenu DMX existant) = « lecture 1× en boucle depuis le début » :
+VID_TRANSPORT_MASK = 0b11         # bits 0-1
+VID_PLAY, VID_PAUSE, VID_STOP = 0, 1, 2   # 0=play (défaut), 3 aussi = play
+VID_DIR_REVERSE_BIT = 0b100       # bit 2 : lecture arrière (0 = avant)
+VID_LOOP_SHIFT = 3                # bits 3-4
+VID_LOOP_MASK = 0b11
+VID_LOOP, VID_ONCE, VID_PINGPONG = 0, 1, 2   # 0=loop (défaut)
+
+
+def vid_speed_factor(raw: int) -> float:
+    """Canal vitesse (+0) -> facteur de vitesse. raw 0 = défaut 1× (canal vierge) ;
+    sinon courbe exponentielle 128≈1× (≈0.25×..4× sur 1..255)."""
+    if raw == 0:
+        return 1.0
+    return 2.0 ** ((raw - 128) / 64.0)
+
 
 def spot_base_addr(spot_id: int) -> int:
     """Index DMX du premier canal d'un spot."""

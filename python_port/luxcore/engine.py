@@ -17,6 +17,7 @@ Reporté : contour (stroke), TEXTE (atlas glyphes), SEGMENT épais, post-effets.
 from __future__ import annotations
 
 import math
+import time
 
 import moderngl
 import numpy as np
@@ -213,9 +214,11 @@ class LuxCoreEngine:
         self._build_video(paths, video_size)
         self.ctx.enable(moderngl.BLEND)
 
-    # -- mode VIDEO : POOL de décodeurs (1 par fichier) + 1 texture par source --
-    # Chaque source garde sa dernière frame décodée dans une texture. Le canal +22
-    # de la fixture vidéo sélectionne QUELLE vidéo du dossier est projetée.
+    # -- mode VIDEO : clips décodés en cache + playhead virtuel par spot ----------
+    # Chaque source (VideoClip) est décodée UNE FOIS en cache mémoire. Chaque spot
+    # vidéo tient sa propre tête de lecture (start/vitesse/pause/loop, cf. dmx) : à
+    # chaque frame on calcule son index, on téléverse la frame voulue dans une
+    # texture dédiée au slot, et on l'échantillonne. Le canal +22 choisit la source.
     def _build_video(self, video_paths, video_size):
         self._video_prog = self.ctx.program(vertex_shader=TEXT_VERT,
                                              fragment_shader=VIDEO_FRAG)
@@ -224,15 +227,89 @@ class LuxCoreEngine:
         self._video_vao = self.ctx.vertex_array(
             self._video_prog, [(self._video_vbo, "2f4 2f4", "in_pos", "in_uv")])
         vw, vh = video_size
-        from .video import VideoDecoder
-        self._vid = []                # une entrée par vidéo du dossier
-        for path in video_paths:
-            dec = VideoDecoder(path, vw, vh)
-            dec.start()
-            tex = self.ctx.texture((vw, vh), 4)
-            tex.repeat_x = tex.repeat_y = False
-            self._vid.append({"dec": dec, "tex": tex, "ver": -1, "ready": False})
+        self._vid_wh = (vw, vh)
+        from .video import VideoClip
+        self._vid = [VideoClip(path, vw, vh).load() for path in video_paths]
         self.n_videos = len(self._vid)
+        # état de lecture + texture d'upload, indexés par clé de slot (int ; "bg"
+        # pour la fixture de fond). Créés paresseusement au premier rendu du slot.
+        self._playheads: dict = {}
+        self._vid_slot_tex: dict = {}
+        self._vid_slot_last: dict = {}    # (vidx, idx) déjà téléversé -> évite les ré-uploads
+        self._now = 0.0                   # horloge de la frame courante (monotonic)
+
+    # -- playhead : avance l'état de lecture d'un spot et renvoie sa texture -------
+    def _video_tex_for(self, sp: SpotState, slot):
+        """Sélectionne la source (+22), avance le playhead du spot `slot` selon le
+        transport DMX, téléverse la frame voulue dans la texture du slot et la
+        renvoie (ou None si aucune source/rien décodé). Les spots d'un même groupe
+        de sync (+5) sur la même source partagent un playhead ET une texture."""
+        if self.n_videos == 0:
+            return None
+        vidx = min((sp.sel_raw * self.n_videos) // 256, self.n_videos - 1)
+        clip = self._vid[vidx]
+        n = clip.nframes
+        if n == 0:
+            return None
+
+        # clé d'état : groupe de sync partagé (même id + même source), sinon le slot
+        key = ("sync", sp.vid_sync, vidx) if sp.vid_sync else slot
+
+        lo = sp.vid_in * (n - 1)
+        hi = sp.vid_out * (n - 1)
+        if hi <= lo:                       # région invalide -> clip entier
+            lo, hi = 0.0, float(n - 1)
+
+        st = self._playheads.get(key)
+        if st is None or st["vidx"] != vidx:
+            st = {"vidx": vidx, "pos": lo, "t": self._now, "pp": 1}
+            self._playheads[key] = st
+
+        dt = self._now - st["t"]
+        st["t"] = self._now
+        dt = 0.0 if dt < 0 else min(dt, 0.25)   # clamp des grands sauts (démarrage/pause horloge)
+
+        tr = sp.vid_transport
+        if tr == C.VID_STOP:
+            st["pos"] = lo
+        elif tr == C.VID_PAUSE:
+            pass
+        else:                              # play (0 ou 3)
+            step = sp.vid_speed * clip.fps * dt
+            direction = -1.0 if sp.vid_reverse else 1.0
+            loop = sp.vid_loop_mode
+            if loop == C.VID_PINGPONG:
+                direction *= st["pp"]
+            pos = st["pos"] + direction * step
+            span = hi - lo
+            if span <= 0:
+                pos = lo
+            elif loop == C.VID_ONCE:
+                pos = max(lo, min(hi, pos))
+            elif loop == C.VID_PINGPONG:
+                if pos > hi:
+                    pos = hi - (pos - hi); st["pp"] *= -1
+                elif pos < lo:
+                    pos = lo + (lo - pos); st["pp"] *= -1
+                pos = max(lo, min(hi, pos))
+            else:                          # VID_LOOP
+                pos = lo + ((pos - lo) % span)
+            st["pos"] = pos
+
+        idx = int(round(st["pos"]))
+        if sp.vid_strobe > 1:              # hold : fige sur des paliers de N frames
+            idx = (idx // sp.vid_strobe) * sp.vid_strobe
+        idx = max(0, min(n - 1, idx))
+
+        tex = self._vid_slot_tex.get(key)
+        if tex is None:
+            tex = self.ctx.texture(self._vid_wh, 4)
+            tex.repeat_x = tex.repeat_y = False
+            self._vid_slot_tex[key] = tex
+        if self._vid_slot_last.get(key) != (vidx, idx):    # upload seulement si la frame change
+            tex.write(clip.frames[idx].tobytes())
+            self._vid_slot_last[key] = (vidx, idx)
+        return tex
 
     # -- post-effets : 2e FBO (ping-pong) + programmes plein écran --
     def _build_effects(self):
@@ -349,13 +426,8 @@ class LuxCoreEngine:
     # -- rendu d'une frame --
     def render(self, base: BaseState, spots: list[SpotState],
                bg_fix: SpotState | None = None):
-        # téléverse la dernière frame de CHAQUE source dans sa texture
-        for s in self._vid:
-            frame, ver = s["dec"].latest()
-            if frame is not None and ver != s["ver"]:
-                s["tex"].write(frame.tobytes())
-                s["ready"] = True
-                s["ver"] = ver
+        # horloge de la frame : pilote tous les playheads vidéo (temps réel)
+        self._now = time.monotonic()
 
         self.fbo.use()
         r, g, b = base.bg
@@ -365,7 +437,7 @@ class LuxCoreEngine:
         if bg_fix is not None and bg_fix.is_drawable() and bg_fix.shape == Shape.VIDEO:
             self._draw_bg_video(bg_fix)
 
-        for sp in spots:
+        for slot, sp in enumerate(spots):
             if not sp.is_drawable():
                 continue
             shape = sp.shape
@@ -375,14 +447,11 @@ class LuxCoreEngine:
             cy = self.height * 0.5 + sp.position_tilt
 
             # forme remplie par la vidéo (mode 100+forme) : la silhouette de la forme
-            # masque la vidéo. Uniquement pour les formes remplissables (dans _ranges).
+            # masque la vidéo. Le contour (stroke) n'existe plus ici : les canaux
+            # stroke sont réinterprétés en transport vidéo (out/sync/strobe).
             if sp.video_fill and shape in self._ranges and self.n_videos > 0:
                 sx, sy = geo.scale_factors(shape, sp.size_pan, sp.size_tilt)
-                self._draw_shape_video(sp, shape, sx, sy, cx, cy)
-                if sp.stroke_alpha > 0 and sp.stroke_weight > 0:
-                    self.prog["u_rot"] = math.radians(sp.rotation)
-                    self.prog["u_translate"] = (cx, cy)
-                    self._draw_stroke(sp, shape)
+                self._draw_shape_video(sp, shape, sx, sy, cx, cy, slot)
                 continue
 
             if shape == Shape.TEXTE:
@@ -391,7 +460,7 @@ class LuxCoreEngine:
                 continue
 
             if shape == Shape.VIDEO:
-                self._draw_video(sp, cx, cy)
+                self._draw_video(sp, cx, cy, slot)
                 continue
 
             self.prog["u_rot"] = math.radians(sp.rotation)
@@ -600,14 +669,10 @@ class LuxCoreEngine:
 
     def _draw_bg_video(self, sp: SpotState):
         # vidéo de FOND : plein écran, derrière tous les spots. Respecte le
-        # sélecteur (+22), l'alpha et le blend de la fixture de fond.
-        if self.n_videos == 0:
+        # sélecteur (+22), l'alpha, le blend et le transport de la fixture de fond.
+        tex = self._video_tex_for(sp, "bg")
+        if tex is None:
             return
-        vidx = min((sp.sel_raw * self.n_videos) // 256, self.n_videos - 1)
-        s = self._vid[vidx]
-        if not s["ready"]:
-            return
-        tex = s["tex"]
         self._apply_blend(sp.blend_mode)
         self._video_prog["u_scale"] = (float(self.width), float(self.height))
         self._video_prog["u_rot"] = 0.0
@@ -617,17 +682,13 @@ class LuxCoreEngine:
         self._video_prog["vid"] = 0
         self._video_vao.render(moderngl.TRIANGLE_STRIP, vertices=4)
 
-    def _draw_video(self, sp: SpotState, cx: float, cy: float):
+    def _draw_video(self, sp: SpotState, cx: float, cy: float, slot):
         # quad texturé par la vidéo, dimensionné/positionné comme un rectangle.
-        # Choix de la source (canal +22). N'IMPORTE QUEL spot en mode 14 passe ici :
-        # parité totale spot/vidéo.
-        if self.n_videos == 0:
+        # Choix de la source (canal +22) + playhead par spot. N'IMPORTE QUEL spot
+        # en mode 14 passe ici : parité totale spot/vidéo.
+        tex = self._video_tex_for(sp, slot)
+        if tex is None:
             return
-        vidx = min((sp.sel_raw * self.n_videos) // 256, self.n_videos - 1)
-        s = self._vid[vidx]
-        if not s["ready"]:
-            return                              # rien encore décodé
-        tex = s["tex"]
         # échelle vidéo (permet le plein écran malgré le plafond 1000px du décodage)
         self._video_prog["u_scale"] = (sp.size_pan * VIDEO_SIZE_SCALE,
                                        sp.size_tilt * VIDEO_SIZE_SCALE)
@@ -639,15 +700,13 @@ class LuxCoreEngine:
         self._video_vao.render(moderngl.TRIANGLE_STRIP, vertices=4)
 
     def _draw_shape_video(self, sp: SpotState, shape: Shape, sx: float, sy: float,
-                          cx: float, cy: float):
+                          cx: float, cy: float, slot):
         # La forme (triangulée) masque la vidéo : le spot prend la silhouette voulue.
-        # Même sélection de source (+22) que _draw_video ; échelle = celle d'une forme
-        # (pas de VIDEO_SIZE_SCALE : c'est une forme, pas un plein écran).
-        vidx = min((sp.sel_raw * self.n_videos) // 256, self.n_videos - 1)
-        s = self._vid[vidx]
-        if not s["ready"]:
+        # Même sélection de source (+22) + playhead que _draw_video ; échelle = celle
+        # d'une forme (pas de VIDEO_SIZE_SCALE : c'est une forme, pas un plein écran).
+        tex = self._video_tex_for(sp, slot)
+        if tex is None:
             return
-        tex = s["tex"]
         prog = self._shapevid_prog
         prog["u_scale"] = (sx, sy)
         prog["u_rot"] = math.radians(sp.rotation)

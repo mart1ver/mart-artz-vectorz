@@ -123,6 +123,54 @@ def test_sel_raw_is_raw_plus22():
     assert s.sel_raw == 200
 
 
+def test_video_transport_defaults_are_normal_playback():
+    # canaux vidéo vierges (contenu DMX existant) -> lecture 1× loop avant depuis 0
+    buf = _blank_buf()
+    base = C.spot_base_addr(0)
+    buf[base + C.SP_MODE] = 14
+    s = dmx.decode_spot(buf, base, 960, 540, BlendMode.BLEND, 20)
+    assert s.vid_speed == 1.0
+    assert s.vid_transport == C.VID_PLAY          # 0 = play
+    assert s.vid_reverse is False
+    assert s.vid_loop_mode == C.VID_LOOP
+    assert s.vid_in == 0.0
+    assert s.vid_out == 1.0                        # out vierge -> fin du clip
+    assert s.vid_sync == 0 and s.vid_strobe == 0
+
+
+def test_video_transport_decoding():
+    buf = _blank_buf()
+    base = C.spot_base_addr(0)
+    buf[base + C.SP_MODE] = 14
+    buf[base + C.SP_VID_SPEED] = 192              # +64 -> 2×
+    buf[base + C.SP_VID_IN] = 128                 # ~50 %
+    # flags : pause (1) + reverse (bit2) + ping-pong (2<<3)
+    buf[base + C.SP_VID_FLAGS] = C.VID_PAUSE | C.VID_DIR_REVERSE_BIT \
+        | (C.VID_PINGPONG << C.VID_LOOP_SHIFT)
+    buf[base + C.SP_VID_OUT] = 204               # 80 %
+    buf[base + C.SP_VID_SYNC] = 7
+    buf[base + C.SP_VID_STROBE] = 3
+    s = dmx.decode_spot(buf, base, 960, 540, BlendMode.BLEND, 20)
+    assert abs(s.vid_speed - 2.0) < 1e-6
+    assert abs(s.vid_in - 128 / 255) < 1e-6
+    assert s.vid_transport == C.VID_PAUSE
+    assert s.vid_reverse is True
+    assert s.vid_loop_mode == C.VID_PINGPONG
+    assert abs(s.vid_out - 204 / 255) < 1e-6
+    assert s.vid_sync == 7 and s.vid_strobe == 3
+
+
+def test_video_channels_alias_fill_and_stroke():
+    # les canaux transport partagent bien les octets fill(+0..2)/stroke(+4..6)
+    buf = _blank_buf()
+    base = C.spot_base_addr(0)
+    buf[base + C.SP_FILL_R] = 50
+    buf[base + C.SP_STROKE_WEIGHT] = 60
+    s = dmx.decode_spot(buf, base, 960, 540, BlendMode.BLEND, 20)
+    assert s.vid_speed_raw == 50 == s.fill[0]
+    assert s.vid_out_raw == 60 == s.stroke_weight
+
+
 def test_decode_base_postfx_channels():
     # PostFX ajoutés (feedback / bloom / kaléido) décodés depuis le bloc de base
     buf = _blank_buf()

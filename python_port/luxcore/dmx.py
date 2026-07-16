@@ -47,6 +47,43 @@ class SpotState:
     blend_mode: BlendMode
     font_index: int
     sel_raw: int = 0           # canal +22 brut ; en mode VIDEO : sélecteur de vidéo
+    # Transport vidéo (canaux fill/stroke réinterprétés en mode VIDEO ; défauts à
+    # 0 = « lecture 1× en boucle depuis le début », cf. constants).
+    vid_speed_raw: int = 0     # +0
+    vid_in_raw: int = 0        # +1
+    vid_flags: int = 0         # +2
+    vid_out_raw: int = 0       # +4
+    vid_sync: int = 0          # +5 : groupe de sync (0 = indépendant)
+    vid_strobe: int = 0        # +6 : hold 1 frame sur N (0 = off)
+
+    @property
+    def vid_speed(self) -> float:
+        """Facteur de vitesse (défaut 1×)."""
+        return C.vid_speed_factor(self.vid_speed_raw)
+
+    @property
+    def vid_transport(self) -> int:
+        """0/3 = play, 1 = pause, 2 = stop (bits 0-1 du canal flags)."""
+        return self.vid_flags & C.VID_TRANSPORT_MASK
+
+    @property
+    def vid_reverse(self) -> bool:
+        return bool(self.vid_flags & C.VID_DIR_REVERSE_BIT)
+
+    @property
+    def vid_loop_mode(self) -> int:
+        """0 = loop, 1 = once, 2 = ping-pong (bits 3-4 du canal flags)."""
+        return (self.vid_flags >> C.VID_LOOP_SHIFT) & C.VID_LOOP_MASK
+
+    @property
+    def vid_in(self) -> float:
+        """Point de départ, 0..1 du clip."""
+        return self.vid_in_raw / 255.0
+
+    @property
+    def vid_out(self) -> float:
+        """Point de fin, 0..1 ; 0 (canal vierge) = fin du clip (1.0)."""
+        return 1.0 if self.vid_out_raw == 0 else self.vid_out_raw / 255.0
 
     @property
     def video_fill(self) -> bool:
@@ -150,6 +187,12 @@ def decode_spot(buf, base_addr: int, half_w: float, half_h: float,
         blend_mode=blend_mode,
         font_index=font_index,
         sel_raw=raw_font,          # même canal (+22) réinterprété en mode VIDEO
+        vid_speed_raw=b(C.SP_VID_SPEED),
+        vid_in_raw=b(C.SP_VID_IN),
+        vid_flags=b(C.SP_VID_FLAGS),
+        vid_out_raw=b(C.SP_VID_OUT),
+        vid_sync=b(C.SP_VID_SYNC),
+        vid_strobe=b(C.SP_VID_STROBE),
     )
 
 
