@@ -10,13 +10,17 @@ Montre TOUTES les capacités vidéo du moteur, une scène par capacité :
   2. FOND+PANNEAUX — fixture de FOND plein écran + panneaux flottants par-dessus
                      (compositing, alpha)
   3. MUR VIDÉO     — mosaïque de panneaux, vidéos réparties (multi-sources)
-  4. MOUVEMENT     — panneaux qui orbitent, tournent et respirent (pan/tilt/rotation/échelle)
-  5. BLEND         — même vidéo superposée en ADD / SCREEN / DIFFERENCE (blend par panneau)
-  5b.FORMES VIDÉO  — spots en forme (étoile, cœur, hexagone…) remplis par la vidéo
+  4. ÉCHO          — même vidéo, chaque panneau démarré à un point décalé (canal +1)
+                     -> cascade temporelle propre (un playhead par spot)
+  5. TRANSPORT     — même vidéo, 4 modes de lecture côte à côte : ralenti / normal /
+                     arrière / ping-pong (vitesse +0, sens & loop via +2)
+  6. MOUVEMENT     — panneaux qui orbitent, tournent et respirent (pan/tilt/rotation/échelle)
+  7. BLEND         — même vidéo superposée en ADD / SCREEN / DIFFERENCE (blend par panneau)
+  7b.FORMES VIDÉO  — spots en forme (étoile, cœur, hexagone…) remplis par la vidéo
                      (mode +19 = 100+forme : la silhouette masque la vidéo)
-  6. POSTFX        — une vidéo plein écran, COMBOS de post-effets superposés
+  8. POSTFX        — une vidéo plein écran, COMBOS de post-effets superposés
                      (pixelate+sobel, bloom+feedback, kaléido+bloom+chroma, ...)
-  7. KALÉIDO MUR   — mur de vidéos + kaléidoscope + bloom (finale hypnotique)
+  9. KALÉIDO MUR   — mur de vidéos + kaléidoscope + bloom (finale hypnotique)
 
 Confort visuel : aucune scène ne clignote (fondus doux, mouvements continus).
 La sélection de vidéo suppose N_VID sources dans data/videos/ (le moteur mappe
@@ -59,9 +63,27 @@ LOSANGE, OCTO, ETOILE, CROIX, COEUR, RAFALE = 6, 7, 8, 9, 11, 13
 BLEND, ADD, SUBTRACT, DARKEST, LIGHTEST = 0, 29, 57, 85, 114
 DIFFERENCE, EXCLUSION, MULTIPLY, SCREEN, REPLACE = 142, 170, 199, 227, 255
 
+# Transport vidéo — canaux +0 vitesse / +1 in / +2 flags / +4 out / +5 sync / +6 strobe.
+# Défauts à 0 = lecture 1× en boucle depuis le début.
+PLAY, PAUSE, STOP = 0, 1, 2
+DIR_REVERSE = 0b100
+LOOP, ONCE, PINGPONG = 0, 1, 2
+
 
 def clamp8(v):
     return max(0, min(255, int(v)))
+
+
+def vid_flags(transport=PLAY, reverse=False, loop=LOOP):
+    """Compose le canal flags (+2) : transport(bits0-1) sens(bit2) loop(bits3-4)."""
+    return (transport & 0b11) | (DIR_REVERSE if reverse else 0) | ((loop & 0b11) << 3)
+
+
+def spd(factor):
+    """Facteur de vitesse -> canal +0 (128≈1×, courbe log2). 0 -> défaut 1×."""
+    if factor <= 0:
+        return 0
+    return clamp8(round(128 + 64 * math.log2(factor)))
 
 
 def to_pan(dx):
@@ -129,17 +151,29 @@ class VideoShow:
     def blade(self, idx, val16):
         lxa.set16(self.dmx, 3 + idx * 2, val16)
 
+    # ── Transport vidéo (canaux +0/+1/+2/+4/+5/+6, cf. vid_flags) ─────────────
+    def _vidctrl(self, b, speed=0, vin=0, transport=PLAY, reverse=False,
+                 loop=LOOP, vout=0, sync=0, strobe=0):
+        d = self.dmx
+        d[b + 0] = clamp8(speed)
+        d[b + 1] = clamp8(vin)
+        d[b + 2] = vid_flags(transport, reverse, loop)
+        d[b + 4] = clamp8(vout)
+        d[b + 5] = clamp8(sync)
+        d[b + 6] = clamp8(strobe)
+
     # ── Écriture d'un panneau vidéo ──────────────────────────────────────────
-    def vspot(self, i, dx, dy, w, rot=0.0, alpha=255, v=0, blend=0, h=None):
+    def vspot(self, i, dx, dy, w, rot=0.0, alpha=255, v=0, blend=0, h=None, **tr):
         """Panneau vidéo `i` (mode 14), largeur w px (hauteur h ou 16:9), centre
-        (dx,dy) px, rotation deg, opacité alpha, source v (index), blend."""
+        (dx,dy) px, rotation deg, opacité alpha, source v (index), blend.
+        `**tr` = transport (speed/vin/transport/reverse/loop/vout/sync/strobe)."""
         if i >= MAX_PANELS or alpha <= 0:
             return
         if h is None:
             h = w * 9.0 / 16.0
         b = 32 + i * 23
         d = self.dmx
-        d[b] = d[b + 1] = d[b + 2] = 255                  # fill blanc (ignoré en vidéo)
+        self._vidctrl(b, **tr)                            # +0/+1/+2/+4/+5/+6 = transport
         d[b + 3] = clamp8(alpha)
         lxa.set16(d, b + 9, sz_px(w))
         lxa.set16(d, b + 11, sz_px(h))
@@ -151,16 +185,17 @@ class VideoShow:
         d[b + 21] = clamp8(blend)
         d[b + 22] = clamp8(vsel(v))                       # sélecteur de vidéo
 
-    def vshape(self, i, dx, dy, w, shape, rot=0.0, alpha=255, v=0, blend=0, h=None):
+    def vshape(self, i, dx, dy, w, shape, rot=0.0, alpha=255, v=0, blend=0, h=None, **tr):
         """Spot en FORME `shape` rempli par la vidéo `v` (mode 100+forme) : la
-        vidéo prend la silhouette de la forme (étoile, cœur, hexagone…)."""
+        vidéo prend la silhouette de la forme (étoile, cœur, hexagone…).
+        `**tr` = transport (cf. vspot)."""
         if i >= MAX_PANELS or alpha <= 0:
             return
         if h is None:
             h = w
         b = 32 + i * 23
         d = self.dmx
-        d[b] = d[b + 1] = d[b + 2] = 255
+        self._vidctrl(b, **tr)
         d[b + 3] = clamp8(alpha)
         lxa.set16(d, b + 9, sz_shape(w))
         lxa.set16(d, b + 11, sz_shape(h))
@@ -172,11 +207,11 @@ class VideoShow:
         d[b + 21] = clamp8(blend)
         d[b + 22] = clamp8(vsel(v))
 
-    def bgvid(self, v=0, alpha=255, blend=0):
+    def bgvid(self, v=0, alpha=255, blend=0, **tr):
         """Fixture de FOND : vidéo plein écran DERRIÈRE tous les panneaux."""
         b = 32 + BG_SLOT * 23
         d = self.dmx
-        d[b] = d[b + 1] = d[b + 2] = 255
+        self._vidctrl(b, **tr)
         d[b + 3] = clamp8(alpha)
         d[b + 19] = VIDEO
         d[b + 20] = 255
@@ -244,6 +279,39 @@ class VideoShow:
         self.fx(blend_global=BLEND, pixelate=int(70 + 60 * breath), bloom_thr=80, bloom=80)
         for i, (dx, dy) in enumerate(pts):
             self.vspot(i, dx, dy, 470 * breath, 0, 255, v=i % N_VID, blend=BLEND)
+
+    def sc_echo(self, t):
+        """ÉCHO : mur 5×3 de la MÊME vidéo, chaque panneau démarré à un point
+        différent (canal +1) -> cascade temporelle propre (playhead par spot)."""
+        self.bg(0, 0, 6)
+        pts = lay_grid(5, 3, 1500, 760)
+        breath = self.swell(t, 6.0, 0.85)
+        self.fx(blend_global=BLEND, bloom_thr=70, bloom=70)
+        n = max(1, len(pts) - 1)
+        for i, (dx, dy) in enumerate(pts):
+            vin = int(i / n * 255)                        # départ échelonné 0..100 %
+            self.vspot(i, dx, dy, 400 * breath, 0, 255, v=0, blend=BLEND, vin=vin)
+
+    def sc_transport(self, t):
+        """TRANSPORT : 4 colonnes de la MÊME vidéo, chacune un mode de lecture
+        différent (ralenti / normal / arrière / ping-pong). Variété SPATIALE, flux
+        continu (pas de flip temporel) -> montre vitesse, sens et boucle."""
+        self.bg(3, 0, 8)
+        breath = self.swell(t, 5.0, 0.7)
+        self.fx(blend_global=SCREEN, feedback=90, bloom_thr=70,
+                bloom=int(50 + 50 * breath))
+        cols = [
+            dict(speed=spd(0.5)),                         # ralenti 0.5×
+            dict(speed=spd(1.0)),                         # normal
+            dict(reverse=True),                           # arrière
+            dict(loop=PINGPONG),                          # aller-retour
+        ]
+        pts = lay_grid(4, 3, 1360, 720)
+        for i, (dx, dy) in enumerate(pts):
+            col = cols[i % 4]
+            vin = int((i // 4) / 2 * 255)                 # 3 rangées : départs 0/50/100 %
+            self.vspot(i, dx, dy, 430 * breath, 0, 255, v=0, blend=SCREEN,
+                       vin=vin, **col)
 
     def sc_motion(self, t):
         """5 panneaux qui orbitent, tournent et respirent (pan/tilt/rotation/échelle)."""
@@ -330,6 +398,8 @@ class VideoShow:
         ("Plein écran",   "sc_fullscreen",   16),
         ("Fond+Panneaux", "sc_bg_panels",    16),
         ("Mur vidéo",     "sc_wall",         14),
+        ("Écho (départs décalés)", "sc_echo", 16),
+        ("Transport",     "sc_transport",    18),
         ("Mouvement",     "sc_motion",       16),
         ("Blend",         "sc_blend",        14),
         ("Formes vidéo",  "sc_video_shapes", 16),

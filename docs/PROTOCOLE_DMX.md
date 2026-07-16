@@ -97,13 +97,13 @@ Offset relatif à `base_addr = 32 + id × 23`.
 
 | Offset | Constante | Paramètre | Résolution / mapping |
 |--------|-----------|-----------|----------------------|
-| +0 | `SP_FILL_R` | Fill R | 8-bit |
-| +1 | `SP_FILL_G` | Fill G | 8-bit |
-| +2 | `SP_FILL_B` | Fill B | 8-bit |
+| +0 | `SP_FILL_R` | Fill R — **mode VIDEO : vitesse** (`SP_VID_SPEED`) | 8-bit |
+| +1 | `SP_FILL_G` | Fill G — **mode VIDEO : point de départ (in)** (`SP_VID_IN`) | 8-bit |
+| +2 | `SP_FILL_B` | Fill B — **mode VIDEO : flags transport** (`SP_VID_FLAGS`) | 8-bit |
 | +3 | `SP_ALPHA` | Alpha | 8-bit |
-| +4 | `SP_STROKE_WEIGHT` | Stroke weight | 8-bit |
-| +5 | `SP_STROKE_ALPHA` | Stroke alpha | 8-bit |
-| +6 | `SP_STROKE_R` | Stroke R | 8-bit |
+| +4 | `SP_STROKE_WEIGHT` | Stroke weight — **mode VIDEO : point de fin (out)** (`SP_VID_OUT`) | 8-bit |
+| +5 | `SP_STROKE_ALPHA` | Stroke alpha — **mode VIDEO : groupe de sync** (`SP_VID_SYNC`) | 8-bit |
+| +6 | `SP_STROKE_R` | Stroke R — **mode VIDEO : strobe/hold** (`SP_VID_STROBE`) | 8-bit |
 | +7 | `SP_STROKE_G` | Stroke G | 8-bit |
 | +8 | `SP_STROKE_B` | Stroke B | 8-bit |
 | +9..+10 | `SP_SIZE_PAN` = 9 | Taille Pan (largeur) | 16-bit → `map(0..65535 → 0..1000)` |
@@ -119,6 +119,27 @@ Offset relatif à `base_addr = 32 + id × 23`.
 `font_index` (mode Texte) : `font_index = (raw × max(1, n_fonts)) // 256`, puis
 `clamp(0, n_fonts − 1)`. `sel_raw` = même octet +22 brut, réinterprété en mode VIDEO par
 l'engine. Le canal +22 a donc un **double sens**.
+
+### Transport vidéo — canaux réinterprétés en mode VIDEO (14 et 100..113)
+
+En mode vidéo, les canaux **fill (+0..+2)** et **stroke (+4..+6)** — morts (la vidéo
+fournit la couleur, pas de contour) — pilotent la **lecture par spot** (playhead virtuel
+côté engine). **Tous les défauts sont à 0 = « lecture 1× en boucle depuis le début »**,
+donc tout contenu DMX existant continue de jouer normalement. Conséquence : un spot en
+**forme+vidéo** (100..113) n'a plus de contour (canaux stroke réutilisés).
+
+| Offset | Constante | Rôle | Encodage |
+|--------|-----------|------|----------|
+| +0 | `SP_VID_SPEED` | Vitesse | `0` = 1× (défaut) ; sinon `2^((raw−128)/64)` → **128 ≈ 1×**, ≈ 0.25×..4× |
+| +1 | `SP_VID_IN` | Point de départ (in) | `raw/255` → 0..100 % du clip |
+| +2 | `SP_VID_FLAGS` | Flags | bits 0-1 transport (`0/3`=play, `1`=pause, `2`=stop) · bit 2 sens (`1`=arrière) · bits 3-4 loop (`0`=loop, `1`=once, `2`=ping-pong) |
+| +4 | `SP_VID_OUT` | Point de fin (out) | `raw/255` → 0..100 % ; `0` = fin du clip (défaut) |
+| +5 | `SP_VID_SYNC` | Groupe de sync | `0` = indépendant ; `1..255` = spots partageant un playhead (même source) |
+| +6 | `SP_VID_STROBE` | Strobe / hold | `0` = off ; `N` = fige sur des paliers de N frames |
+
+Le moteur décode chaque clip **entièrement en cache** et calcule, par spot, sa tête de
+lecture : `pos += sens · vitesse · fps · dt` (bornée à la région `[in, out]` selon le mode
+de boucle), puis échantillonne `cache[round(pos)]`.
 
 Le mapping position pan/tilt dépend de la taille de la fenêtre (`half_w`/`half_h`) et
 **n'est pas clampé** (`pmap` = map Processing sans borne).
@@ -165,8 +186,9 @@ au portage.
 - **Une seule sorte de fixture** (23 canaux). Le canal `+19` la transforme : `14` (VIDEO)
   en fait un panneau vidéo (source via +22, échelle plein écran possible), et la bande
   `100..113` la texture d'une vidéo dans la silhouette d'une forme.
-- **Source partagée** : chaque vidéo garde sa dernière frame dans une texture ;
-  tous les panneaux d'une même source (via +22) l'échantillonnent.
+- **Lecture par spot** : chaque vidéo est décodée en cache mémoire ; chaque spot tient
+  son propre playhead (start / vitesse / pause / loop, cf. *Transport vidéo* ci-dessus).
+  Des spots d'un même **groupe de sync** (+5) partagent un playhead.
 - **Fixture de fond** : slot réservé **60** (`BG_FIXTURE_SLOT`), même layout 23 canaux
   qu'un spot, adresse `bg_fixture_base_addr() = spot_base_addr(60) = 1412`. Dessinée
   **DERRIÈRE** tous les spots ; en mode 14 (VIDEO) = vidéo plein écran choisie par +22 ;

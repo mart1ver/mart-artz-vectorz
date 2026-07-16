@@ -2,6 +2,30 @@
 
 ---
 
+## v2.8 — Contrôle de lecture vidéo par spot (2026-07)
+
+- **Playhead virtuel par spot** : chaque spot vidéo contrôle sa propre lecture —
+  **point de départ (in)**, **vitesse** (0.25×..4×, 128≈1×), **play / pause / stop**,
+  **loop / once / ping-pong**, **sens** (avant/arrière), **point de fin (out)**,
+  **groupe de sync** (playhead partagé) et **strobe/hold**.
+- **Nouveaux canaux** (mode vidéo 14 et 100-113) : les canaux fill (+0..+2) et
+  stroke (+4..+6), inutiles en vidéo, sont réinterprétés en transport — **+0**
+  vitesse, **+1** in, **+2** flags, **+4** out, **+5** sync, **+6** strobe. Bloc
+  23 canaux et capacité (20 fixtures/univers) **inchangés**. Défauts à 0 = lecture
+  1× en boucle → **contenu DMX existant compatible**. Contrepartie : plus de contour
+  sur les spots forme+vidéo (canaux stroke réutilisés).
+- **Moteur — décode-une-fois** : `VideoClip` décode chaque clip **entièrement en
+  cache RAM** au démarrage (remplace le décodeur continu `VideoDecoder`, supprimé).
+  Coût CPU permanent nul en lecture, lecture déterministe ; RAM ≈ 270 Mo/clip de 10 s
+  à 640×360. Textures par slot (upload de la frame courante), groupes de sync partagés.
+- **`video_show.py`** : 2 nouvelles scènes (**Écho** — départs décalés ; **Transport**
+  — 4 modes côte à côte), helpers transport (`vid_flags`, `spd`, `**tr`). 10 scènes.
+- **Correctifs rétro-compat** : `defile_formes.py` mettait fill=255 sur ses panneaux
+  vidéo (→ 4× arrière avec le nouveau mapping) — remis à 0 (play 1× loop).
+- **Tests** : `test_video.py` (cache) + 3 tests transport dans `test_dmx.py`.
+
+---
+
 ## v2.7 — Retrait de la désynchronisation vidéo (2026-07)
 
 - **Désync vidéo supprimée** : l'anneau de 16 frames par source (`_VID_RING`) est

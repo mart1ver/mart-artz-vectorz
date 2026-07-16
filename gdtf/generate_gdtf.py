@@ -34,20 +34,20 @@ def spot_xml():
     ShortName="LCSpot"
     LongName="LuxCore DMX Engine - Spot"
     Manufacturer="Martin Vert"
-    Description="Spot vectoriel 23ch : RGB fill, alpha, stroke, taille Pan/Tilt 16-bit, rotation 16-bit, position Pan/Tilt 16-bit, mode (14 formes 0..14 dont 13=Rafale, 14=Video ; bande 100..113 = forme remplie par la video), enable, blend mode individuel, police/selecteur video. Adresse spot N = 32 + N*23 + 1. Multi-univers : 20 spots/univers, 43 sur 2, 65 sur 3."
+    Description="Spot vectoriel 23ch : RGB fill, alpha, stroke, taille Pan/Tilt 16-bit, rotation 16-bit, position Pan/Tilt 16-bit, mode (14 formes 0..14 dont 13=Rafale, 14=Video ; bande 100..113 = forme remplie par la video), enable, blend mode individuel, police/selecteur video. EN MODE VIDEO (14 et 100..113), les canaux fill (+0..+2) et stroke (+4..+6) pilotent la LECTURE PAR SPOT : +0 vitesse (128=1x), +1 point de depart, +2 flags (play/pause/stop, sens, loop), +4 point de fin, +5 groupe de sync, +6 strobe ; defauts a 0 = play 1x loop. Adresse spot N = 32 + N*23 + 1. Multi-univers : 20 spots/univers, 43 sur 2, 65 sur 3."
     FixtureTypeID="{fid}"
     RefFT=""
     Thumbnail="">
 
     <AttributeDefinitions>
       <Attributes>
-        <Attribute Name="ColorAdd_R"   Pretty="R"        Activation="ColorMix" Feature="Color.Color"       PhysicalUnit="None"  Color="0.64 0.33 0.21"/>
-        <Attribute Name="ColorAdd_G"   Pretty="G"        Activation="ColorMix" Feature="Color.Color"       PhysicalUnit="None"  Color="0.3 0.6 0.15"/>
-        <Attribute Name="ColorAdd_B"   Pretty="B"        Activation="ColorMix" Feature="Color.Color"       PhysicalUnit="None"  Color="0.15 0.06 0.79"/>
+        <Attribute Name="ColorAdd_R"   Pretty="R / VSpd" Activation="ColorMix" Feature="Color.Color"       PhysicalUnit="None"  Color="0.64 0.33 0.21"/>
+        <Attribute Name="ColorAdd_G"   Pretty="G / VIn"  Activation="ColorMix" Feature="Color.Color"       PhysicalUnit="None"  Color="0.3 0.6 0.15"/>
+        <Attribute Name="ColorAdd_B"   Pretty="B / VFlg" Activation="ColorMix" Feature="Color.Color"       PhysicalUnit="None"  Color="0.15 0.06 0.79"/>
         <Attribute Name="Dimmer"       Pretty="Alpha"    Activation="Dimmer"   Feature="Dimmer.Dimmer"     PhysicalUnit="None"  Color="0.32 0.32 0.32"/>
-        <Attribute Name="StrokeW"      Pretty="Stroke W" Activation="None"     Feature="Beam.Beam"         PhysicalUnit="None"  Color="0.32 0.32 0.32"/>
-        <Attribute Name="StrokeA"      Pretty="Stroke A" Activation="None"     Feature="Beam.Beam"         PhysicalUnit="None"  Color="0.32 0.32 0.32"/>
-        <Attribute Name="StrokeR"      Pretty="Stroke R" Activation="None"     Feature="Color.Color"       PhysicalUnit="None"  Color="0.64 0.33 0.21"/>
+        <Attribute Name="StrokeW"      Pretty="StrkW/VOut" Activation="None"   Feature="Beam.Beam"         PhysicalUnit="None"  Color="0.32 0.32 0.32"/>
+        <Attribute Name="StrokeA"      Pretty="StrkA/VSyn" Activation="None"   Feature="Beam.Beam"         PhysicalUnit="None"  Color="0.32 0.32 0.32"/>
+        <Attribute Name="StrokeR"      Pretty="StrkR/VStb" Activation="None"   Feature="Color.Color"       PhysicalUnit="None"  Color="0.64 0.33 0.21"/>
         <Attribute Name="StrokeG"      Pretty="Stroke G" Activation="None"     Feature="Color.Color"       PhysicalUnit="None"  Color="0.3 0.6 0.15"/>
         <Attribute Name="StrokeB"      Pretty="Stroke B" Activation="None"     Feature="Color.Color"       PhysicalUnit="None"  Color="0.15 0.06 0.79"/>
         <Attribute Name="Zoom"         Pretty="Size Pan" Activation="Zoom"     Feature="Beam.Beam"         PhysicalUnit="Angle" Color="0.32 0.32 0.32"/>
@@ -90,21 +90,21 @@ def spot_xml():
           <!-- +0  Canal 1 : Rouge fill -->
           <DMXChannel DMXBreak="1" Offset="1" Highlight="255" Geometry="Body">
             <LogicalChannel Attribute="ColorAdd_R" Snap="No" Master="None" MibFade="0" DMXChangeTimeLimit="0">
-              <ChannelFunction Attribute="ColorAdd_R" Name="Red" OriginalAttribute="" DMXFrom="0/1" Default="255/1" PhysicalFrom="0" PhysicalTo="1" RealFade="0" RealAcceleration="0"/>
+              <ChannelFunction Attribute="ColorAdd_R" Name="Fill Red / Video Speed" OriginalAttribute="" DMXFrom="0/1" Default="255/1" PhysicalFrom="0" PhysicalTo="1" RealFade="0" RealAcceleration="0"/>
             </LogicalChannel>
           </DMXChannel>
 
           <!-- +1  Canal 2 : Vert fill -->
           <DMXChannel DMXBreak="1" Offset="2" Highlight="255" Geometry="Body">
             <LogicalChannel Attribute="ColorAdd_G" Snap="No" Master="None" MibFade="0" DMXChangeTimeLimit="0">
-              <ChannelFunction Attribute="ColorAdd_G" Name="Green" OriginalAttribute="" DMXFrom="0/1" Default="255/1" PhysicalFrom="0" PhysicalTo="1" RealFade="0" RealAcceleration="0"/>
+              <ChannelFunction Attribute="ColorAdd_G" Name="Fill Green / Video In" OriginalAttribute="" DMXFrom="0/1" Default="255/1" PhysicalFrom="0" PhysicalTo="1" RealFade="0" RealAcceleration="0"/>
             </LogicalChannel>
           </DMXChannel>
 
           <!-- +2  Canal 3 : Bleu fill -->
           <DMXChannel DMXBreak="1" Offset="3" Highlight="255" Geometry="Body">
             <LogicalChannel Attribute="ColorAdd_B" Snap="No" Master="None" MibFade="0" DMXChangeTimeLimit="0">
-              <ChannelFunction Attribute="ColorAdd_B" Name="Blue" OriginalAttribute="" DMXFrom="0/1" Default="255/1" PhysicalFrom="0" PhysicalTo="1" RealFade="0" RealAcceleration="0"/>
+              <ChannelFunction Attribute="ColorAdd_B" Name="Fill Blue / Video Transport" OriginalAttribute="" DMXFrom="0/1" Default="255/1" PhysicalFrom="0" PhysicalTo="1" RealFade="0" RealAcceleration="0"/>
             </LogicalChannel>
           </DMXChannel>
 
@@ -118,21 +118,21 @@ def spot_xml():
           <!-- +4  Canal 5 : Stroke weight -->
           <DMXChannel DMXBreak="1" Offset="5" Highlight="0" Geometry="Body">
             <LogicalChannel Attribute="StrokeW" Snap="No" Master="None" MibFade="0" DMXChangeTimeLimit="0">
-              <ChannelFunction Attribute="StrokeW" Name="Stroke Weight" OriginalAttribute="" DMXFrom="0/1" Default="0/1" PhysicalFrom="0" PhysicalTo="255" RealFade="0" RealAcceleration="0"/>
+              <ChannelFunction Attribute="StrokeW" Name="Stroke Weight / Video Out" OriginalAttribute="" DMXFrom="0/1" Default="0/1" PhysicalFrom="0" PhysicalTo="255" RealFade="0" RealAcceleration="0"/>
             </LogicalChannel>
           </DMXChannel>
 
           <!-- +5  Canal 6 : Stroke alpha -->
           <DMXChannel DMXBreak="1" Offset="6" Highlight="255" Geometry="Body">
             <LogicalChannel Attribute="StrokeA" Snap="No" Master="None" MibFade="0" DMXChangeTimeLimit="0">
-              <ChannelFunction Attribute="StrokeA" Name="Stroke Alpha" OriginalAttribute="" DMXFrom="0/1" Default="255/1" PhysicalFrom="0" PhysicalTo="1" RealFade="0" RealAcceleration="0"/>
+              <ChannelFunction Attribute="StrokeA" Name="Stroke Alpha / Video Sync" OriginalAttribute="" DMXFrom="0/1" Default="255/1" PhysicalFrom="0" PhysicalTo="1" RealFade="0" RealAcceleration="0"/>
             </LogicalChannel>
           </DMXChannel>
 
           <!-- +6  Canal 7 : Stroke rouge -->
           <DMXChannel DMXBreak="1" Offset="7" Highlight="255" Geometry="Body">
             <LogicalChannel Attribute="StrokeR" Snap="No" Master="None" MibFade="0" DMXChangeTimeLimit="0">
-              <ChannelFunction Attribute="StrokeR" Name="Stroke Red" OriginalAttribute="" DMXFrom="0/1" Default="255/1" PhysicalFrom="0" PhysicalTo="1" RealFade="0" RealAcceleration="0"/>
+              <ChannelFunction Attribute="StrokeR" Name="Stroke Red / Video Strobe" OriginalAttribute="" DMXFrom="0/1" Default="255/1" PhysicalFrom="0" PhysicalTo="1" RealFade="0" RealAcceleration="0"/>
             </LogicalChannel>
           </DMXChannel>
 

@@ -32,7 +32,7 @@ python_port/.venv/bin/python python_port/run_engine.py --preview --spots 60 --du
 ```bash
 python3 demo_scripts/defile_formes.py            # show maître complet
 python3 demo_scripts/kinetic.py                  # géométrie rythmée BPM
-python3 demo_scripts/video_show.py               # 8 scènes vidéo
+python3 demo_scripts/video_show.py               # 10 scènes vidéo
 python3 demo_scripts/lorem_fou.py                # texte survitaminé
 python3 demo_scripts/artnet_text.py              # typographie multi-scènes
 ```
@@ -145,7 +145,7 @@ figées = pas de scintillement).
 
 ---
 
-## `video_show.py` — 8 scènes vidéo (100 % des fonctions vidéo)
+## `video_show.py` — 10 scènes vidéo (100 % des fonctions vidéo)
 
 **Lancer :**
 ```bash
@@ -153,7 +153,9 @@ python3 demo_scripts/video_show.py [ip] [n_videos]
 ```
 `N_VID` auto-détecté via `count_videos()`. `MAX_PANELS=24` (slots 0-23), `BG_SLOT=60`.
 Classe `VideoShow`. Méthodes : `vspot()` (panneau vidéo mode 14, 16:9), `vshape()`
-(forme remplie mode `100+forme`), `bgvid()` (fond plein écran), `blade()`. Enveloppes
+(forme remplie mode `100+forme`), `bgvid()` (fond plein écran), `blade()`. Toutes
+acceptent le **transport** en `**tr` (`speed`, `vin`, `transport`, `reverse`, `loop`,
+`vout`, `sync`, `strobe`) ; helpers `vid_flags()` et `spd(facteur)`. Enveloppes
 `swell`, `bump`, `scene_gain`.
 
 | Scène | Méthode | s | Démontre |
@@ -161,6 +163,8 @@ Classe `VideoShow`. Méthodes : `vspot()` (panneau vidéo mode 14, 16:9), `vshap
 | Plein écran | `sc_fullscreen` | 16 | Cycle des vidéos en fondu, sélecteur +22 |
 | Fond+Panneaux | `sc_bg_panels` | 16 | Fixture de fond + 3 panneaux flottants |
 | Mur vidéo | `sc_wall` | 14 | Mosaïque 4×3, multi-sources |
+| Écho (départs décalés) | `sc_echo` | 16 | Même vidéo, départs échelonnés (+1) → cascade temporelle |
+| Transport | `sc_transport` | 18 | 4 modes côte à côte : ralenti / normal / arrière / ping-pong |
 | Mouvement | `sc_motion` | 16 | 5 panneaux orbitent / tournent / respirent |
 | Blend | `sc_blend` | 14 | Même vidéo en ADD/SCREEN/DIFFERENCE |
 | Formes vidéo | `sc_video_shapes` | 16 | Silhouettes (étoile/cœur/hexa…) dans la vidéo |
@@ -168,7 +172,8 @@ Classe `VideoShow`. Méthodes : `vspot()` (panneau vidéo mode 14, 16:9), `vshap
 | Kaléido mur | `sc_kaleido_wall` | 16 | FINALE : mur + kaléidoscope + bloom |
 
 `vsel(v)` mappe l'index vidéo → canal +22 (milieu de plage). `sz_px` (vidéo, ÷2.5) vs
-`sz_shape` (forme, plafond 1000 px) sont distincts.
+`sz_shape` (forme, plafond 1000 px) sont distincts. Les scènes Écho/Transport respectent
+l'anti-clignotement : variété **spatiale** (pas de flip temporel plein champ).
 
 ---
 

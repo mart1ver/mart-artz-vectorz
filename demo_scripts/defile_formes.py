@@ -378,7 +378,8 @@ class DefileFormes:
         vers l'index disponible). Répartir vsel entre panneaux -> vidéos variées."""
         if idx >= NUM_VIDEO_FIXTURES:
             return
-        self.set_spot(VIDEO_FIXTURE_SLOT0 + idx, 255, 255, 255,
+        # fill/stroke = 0 : en mode vidéo ces canaux sont le TRANSPORT (0 = play 1× loop)
+        self.set_spot(VIDEO_FIXTURE_SLOT0 + idx, 0, 0, 0,
                       int(max(0, min(255, alpha))), 0, 0, 0, 0, 0,
                       sz_px(w), sz_px(w * 9.0 / 16.0),
                       int(rot_deg % 360 * 65535 / 360),
@@ -396,7 +397,8 @@ class DefileFormes:
         def s16(px):
             return max(0, min(65535, int(max(0, min(1000, px)) / 1000 * 65535)))
 
-        self.set_spot(VIDEO_FIXTURE_SLOT0 + idx, 255, 255, 255,
+        # fill/stroke = 0 : en mode vidéo ces canaux sont le TRANSPORT (0 = play 1× loop)
+        self.set_spot(VIDEO_FIXTURE_SLOT0 + idx, 0, 0, 0,
                       int(max(0, min(255, alpha))), 0, 0, 0, 0, 0,
                       s16(w), s16(h), int(rot_deg % 360 * 65535 / 360),
                       to_pan(dx), to_tilt(dy), 100 + int(shape), spot_blend=blend,
@@ -406,7 +408,8 @@ class DefileFormes:
         """Fixture de FOND : vidéo plein écran DERRIÈRE tous les spots.
         vsel (+22) choisit la vidéo ; alpha permet de la fondre avec la couleur
         RGB de fond. Le moteur force le plein écran (taille/position ignorées)."""
-        self.set_spot(BG_FIXTURE_SLOT, 255, 255, 255,
+        # fill/stroke = 0 : en mode vidéo ces canaux sont le TRANSPORT (0 = play 1× loop)
+        self.set_spot(BG_FIXTURE_SLOT, 0, 0, 0,
                       int(max(0, min(255, alpha))), 0, 0, 0, 0, 0,
                       0, 0, 0, 0, 0, 14, spot_blend=blend,
                       font=int(max(0, min(255, vsel))))

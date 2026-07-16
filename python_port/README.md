@@ -70,8 +70,12 @@ propres au portage) :
   opacité = alpha. En mode 14, le canal **+22** sélectionne la vidéo du dossier
   (`data/videos`, trié par nom) et la taille est ré-échelonnée (plein écran
   possible malgré le plafond 1000 px du décodage).
-- **Source partagée** : chaque vidéo garde sa dernière frame dans une texture ;
-  tous les panneaux qui affichent la même source l'échantillonnent.
+- **Contrôle de lecture par spot** : chaque vidéo est décodée **en cache** (1× au
+  démarrage) et chaque spot tient son propre playhead. En mode vidéo, les canaux
+  fill (+0..+2) et stroke (+4..+6) — inutiles — pilotent le transport : **+0**
+  vitesse, **+1** point de départ, **+2** flags (play/pause/stop · sens · loop),
+  **+4** point de fin, **+5** groupe de sync, **+6** strobe. Défauts à 0 = lecture
+  1× en boucle. Un spot en forme+vidéo n'a donc plus de contour.
 - **Fixture de FOND** (slot réservé `BG_FIXTURE_SLOT = 60`) : une fixture 23
   canaux dessinée DERRIÈRE tous les spots. En mode 14 = vidéo plein écran de fond
   (choisie par +22, alpha pour fondre avec la couleur RGB) ; sinon le fond reste
@@ -79,8 +83,9 @@ propres au portage) :
 
 ## Vidéos : clips + garde-fou VRAM
 
-Le moteur charge **toutes** les vidéos de `data/videos/` au démarrage (un décodeur +
-une texture par source ≈ **~133 Mo VRAM/vidéo**, décodées en continu → coût CPU).
+Le moteur charge **toutes** les vidéos de `data/videos/` au démarrage et les décode
+**entièrement en cache RAM** (≈ **270 Mo/clip de 10 s** à 640×360). Décode-une-fois :
+coût CPU permanent nul en lecture, mais RAM ∝ nb de clips × durée × résolution.
 
 - `data/videos/`     — jeu de travail chargé (par défaut **8 clips** de 10 s ≈ 52 fps).
 - `data/clips_all/`  — réserve des clips de 10 s (non chargée) ; copier ceux voulus

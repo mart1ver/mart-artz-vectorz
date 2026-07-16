@@ -74,11 +74,11 @@ Mapping (offset 1-based dans la fixture) :
 
 | Offset | Paramètre | Résolution |
 |--------|-----------|-----------|
-| 1-3 | RGB fill | 8-bit |
+| 1-3 | RGB fill — *mode VIDEO : vitesse / départ / flags transport* | 8-bit |
 | 4 | Alpha | 8-bit |
-| 5 | Stroke weight | 8-bit |
-| 6 | Stroke alpha | 8-bit |
-| 7-9 | RGB stroke | 8-bit |
+| 5 | Stroke weight — *mode VIDEO : point de fin (out)* | 8-bit |
+| 6 | Stroke alpha — *mode VIDEO : groupe de sync* | 8-bit |
+| 7-9 | RGB stroke — *mode VIDEO : offset 7 = strobe/hold* | 8-bit |
 | 10-11 | Size Pan (largeur) | 16-bit |
 | 12-13 | Size Tilt (hauteur ; mode Texte : code ASCII) | 16-bit |
 | 14-15 | Rotation | 16-bit |
@@ -88,6 +88,11 @@ Mapping (offset 1-based dans la fixture) :
 | 21 | Enable | 8-bit |
 | 22 | Blend individuel | 8-bit |
 | 23 | Police (mode Texte) / sélecteur vidéo (mode VIDEO) | 8-bit |
+
+> **Transport vidéo** : en mode VIDEO (Mode = 14 ou 100..113), les canaux fill (1-3) et
+> stroke (5-7) — inutiles — pilotent la lecture par spot (voir *Transport vidéo* dans
+> [PROTOCOLE_DMX.md](PROTOCOLE_DMX.md)). Le générateur nomme ces ChannelFunctions en
+> double (« Fill Red / Video Speed », etc.). Défauts à 0 = play 1× loop.
 
 ---
 
