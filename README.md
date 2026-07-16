@@ -5,7 +5,7 @@ compose sur GPU des **formes vectorielles** et de la **vidéo**, animées canal 
 avec une **sortie NDI** prête à mixer. Le buffer DMX est la source de vérité — le rendu le
 suit image par image.
 
-**Auteur :** Martin Vert — unique créateur et développeur.
+**Auteur :** Martin Vert 
 
 Le moteur principal est le **portage Python / moderngl** (OpenGL + NDI), dans
 [`python_port/`](python_port/). Le sketch **Processing** d'origine est archivé dans
