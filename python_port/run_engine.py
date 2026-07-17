@@ -9,29 +9,80 @@ OBS / vMix / Resolume.
     python_port/.venv/bin/python python_port/run_engine.py --spots 60 --duration 0
 """
 import argparse
+import json
 import os
 import queue
 import shutil
 import subprocess
+import sys
+import tempfile
 import threading
 import time
 from fractions import Fraction
 
 import numpy as np
 
+from luxcore import appconfig, netconfig
 from luxcore.artnet import ArtNetReceiver
 from luxcore.engine import LuxCoreEngine
+
+# Options adossées à la config (menu/JSON) : retirées de argv lors d'une relance
+# « Redémarrer moteur » pour que le fichier de config fasse foi sur la nouvelle valeur.
+_CONFIG_FLAGS = {"--width", "--height", "--fps", "--spots", "--name",
+                 "--artnet-nic", "--ndi-nic", "--start-universe", "--start-addr"}
+
+
+def _apply_ndi_interface(ip: str) -> None:
+    """Best-effort : restreint NDI à l'IP `ip` via un ndi-config.v1.json + NDI_CONFIG_DIR.
+    À appeler AVANT la création du sender. Sans effet si `ip` est vide ; non garanti
+    selon la version du SDK NDI (dans ce cas NDI émet sur toutes les interfaces)."""
+    if not ip:
+        return
+    d = tempfile.mkdtemp(prefix="luxcore-ndi-")
+    with open(os.path.join(d, "ndi-config.v1.json"), "w", encoding="utf-8") as f:
+        json.dump({"ndi": {"networks": {"ips": ip}}}, f)
+    os.environ["NDI_CONFIG_DIR"] = d
+    print(f"[NDI] interface demandée {ip} (best-effort via {d})")
+
+
+def _argv_for_restart(argv: list[str]) -> list[str]:
+    """argv sans les options adossées à la config (pour qu'une relance relise le JSON)."""
+    out: list[str] = []
+    skip = False
+    for a in argv:
+        if skip:
+            skip = False
+            continue
+        if a in _CONFIG_FLAGS:
+            skip = True
+            continue
+        if any(a.startswith(f + "=") for f in _CONFIG_FLAGS):
+            continue
+        out.append(a)
+    return out
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--width", type=int, default=1920)
-    ap.add_argument("--height", type=int, default=1080)
-    ap.add_argument("--fps", type=int, default=60)
-    ap.add_argument("--spots", type=int, default=60,
+    # Réglages adossés au fichier de config (menu) : default=None -> valeur du JSON
+    # si le flag n'est pas passé (le flag CLI reste prioritaire quand fourni).
+    ap.add_argument("--config", default=None, help="fichier de config JSON (défaut : "
+                    "~/.config/luxcore/config.json)")
+    ap.add_argument("--width", type=int, default=None)
+    ap.add_argument("--height", type=int, default=None)
+    ap.add_argument("--fps", type=int, default=None)
+    ap.add_argument("--spots", type=int, default=None,
                     help="nombre de fixtures décodées (une fixture en mode 14 = vidéo)")
+    ap.add_argument("--name", default=None, help="nom de la source NDI")
+    ap.add_argument("--artnet-nic", default=None,
+                    help="carte réseau (nom ou IP) pour la réception ArtNet")
+    ap.add_argument("--ndi-nic", default=None,
+                    help="carte réseau (nom ou IP) pour l'émission NDI (best-effort)")
+    ap.add_argument("--start-universe", type=int, default=None,
+                    help="1er univers ArtNet du patch (0-based)")
+    ap.add_argument("--start-addr", type=int, default=None,
+                    help="1re adresse DMX du patch dans cet univers (1-based)")
     ap.add_argument("--duration", type=float, default=20.0, help="0 = jusqu'à Ctrl+C")
-    ap.add_argument("--name", default="LuxCore")
     ap.add_argument("--snapshot-dir", help="sauve un PNG toutes les --snapshot-interval s")
     ap.add_argument("--snapshot-interval", type=float, default=2.0)
     ap.add_argument("--preview", action="store_true",
@@ -55,6 +106,23 @@ def main():
                     help="charge au plus N vidéos du dossier (échantillonnées "
                          "uniformément pour la variété) — garde-fou VRAM (~133 Mo/vidéo)")
     args = ap.parse_args()
+
+    # -- config (JSON persistée) : le flag CLI, s'il est fourni, l'emporte --------
+    cfg = appconfig.load(args.config)
+
+    def _pick(cli, key):
+        return cli if cli is not None else cfg[key]
+
+    W = _pick(args.width, "width")
+    H = _pick(args.height, "height")
+    FPS = _pick(args.fps, "fps")
+    spots0 = _pick(args.spots, "spots")
+    ndi_name = _pick(args.name, "name")
+    artnet_ip = netconfig.ip_for(args.artnet_nic) if args.artnet_nic else cfg["artnet_ip"]
+    ndi_ip = netconfig.ip_for(args.ndi_nic) if args.ndi_nic else cfg["ndi_ip"]
+    start_universe = _pick(args.start_universe, "start_universe")
+    start_addr = _pick(args.start_addr, "start_addr")
+    base_offset = start_addr - 1
 
     fonts_dir = None if args.no_fonts else args.fonts_dir
 
@@ -83,11 +151,22 @@ def main():
     if args.snapshot_dir:
         os.makedirs(args.snapshot_dir, exist_ok=True)
 
-    W, H, FPS = args.width, args.height, args.fps
+    # état partagé avec le GUI (réglages runtime + config éditable au menu)
+    state = {"spots": spots0, "effects": True,
+             "restart_artnet": False, "gui_visible": True,
+             "artnet_ip": artnet_ip, "ndi_ip": ndi_ip,
+             "width": W, "height": H,
+             "start_universe": start_universe, "start_addr": start_addr,
+             "interfaces": netconfig.list_interfaces(),
+             "apply_artnet": False, "restart_engine": False, "save_config": False}
 
-    # état partagé avec le GUI
-    state = {"spots": args.spots, "effects": True,
-             "restart_artnet": False, "gui_visible": True}
+    def _snapshot_config():
+        """Config courante (état menu) pour sauvegarde / relance."""
+        return {"width": state["width"], "height": state["height"], "fps": FPS,
+                "spots": state["spots"], "name": ndi_name,
+                "artnet_ip": state["artnet_ip"], "ndi_ip": state["ndi_ip"],
+                "start_universe": state["start_universe"],
+                "start_addr": state["start_addr"]}
 
     # -- contexte GL : fenêtre d'aperçu (pyglet) ou headless (EGL standalone) --
     # -- plein écran : masquer le curseur + empêcher la mise en veille --------
@@ -134,7 +213,7 @@ def main():
         import moderngl_window as mglw
         Wp, Hp = int(W * args.preview_scale), int(H * args.preview_scale)
         window_cls = mglw.get_local_window_cls()
-        window = window_cls(size=(Wp, Hp), title=f"LuxCore — aperçu ({args.name})",
+        window = window_cls(size=(Wp, Hp), title=f"LuxCore — aperçu ({ndi_name})",
                             gl_version=(3, 3), vsync=False, resizable=True)
         mglw.activate_context(window=window)
         ctx = window.ctx
@@ -188,17 +267,18 @@ def main():
     print(f"[GL] {eng.ctx.info['GL_RENDERER']}")
 
     # -- sortie NDI (readback PBO + worker d'envoi) --
+    _apply_ndi_interface(ndi_ip)         # best-effort : restreint NDI à l'IP choisie
     from cyndilib.sender import Sender
     from cyndilib.video_frame import VideoSendFrame
     from cyndilib.wrapper.ndi_structs import FourCC
-    sender = Sender(args.name)
+    sender = Sender(ndi_name)
     vf = VideoSendFrame()
     vf.set_resolution(W, H)
     vf.set_frame_rate(Fraction(FPS, 1))
     vf.set_fourcc(FourCC.UYVY)          # 4:2:2 — readback W*H*2 (moitié du RGBA)
     sender.set_video_frame(vf)
     sender.open()
-    print(f"[NDI] source '{args.name}' — {W}x{H} @ {FPS} (UYVY)")
+    print(f"[NDI] source '{ndi_name}' — {W}x{H} @ {FPS} (UYVY)")
 
     NB = 3
     nbytes = W * H * 2                  # UYVY : 2 octets/pixel
@@ -217,7 +297,7 @@ def main():
             send_q.task_done()
     threading.Thread(target=ndi_worker, daemon=True).start()
 
-    artnet = ArtNetReceiver()
+    artnet = ArtNetReceiver(bind_addr=artnet_ip, start_universe=start_universe)
     artnet.start()
 
     frame_dt = 1.0 / FPS
@@ -236,15 +316,38 @@ def main():
 
             # contrôles GUI appliqués à la frame
             eng.enable_effects = state["effects"]
-            if state["restart_artnet"]:
+
+            # ArtNet appliqué À CHAUD : carte réseau + univers + adresse de départ
+            if state["restart_artnet"] or state["apply_artnet"]:
                 state["restart_artnet"] = False
+                state["apply_artnet"] = False
                 artnet.stop()
-                artnet = ArtNetReceiver()
+                artnet = ArtNetReceiver(bind_addr=state["artnet_ip"],
+                                        start_universe=state["start_universe"])
                 artnet.start()
-                print("[artnet] redémarré")
+                base_offset = state["start_addr"] - 1
+                print(f"[artnet] appliqué : {state['artnet_ip']} · univers "
+                      f"{state['start_universe']} · adresse {state['start_addr']}")
+
+            # Sauvegarde de la config (menu)
+            if state["save_config"]:
+                state["save_config"] = False
+                appconfig.save(_snapshot_config(), args.config)
+                print("[config] sauvegardée")
+
+            # Redémarrage du moteur (résolution / carte NDI) : relance propre du process
+            if state["restart_engine"]:
+                appconfig.save(_snapshot_config(), args.config)
+                print("[engine] redémarrage (résolution / carte NDI)…")
+                artnet.stop()
+                send_q.put(None)
+                time.sleep(0.1)
+                sender.close()
+                _sleep_inhibit(False)
+                os.execv(sys.executable, [sys.executable] + _argv_for_restart(sys.argv))
 
             dmx = artnet.snapshot()
-            base, _ = eng.render_dmx(dmx, state["spots"])
+            base, _ = eng.render_dmx(dmx, state["spots"], base_offset=base_offset)
 
             # aperçu écran : blit du FBO vers le framebuffer de la fenêtre
             if blit is not None:
@@ -262,7 +365,7 @@ def main():
                     status = {"fps": n / max(1e-6, time.perf_counter() - t0),
                               "packets": artnet.packets,
                               "universe": artnet.last_universe_seen,
-                              "ndi": args.name,
+                              "ndi": ndi_name,
                               "res": f"{W}x{H} @ {FPS}",
                               "blend": base.blend_global.name}
                     draw_gui(state, status)
