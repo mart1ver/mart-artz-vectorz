@@ -22,6 +22,7 @@ from __future__ import annotations
 from imgui_bundle import imgui
 
 from . import appconfig
+from . import constants as C
 
 # largeur des champs numériques
 _W = 120.0
@@ -68,6 +69,14 @@ def draw_gui(state: dict, status: dict) -> None:
     changed, v = imgui.input_int("Adresse départ", state["start_addr"])
     if changed:
         state["start_addr"] = max(1, min(512, v))
+
+    # Position DMX réelle (univers, adresse) du 1er spot et du fond, pour patcher
+    su, sa = state["start_universe"], state["start_addr"]
+    spot_u, spot_a = C.patch_position(C.spot_base_addr(0), su, sa)
+    bg_u, bg_a = C.patch_position(C.bg_fixture_base_addr(), su, sa)
+    imgui.text_disabled(f"1er spot : univers {spot_u}, adresse {spot_a}")
+    imgui.text_disabled(f"Fond     : univers {bg_u}, adresse {bg_a}")
+
     if imgui.button("Appliquer ArtNet"):
         state["apply_artnet"] = True
 

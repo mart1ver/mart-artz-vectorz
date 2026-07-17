@@ -171,6 +171,17 @@ def test_video_channels_alias_fill_and_stroke():
     assert s.vid_out_raw == 60 == s.stroke_weight
 
 
+def test_patch_position():
+    # défaut (0,1) : 1er spot -> (0,33), fond (slot 60) -> (2,389)
+    assert C.patch_position(C.spot_base_addr(0)) == (0, 33)
+    assert C.patch_position(C.bg_fixture_base_addr()) == (2, 389)
+    # départ (univers 1, adresse 10)
+    assert C.patch_position(C.spot_base_addr(0), 1, 10) == (1, 42)
+    assert C.patch_position(C.bg_fixture_base_addr(), 1, 10) == (3, 398)
+    # base à cheval sur 2 univers (adresse 500 -> 1er spot déborde)
+    assert C.patch_position(C.spot_base_addr(0), 0, 500) == (1, 20)
+
+
 def test_decode_base_offset_shifts_patch():
     # adresse ArtNet de départ : base_offset décale TOUT le patch (base + spots + fond)
     buf = _blank_buf()

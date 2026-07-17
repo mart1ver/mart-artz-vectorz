@@ -87,6 +87,18 @@ def spot_base_addr(spot_id: int) -> int:
     return NUM_BASE_PARAMETERS + spot_id * NUM_PARAMS_PER_SPOT
 
 
+def patch_position(local_offset: int, start_universe: int = 0,
+                   start_addr: int = 1) -> tuple[int, int]:
+    """Position DMX réelle `(univers, adresse 1-based)` d'un canal du patch.
+
+    `local_offset` est l'index 0-based depuis le début du bloc de base (p.ex.
+    `spot_base_addr(0)` pour le 1er spot, `bg_fixture_base_addr()` pour le fond).
+    Le patch démarre à `(start_universe, start_addr)` ; on répartit sur les univers
+    de 512 canaux. Ex. défaut (0, 1) : 1er spot -> (0, 33), fond -> (2, 389)."""
+    flat = (start_addr - 1) + local_offset
+    return start_universe + flat // UNIVERSE_SIZE, (flat % UNIVERSE_SIZE) + 1
+
+
 # ---------------------------------------------------------------------------
 # Fixture unifiée : il n'existe qu'UN type de fixture (le spot, 23 canaux).
 # La vidéo n'est plus une famille dédiée : c'est simplement un spot en mode 14
