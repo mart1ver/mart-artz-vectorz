@@ -171,6 +171,43 @@ def test_video_channels_alias_fill_and_stroke():
     assert s.vid_out_raw == 60 == s.stroke_weight
 
 
+def test_decode_base_offset_shifts_patch():
+    # adresse ArtNet de départ : base_offset décale TOUT le patch (base + spots + fond)
+    buf = _blank_buf()
+    off = 100                                  # start_addr 101 (1-based)
+    buf[off + C.CH_BG_R] = 111
+    sb = off + C.spot_base_addr(0)
+    buf[sb + C.SP_FILL_R] = 77
+    buf[sb + C.SP_ALPHA] = 255
+    buf[sb + C.SP_ENABLE] = 1
+    base, spots = dmx.decode_all(buf, 1, 1920, 1080, 20, base_offset=off)
+    assert base.bg[0] == 111
+    assert spots[0].fill[0] == 77 and spots[0].is_drawable()
+    # sans offset, ces octets ne sont pas lus (index 0 = 0)
+    base0, _ = dmx.decode_all(buf, 1, 1920, 1080, 20, base_offset=0)
+    assert base0.bg[0] == 0
+
+
+def test_artnet_start_universe_remap():
+    import struct
+    from luxcore.artnet import ArtNetReceiver, ARTNET_HEADER, OP_DMX
+
+    def pkt(universe, payload):
+        h = ARTNET_HEADER + struct.pack("<H", OP_DMX) + b"\x00\x0e\x00\x00"
+        h += bytes([universe & 0xFF, (universe >> 8) & 0x7F])
+        return h + struct.pack(">H", len(payload)) + payload
+
+    r = ArtNetReceiver(start_universe=2, max_universes=3)
+    r._handle(pkt(2, bytes([9, 8, 7])))        # univers 2 -> slot 0
+    assert bytes(r._buf[0:3]) == bytes([9, 8, 7])
+    r._handle(pkt(3, bytes([1, 2])))           # univers 3 -> slot 1 (offset 512)
+    assert bytes(r._buf[C.UNIVERSE_SIZE:C.UNIVERSE_SIZE + 2]) == bytes([1, 2])
+    r._handle(pkt(1, bytes([5, 5, 5])))        # univers 1 (< start) -> ignoré
+    r._handle(pkt(9, bytes([5, 5, 5])))        # slot 7 (>= max) -> ignoré
+    assert r.last_universe_seen == 3
+    assert r.packets == 2
+
+
 def test_decode_base_postfx_channels():
     # PostFX ajoutés (feedback / bloom / kaléido) décodés depuis le bloc de base
     buf = _blank_buf()

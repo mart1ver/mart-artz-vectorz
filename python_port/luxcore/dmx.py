@@ -130,24 +130,25 @@ class BaseState:
 # ---------------------------------------------------------------------------
 # Décodage
 # ---------------------------------------------------------------------------
-def decode_base(buf) -> BaseState:
-    blades = [u16(buf, C.BLADE_BASE_OFFSET + 2 * i) for i in range(8)]
+def decode_base(buf, base_offset: int = 0) -> BaseState:
+    o = base_offset                        # décalage global (adresse ArtNet de départ)
+    blades = [u16(buf, o + C.BLADE_BASE_OFFSET + 2 * i) for i in range(8)]
     return BaseState(
-        bg=(buf[C.CH_BG_R] & 0xFF, buf[C.CH_BG_G] & 0xFF, buf[C.CH_BG_B] & 0xFF),
-        blend_global=C.BLEND_LUT[buf[C.CH_BLEND_GLOBAL] & 0xFF],
+        bg=(buf[o + C.CH_BG_R] & 0xFF, buf[o + C.CH_BG_G] & 0xFF, buf[o + C.CH_BG_B] & 0xFF),
+        blend_global=C.BLEND_LUT[buf[o + C.CH_BLEND_GLOBAL] & 0xFF],
         blades_16=blades,
-        blur_size=buf[C.CH_BLUR_SIZE] & 0xFF,
-        blur_sigma=buf[C.CH_BLUR_SIGMA] & 0xFF,
-        pixelate=buf[C.CH_PIXELATE] & 0xFF,
-        sobel=(buf[C.CH_SOBEL] & 0xFF) > 128,
-        rgb_split=buf[C.CH_RGB_SPLIT] & 0xFF,
-        saturation_a=buf[C.CH_SATURATION_A] & 0xFF,
-        saturation_b=buf[C.CH_SATURATION_B] & 0xFF,
-        chromatic=(buf[C.CH_CHROMATIC] & 0xFF) > 128,
-        feedback=buf[C.CH_FEEDBACK] & 0xFF,
-        bloom_threshold=buf[C.CH_BLOOM_THRESHOLD] & 0xFF,
-        bloom_amount=buf[C.CH_BLOOM_AMOUNT] & 0xFF,
-        kaleido=buf[C.CH_KALEIDO] & 0xFF,
+        blur_size=buf[o + C.CH_BLUR_SIZE] & 0xFF,
+        blur_sigma=buf[o + C.CH_BLUR_SIGMA] & 0xFF,
+        pixelate=buf[o + C.CH_PIXELATE] & 0xFF,
+        sobel=(buf[o + C.CH_SOBEL] & 0xFF) > 128,
+        rgb_split=buf[o + C.CH_RGB_SPLIT] & 0xFF,
+        saturation_a=buf[o + C.CH_SATURATION_A] & 0xFF,
+        saturation_b=buf[o + C.CH_SATURATION_B] & 0xFF,
+        chromatic=(buf[o + C.CH_CHROMATIC] & 0xFF) > 128,
+        feedback=buf[o + C.CH_FEEDBACK] & 0xFF,
+        bloom_threshold=buf[o + C.CH_BLOOM_THRESHOLD] & 0xFF,
+        bloom_amount=buf[o + C.CH_BLOOM_AMOUNT] & 0xFF,
+        kaleido=buf[o + C.CH_KALEIDO] & 0xFF,
     )
 
 
@@ -197,12 +198,13 @@ def decode_spot(buf, base_addr: int, half_w: float, half_h: float,
 
 
 def decode_all(buf, num_spots: int, width: int, height: int,
-               n_fonts: int) -> tuple[BaseState, list[SpotState]]:
-    """Décode la base + `num_spots` spots pour une fenêtre width×height."""
-    base = decode_base(buf)
+               n_fonts: int, base_offset: int = 0) -> tuple[BaseState, list[SpotState]]:
+    """Décode la base + `num_spots` spots pour une fenêtre width×height.
+    `base_offset` décale tout le patch (adresse ArtNet de départ, 0-based)."""
+    base = decode_base(buf, base_offset)
     half_w, half_h = width * 0.5, height * 0.5
     spots = [
-        decode_spot(buf, C.spot_base_addr(i), half_w, half_h,
+        decode_spot(buf, base_offset + C.spot_base_addr(i), half_w, half_h,
                     base.blend_global, n_fonts)
         for i in range(num_spots)
     ]

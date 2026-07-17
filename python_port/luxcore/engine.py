@@ -717,13 +717,16 @@ class LuxCoreEngine:
         first, count = self._ranges[shape]
         self._shapevid_vao.render(moderngl.TRIANGLES, vertices=count, first=first)
 
-    def render_dmx(self, dmx_buf, num_spots: int, n_fonts: int | None = None):
+    def render_dmx(self, dmx_buf, num_spots: int, n_fonts: int | None = None,
+                   base_offset: int = 0):
         # Fixture unifiée : plus de famille vidéo dédiée. Tout spot en mode 14
         # (VIDEO) est rendu en vidéo, avec sélection (+22) et échelle plein écran.
+        # `base_offset` décale tout le patch (adresse ArtNet de départ, 0-based).
         nf = self.n_fonts if n_fonts is None else n_fonts
-        base, spots = decode_all(dmx_buf, num_spots, self.width, self.height, nf)
+        base, spots = decode_all(dmx_buf, num_spots, self.width, self.height, nf,
+                                 base_offset)
         # fixture de fond (slot réservé, dessinée derrière les spots)
-        bg_fix = decode_spot(dmx_buf, C.bg_fixture_base_addr(),
+        bg_fix = decode_spot(dmx_buf, base_offset + C.bg_fixture_base_addr(),
                              self.width * 0.5, self.height * 0.5,
                              base.blend_global, nf)
         self.render(base, spots, bg_fix)

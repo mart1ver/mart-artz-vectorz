@@ -27,11 +27,12 @@ class ArtNetReceiver(threading.Thread):
     """Thread récepteur. `snapshot()` renvoie une copie stable du buffer DMX."""
 
     def __init__(self, port: int = ARTNET_PORT, bind_addr: str = "0.0.0.0",
-                 max_universes: int = C.MAX_UNIVERSES):
+                 max_universes: int = C.MAX_UNIVERSES, start_universe: int = 0):
         super().__init__(daemon=True)
         self.port = port
         self.bind_addr = bind_addr
         self.max_universes = max_universes
+        self.start_universe = start_universe    # 1er univers du patch : remappé en slot 0
         self._buf = bytearray(C.UNIVERSE_SIZE * max_universes)
         self._lock = threading.Lock()
         self._stop = threading.Event()
@@ -49,7 +50,7 @@ class ArtNetReceiver(threading.Thread):
             return
         sock.settimeout(0.25)
         print(f"[ArtNet] écoute UDP {self.bind_addr}:{self.port} "
-              f"({self.max_universes} univers)")
+              f"({self.max_universes} univers à partir de {self.start_universe})")
         while not self._stop.is_set():
             try:
                 data, _addr = sock.recvfrom(1024)
@@ -68,18 +69,20 @@ class ArtNetReceiver(threading.Thread):
             return
         # Port-Address 15-bit : octet 14 = bits bas, octet 15 = bits hauts (7 bits)
         universe = data[14] | ((data[15] & 0x7F) << 8)
-        if universe >= self.max_universes:
+        # le patch commence à `start_universe` -> il est remappé sur le slot 0 du buffer
+        slot = universe - self.start_universe
+        if slot < 0 or slot >= self.max_universes:
             return
         length = struct.unpack_from(">H", data, 16)[0]
         payload = data[18:18 + length]
         if not payload:
             return
-        off = universe * C.UNIVERSE_SIZE
+        off = slot * C.UNIVERSE_SIZE
         n = min(len(payload), C.UNIVERSE_SIZE)
         with self._lock:
             self._buf[off:off + n] = payload[:n]
             self.packets += 1
-            self.last_universe_seen = universe
+            self.last_universe_seen = universe    # univers réel reçu (diagnostic)
 
     def snapshot(self) -> bytearray:
         """Copie cohérente du buffer DMX complet (512×max_universes octets)."""
