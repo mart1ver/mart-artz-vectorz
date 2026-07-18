@@ -2,6 +2,31 @@
 
 ---
 
+## v2.9 — Menu de configuration : réseau, résolution, patch ArtNet (2026-07)
+
+- **Cartes réseau** : le menu choisit l'interface de **réception ArtNet** (bind du
+  socket sur l'IP de la carte) et, best-effort, l'interface d'**émission NDI**
+  (`ndi-config.v1.json` + `NDI_CONFIG_DIR` avant le sender ; non garanti selon la
+  version du SDK). Énumération stdlib pure (`netconfig.py`, `socket` + `ioctl`).
+- **Patch ArtNet configurable** : **univers + adresse de départ**. Le récepteur
+  remappe le 1er univers du patch sur le slot 0 (`ArtNetReceiver(start_universe=…)`)
+  et le décodage applique un `base_offset` (adresse). Le menu **affiche l'univers et
+  l'adresse réels** du 1er spot et du fond (`constants.patch_position`), recalculés
+  en direct.
+- **Résolution** modifiable depuis le menu (préréglages + champs libres).
+- **Application** : carte ArtNet + univers/adresse sont appliqués **à chaud**
+  (« Appliquer ArtNet ») ; résolution + carte NDI via **« Redémarrer moteur »** =
+  relance propre du process (`os.execv`, argv nettoyé pour relire le JSON), ce qui
+  évite une reconstruction GL à chaud.
+- **Config persistée** (`appconfig.py`, JSON dans `~/.config/luxcore/config.json`) :
+  mémorisée d'un lancement à l'autre, validée/bornée. Précédence **flag CLI > fichier
+  > défaut**. Nouvelles options : `--config`, `--artnet-nic`, `--ndi-nic`,
+  `--start-universe`, `--start-addr`.
+- **Tests** : `test_config.py` (réseau + persistance) ; remap univers, `base_offset`
+  et `patch_position` dans `test_dmx.py`.
+
+---
+
 ## v2.8 — Contrôle de lecture vidéo par spot (2026-07)
 
 - **Playhead virtuel par spot** : chaque spot vidéo contrôle sa propre lecture —

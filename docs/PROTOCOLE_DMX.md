@@ -273,6 +273,16 @@ buffer en tranches de 512 octets (u0 → 0-511, u1 → 512-1023, …).
 
 Adresse du 1ᵉʳ canal d'un spot : `spot_base_addr(id) = 32 + id × 23`. Garder `num_spots ≤ 60`.
 
+### Patch configurable (univers + adresse de départ)
+
+Par défaut le patch commence à **(univers 0, adresse 1)**. Le menu (ou `--start-universe` /
+`--start-addr`) permet de le décaler : le récepteur remappe le **1er univers du patch sur
+le slot 0** interne et le décodage applique un **`base_offset` = adresse − 1**. Les
+adresses ci-dessus restent relatives au début du patch ; l'**univers/adresse réels** d'un
+élément se calcule avec `constants.patch_position(local, start_universe, start_addr)` —
+p.ex. défaut : 1er spot → (0, 33), fond (slot 60) → (2, 389). Le menu affiche ces deux
+valeurs en direct.
+
 ---
 
 ## Polices disponibles (mode Texte, canal +22)

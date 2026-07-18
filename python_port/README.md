@@ -33,7 +33,23 @@ Piloter en envoyant de l'ArtNet sur `127.0.0.1:6454` (`demo_scripts/*.py`).
 Aperçu : **`g`** = plein écran (curseur masqué + veille inhibée), **`h`** = menu.
 
 Options : `--width/--height/--fps`, `--no-gui`, `--no-fonts`, `--preview-scale`,
-`--videos-dir`, `--snapshot-dir` (dump PNG périodique).
+`--videos-dir`, `--snapshot-dir` (dump PNG périodique). Config réseau/patch :
+`--config`, `--artnet-nic`, `--ndi-nic`, `--start-universe`, `--start-addr`.
+
+### Menu de configuration (imgui)
+
+Le panneau `h` regroupe, en plus des réglages runtime (fixtures, post-effets) :
+
+- **ArtNet (à chaud)** : carte réseau de réception, **univers + adresse de départ**
+  du patch. Le menu affiche l'**univers/adresse réels du 1er spot et du fond**.
+  Bouton *Appliquer ArtNet* → rebind + re-décodage immédiats.
+- **Démarrage (redémarrage requis)** : **résolution**, carte NDI (best-effort).
+  Bouton *Redémarrer moteur* → relance propre du process avec les nouvelles valeurs.
+- *Sauver config* → JSON persistant (`~/.config/luxcore/config.json`), rechargé au
+  lancement (précédence **flag CLI > fichier > défaut**).
+
+Le patch commence par défaut à (univers 0, adresse 1) ; le récepteur remappe le
+**1er univers du patch sur le slot 0** et le décodage applique un décalage d'adresse.
 
 ## Architecture (`luxcore/`)
 
@@ -41,14 +57,16 @@ Options : `--width/--height/--fps`, `--no-gui`, `--no-fonts`, `--preview-scale`,
 |---|---|
 | `constants.py` | mapping DMX 0-indexé, LUT blend, enums formes/blend |
 | `dmx.py` | décodage 1:1 de `SpotData.update_from_dmx` (BaseState + SpotState) |
-| `artnet.py` | réception UDP multi-univers (thread), compatible `send_multi` |
+| `artnet.py` | réception UDP multi-univers (thread), bind par interface, `start_universe` |
 | `geometry.py` | les 14 formes en polygones-unité + triangulation ear-clip (VBO) |
 | `stroke.py` | ruban de contour (miter) + segment |
 | `text.py` | cache de glyphes 20 polices (mode TEXTE) |
 | `blades.py` | 8 valeurs 16-bit (4 couteaux de cadrage A/B/C/D) |
 | `effects.py` | 9 post-effets portés en GLSL 330 |
 | `video.py` | décodage vidéo PyAV (mode VIDEO = 14, forme+vidéo = 100+forme) |
-| `gui.py` + `imgui_backend.py` | panneau imgui (config + status) |
+| `gui.py` + `imgui_backend.py` | panneau imgui (config réseau/patch/résolution + status) |
+| `netconfig.py` | énumération des cartes réseau + IPv4 (stdlib) |
+| `appconfig.py` | config JSON persistée (réseau, résolution, patch ArtNet) |
 | `engine.py` | pipeline : `fond → spots → effets → blades → blur → NDI` |
 
 Pipeline fidèle à Processing : `do_background → do_spots → do_effects →

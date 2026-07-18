@@ -25,9 +25,19 @@ ArtNet UDP:6454  (artnet.py, thread récepteur)
   → queue → thread ndi_worker → sender.write_video_async  (source NDI "LuxCore")
 ```
 
-- `artnet.py` (`ArtNetReceiver`) reçoit les paquets ArtDMX (opcode `0x5000`) dans un thread dédié, lit le **Port-Address 15-bit standard** et remplit un buffer multi-univers. `snapshot()` renvoie une copie cohérente sous lock.
+- `artnet.py` (`ArtNetReceiver`) reçoit les paquets ArtDMX (opcode `0x5000`) dans un thread dédié, lit le **Port-Address 15-bit standard** et remplit un buffer multi-univers. Le socket peut être **lié à une carte réseau** précise (IP), et le **1er univers du patch** (`start_universe`) est remappé sur le slot 0 du buffer. `snapshot()` renvoie une copie cohérente sous lock.
 - La boucle live est dans `run_engine.py:main()`, cadencée à `1/FPS` via `time.perf_counter`.
-- `dmx.py` décode **1:1** le buffer en un `BaseState` + une liste de `SpotState` + une fixture de fond (portage direct de `SpotData.update_from_dmx`).
+- `dmx.py` décode **1:1** le buffer en un `BaseState` + une liste de `SpotState` + une fixture de fond (portage direct de `SpotData.update_from_dmx`). Un `base_offset` (= adresse ArtNet de départ − 1) décale tout le patch.
+
+### Configuration (menu / JSON)
+
+`run_engine` charge une config JSON (`appconfig`, défaut `~/.config/luxcore/config.json`,
+précédence **flag CLI > fichier > défaut**) : résolution, cartes réseau (ArtNet / NDI),
+**univers + adresse de départ** du patch. Le menu imgui les édite ; carte ArtNet et
+univers/adresse s'appliquent **à chaud**, résolution et carte NDI via une **relance du
+process** (`os.execv`) — plus simple et sûr qu'une reconstruction GL. `netconfig` liste
+les interfaces (stdlib) ; `constants.patch_position` donne l'**univers/adresse réels**
+d'un élément (affiché dans le menu pour le 1er spot et le fond).
 
 ### Tailles globales (constants.py)
 
@@ -175,10 +185,12 @@ La **rafale** (mode 13, `_sunburst`, outer 0.5 / inner 0.17, une pointe en haut)
 | `blades.py` | 4 quads noirs de cadrage (A/B/C/D) depuis 8 valeurs 16-bit, `blade_is_active` |
 | `stroke.py` | Ruban de contour (miter, `MITER_LIMIT = 4`) vectorisé numpy + `segment_quad` |
 | `text.py` | `FontCache` : glyphes bitmap RGBA par (police, char), 20 polices triées alphabétiquement |
-| `artnet.py` | `ArtNetReceiver` thread UDP:6454, parse ArtDMX 0x5000, Port-Address 15-bit, buffer multi-univers, `snapshot()` sous lock |
-| `constants.py` | mapping DMX 0-indexé, LUT blend, enums formes/blend, `BG_FIXTURE_SLOT` |
-| `dmx.py` | décodage 1:1 (`BaseState` + `SpotState`, `sel_raw` = +22 brut) |
-| `gui.py` + `imgui_backend.py` | panneau imgui (config + status) |
+| `artnet.py` | `ArtNetReceiver` thread UDP:6454, parse ArtDMX 0x5000, Port-Address 15-bit, **bind par interface** + **`start_universe`** (remap du 1er univers du patch sur le slot 0), buffer multi-univers, `snapshot()` sous lock |
+| `constants.py` | mapping DMX 0-indexé, LUT blend, enums formes/blend, `BG_FIXTURE_SLOT`, `patch_position` (univers/adresse réels) |
+| `dmx.py` | décodage 1:1 (`BaseState` + `SpotState`, `sel_raw` = +22 brut) ; `base_offset` = adresse ArtNet de départ |
+| `gui.py` + `imgui_backend.py` | panneau imgui (config réseau/patch/résolution + status) |
+| `netconfig.py` | énumération des cartes réseau + IPv4 (stdlib `socket`+`ioctl`) |
+| `appconfig.py` | config JSON persistée + validation (résolution, cartes réseau, patch ArtNet) |
 
 ---
 

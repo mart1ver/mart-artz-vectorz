@@ -41,6 +41,7 @@ Installation détaillée du moteur : [`python_port/README.md`](python_port/READM
 | **Texte** | 20 polices TTF chargées au démarrage, un spot par caractère |
 | **Blend** | 10 modes (BLEND, ADD, SUBTRACT, DARKEST, LIGHTEST, DIFFERENCE, EXCLUSION, MULTIPLY, SCREEN, REPLACE), global ou par spot |
 | **Sortie NDI** | UYVY 4:2:2 BT.709, packing GPU, readback PBO triple-bufferisé (1920×1080 @ 60 par défaut), visible dans OBS / vMix / Resolume |
+| **Menu / config** | Carte réseau ArtNet + NDI, résolution, **univers/adresse ArtNet de départ** (patch), config JSON persistée ; menu imgui (`h`) |
 | **Capacité** | 20 fixtures / univers, jusqu'à 9 univers ArtNet |
 
 ---

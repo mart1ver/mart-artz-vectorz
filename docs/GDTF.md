@@ -147,6 +147,11 @@ décodage moteur `raw > 128` : un octet ≤ 128 laisse l'effet OFF.
 - **Base** → adresse **1**
 - **Spot N** → adresse **32 + N × 23 + 1**
 
+> **Décalage du patch.** Ces adresses supposent le patch au départ par défaut
+> (univers 0, adresse 1). Si le moteur démarre ailleurs (menu / `--start-universe`
+> / `--start-addr`), **patcher la console au même endroit** : tout le bloc se décale
+> d'autant. Le menu affiche l'univers/adresse réels du 1er spot et du fond pour vérifier.
+
 La base occupe les 32 premiers canaux de l'univers ; chaque spot est patché 23
 canaux plus loin, l'adresse DMX 1-based ajoutant le **+1** :
 
