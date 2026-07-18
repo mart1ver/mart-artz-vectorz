@@ -8,7 +8,6 @@
 
 ---
 
-## L'ÉTINCELLE
 
 Il y a quatre ans, j'ai récupéré quelques vidéoprojecteurs.
 
@@ -28,28 +27,19 @@ l'autre.
 
 ---
 
-## LE FAIT-MAIN
 
-Je n'ai jamais cherché l'outil qui ferait à ma place.
+J'ai toujours aimé m'exprimer avec des procédés conçus par moi-même : **enfin un
+instrument que je maîtrise à 100 %**, que je peux tailler et faire évoluer au
+fil de mes besoins et de mes idées. Ici, tout répond comme je l'entend.
 
-J'ai toujours aimé m'exprimer avec des procédés conçus par moi-même : un
-instrument que je **maîtrise à 100 %**, que je peux tailler et faire évoluer au
-fil de mes besoins et de mes idées. Ici, chaque octet est de ma main. Rien n'est
-une boîte noire. Le protocole, le décodage, le pixel : tout m'appartient, tout
-répond.
-
-C'est ça, ma liberté. Un moteur qui n'attend la permission de personne.
 
 ---
 
-## LA RÉGRESSION
 
-Le geste que je revendique est une **régression** — et je le dis comme une
-fierté, pas comme un aveu.
+Le geste renendiqué est une **régression**
 
 Le spectateur d'aujourd'hui est dressé par le quotidien : dès qu'un
-vidéoprojecteur s'allume, il attend un **contenu**. Une image. Une vidéo. Un
-écran. Cette attente est devenue un réflexe.
+vidéoprojecteur ou un écran s'allume, il attend un **contenu**. Une image. Une vidéo. Cette attente est devenue un réflexe.
 
 LuxCore la renverse. Le projecteur **régresse vers l'éclairage traditionnel** :
 il redevient un faisceau, une couleur, une géométrie, une lumière — pas un
@@ -60,29 +50,24 @@ d'être un écran : un **instrument de lumière**.
 
 ---
 
-## CE QUE J'AFFIRME
 
-Je ne suis contre personne. Je suis **pour**.
 
-Pour la lumière comme matière, avant l'image.
-Pour l'outil que l'on bâtit soi-même, du protocole au pixel.
-Pour le paquet ArtNet comme une note, la console comme un clavier, le live comme
-un jeu.
-Pour l'instant où l'attente cède — et où le spectateur, un court moment, ne sait
-plus ce qu'il regarde.
+la lumière comme matière, avant l'image.
+l'outil que l'on bâtit soi-même, du protocole au pixel.
+le paquet ArtNet comme une note, la console comme un clavier, le live comme un jeu.
+l'instant où l'attente cède — et où le spectateur, un court moment, ne sait plus ce qu'il regarde.
 
 ---
 
-## L'HORIZON
 
 Ce moteur est un chantier.
 
-Quatre ans déjà, plusieurs encore : un **W.I.P.** assumé, avec de nombreuses
+Quatre ans déjà, plusieurs encore : un W.I.P. assumé, avec de nombreuses
 facettes à tailler et à polir. Il ne sera jamais « fini ». Il grandit avec moi, à
 mesure que mes idées le dépassent — et c'est très bien ainsi. Un instrument
 vivant n'a pas de version finale.
 
 ---
 
-*Martin Vert — seul auteur et créateur.*
-*LuxCore DMX Engine — le vidéoprojecteur, rendu à la lumière.*
+*Martin Vert*
+
